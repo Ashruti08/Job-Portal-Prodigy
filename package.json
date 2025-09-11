@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@clerk/express": "^1.7.30",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.7.0",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2"
+  }
+}
