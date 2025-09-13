@@ -503,13 +503,13 @@ const ApplyJob = () => {
                   <p className="text-gray-600 mb-4">
                     {jobData?.companyId?.description || "Leading company in their industry."}
                   </p>
-                  <a 
+                  {/* <a 
                     href={`/company/${jobData?.companyId?._id}`}
                     className="font-medium flex items-center hover:opacity-80 transition-opacity"
                     style={{ color: '#FF0000' }}
                   >
                     View company profile <FiExternalLink className="ml-1" />
-                  </a>
+                  </a> */}
                 </motion.div>
 
                 {/* Similar Jobs */}

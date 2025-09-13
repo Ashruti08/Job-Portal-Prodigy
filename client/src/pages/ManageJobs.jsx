@@ -9,28 +9,59 @@ import { motion } from "framer-motion";
 
 const ManageJobs = () => {
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState([]); // ✅ fix: start with empty array
+  const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { backendUrl, companyToken } = useContext(AppContext);
 
+  // Debug logging for token
+  useEffect(() => {
+    console.log("=== ManageJobs Debug ===");
+    console.log("companyToken from context:", companyToken);
+    console.log("companyToken type:", typeof companyToken);
+    console.log("localStorage companyToken:", localStorage.getItem('companyToken'));
+    console.log("backendUrl:", backendUrl);
+    console.log("========================");
+  }, [companyToken, backendUrl]);
+
   // Function to fetch company Job Applications
   const fetchCompanyJobs = async () => {
+    console.log("=== fetchCompanyJobs Start ===");
+    console.log("companyToken before request:", companyToken);
+    
     setIsLoading(true);
     try {
+      if (!companyToken) {
+        console.log("No companyToken available, skipping request");
+        toast.error("Please login as a company first");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Making request with headers:", { token: companyToken });
+      
       const { data } = await axios.get(backendUrl + "/api/company/list-jobs", {
         headers: { token: companyToken },
       });
 
+      console.log("API Response:", data);
+
       if (data.success && Array.isArray(data.jobsData)) {
         setJobs(data.jobsData.reverse());
-        console.log(data.jobsData);
+        console.log("Jobs set successfully:", data.jobsData.length);
       } else {
-        setJobs([]); // ✅ ensure jobs is always an array
+        setJobs([]);
         toast.error(data.message || "Failed to fetch jobs");
       }
     } catch (error) {
-      setJobs([]); // ✅ prevent crashes
-      toast.error(error.message);
+      console.error("Error in fetchCompanyJobs:", error);
+      console.error("Error response:", error.response?.data);
+      setJobs([]);
+      
+      if (error.response?.status === 401) {
+        toast.error("Authentication failed. Please login again.");
+      } else {
+        toast.error(error.message || "Failed to fetch jobs");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -39,9 +70,14 @@ const ManageJobs = () => {
   // Function to change Job Visibility
   const changeJobVisiblity = async (id) => {
     try {
+      if (!companyToken) {
+        toast.error("Please login as a company first");
+        return;
+      }
+
       const { data } = await axios.post(
         backendUrl + "/api/company/change-visibility",
-        { id, },
+        { id },
         {
           headers: { token: companyToken },
         }
@@ -53,15 +89,37 @@ const ManageJobs = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error changing visibility:", error);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
   useEffect(() => {
+    console.log("useEffect triggered, companyToken:", companyToken);
     if (companyToken) {
       fetchCompanyJobs();
+    } else {
+      console.log("No companyToken, not fetching jobs");
+      setIsLoading(false);
     }
   }, [companyToken]);
+
+  // Show login message if no token
+  if (!companyToken) {
+    return (
+      <div className="flex items-center justify-center h-[70vh] bg-white rounded-xl shadow-md">
+        <div className="text-center">
+          <p className="text-xl sm:text-2xl text-gray-600 mb-4">Please login as a company first</p>
+          <button 
+            onClick={() => navigate('/company-login')}
+            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            Go to Company Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) return <Loading />;
 

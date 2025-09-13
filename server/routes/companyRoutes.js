@@ -10,35 +10,21 @@ import {
   registerCompany,
 } from "../controller/comapanyController.js";
 import upload from "../config/multer.js";
-import { protectCompany } from "../middleware/authMiddleware.js";
+import { companyAuthMiddleware } from "../middleware/companyAuthMiddleware.js"; // Use company auth instead of Clerk auth
 
 const router = express.Router();
 
-// router.get('/test', (req, res) => {
-//   res.json({ success: true, message: "Company routes are working!" });
-// });
-// Register a company
+// Public routes (no authentication required)
 router.post("/register", upload.single("image"), registerCompany);
-
-// Company Login
 router.post("/login", loginCompany);
 
-// Get company Data
-router.get("/company", protectCompany, getCompanyData);
+// Protected routes (require COMPANY authentication - not Clerk)
 
-// Post a job
-router.post("/post-job", protectCompany, postJob);
-
-// Get Applicants Data
-router.get("/applicants", protectCompany, getCompanyJobApplicants);
-
-// Get company Job List
-router.get("/list-jobs", protectCompany, getCompanyPostedJobs);
-
-// Change Applications Status
-router.post("/change-status", protectCompany, ChangeJobApplicationStatus);
-
-// Change Applications Visiblity
-router.post("/change-visibility", protectCompany, changeVisiblity);
+router.get("/company", companyAuthMiddleware, getCompanyData);
+router.post("/post-job", companyAuthMiddleware, postJob);
+router.get("/applicants", companyAuthMiddleware, getCompanyJobApplicants);
+router.get("/list-jobs", companyAuthMiddleware, getCompanyPostedJobs); // This was failing before
+router.post("/change-status", companyAuthMiddleware, ChangeJobApplicationStatus);
+router.post("/change-visibility", companyAuthMiddleware, changeVisiblity);
 
 export default router;

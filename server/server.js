@@ -11,6 +11,7 @@ import connectCloudinary from './config/cloudinary.js';
 import JobRoutes from './routes/jobRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import { clerkMiddleware } from '@clerk/express';
+import companyAuthMiddleware from './middleware/companyAuthMiddleware.js';
 // Initialize Express
 const app = express();
 
@@ -35,7 +36,18 @@ app.post('/webhooks',clerkWebhooks)
 app.use('/api/company',companyRoutes)
 app.use('/api/jobs', JobRoutes)
 app.use('/api/users', userRoutes)
-
+// Add this to your backend
+app.get('/api/company/resume/:filename', companyAuthMiddleware, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'uploads', filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('File not found');
+  }
+});
 // Start the server
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running on port ${port}`));

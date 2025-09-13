@@ -1,26 +1,23 @@
-// routes/userRoutes.js - Updated with @clerk/express
 import express from "express";
-import { requireAuth } from '@clerk/express';
-import {
-   applyForJob,
-   getUserData,
-   getUserJobApplications,
-   updateUserResume
-} from "../controller/userController.js";
-import upload from "../config/multer.js";
+import { getUserData, applyForJob, getUserJobApplications, updateUserResume } from "../controller/userController.js";
+import { authMiddleware } from "../middleware/authMiddleware.js"; // Import the auth middleware
+import upload from "../config/multer.js"; // Your existing multer middleware
 
-const router = express.Router();
+const userRouter = express.Router();
 
-// Get User Data - PROTECTED
-router.get("/user", requireAuth(), getUserData);
+// Apply authentication middleware to all user routes
+userRouter.use(authMiddleware);
 
-// Apply for a Job - PROTECTED  
-router.post("/apply", requireAuth(), applyForJob);
+// Get user data
+userRouter.get("/user", getUserData);
 
-// Get applied jobs data - PROTECTED
-router.get("/applications", requireAuth(), getUserJobApplications);
+// Apply for a job
+userRouter.post("/apply", applyForJob);
 
-// Update the resume - PROTECTED WITH FILE UPLOAD
-router.post('/update-resume', requireAuth(), upload.single("resume"), updateUserResume);
+// Get user applications
+userRouter.get("/applications", getUserJobApplications);
 
-export default router;
+// Update user resume
+userRouter.post("/update-resume", upload.single("resume"), updateUserResume);
+
+export default userRouter;

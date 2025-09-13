@@ -71,9 +71,7 @@ const Navbar = () => {
               <Link to="/jobcategories" className="hover:text-red-600 transition-colors duration-200">
                 Job Categories
               </Link>
-              <Link to="/jobindustries" className="hover:text-red-600 transition-colors duration-200">
-                Job Industries
-              </Link>
+              
               <Link to="/JobListing" className="hover:text-red-600 transition-colors duration-200">
                 Latest Jobs
               </Link>

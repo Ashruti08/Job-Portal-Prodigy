@@ -6,15 +6,19 @@ import Loading from "../components/Loading";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, FileText, ChevronDown, User, MapPin, Briefcase, MoreHorizontal, Search, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ViewApplications = () => {
   const { backendUrl, companyToken } = useContext(AppContext);
+  const navigate = useNavigate();
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const menuRef = useRef(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const dropdownRef = useRef(null);
 
   const fetchCompanyJobApplications = async () => {
     try {
@@ -24,11 +28,13 @@ const ViewApplications = () => {
       });
 
       if (data.success) {
+        console.log("Fetched applications:", data.applications);
         setApplicants(data.applications.reverse());
       } else {
         toast.error(data.message);
       }
     } catch (error) {
+      console.error("Error fetching applications:", error);
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -37,6 +43,8 @@ const ViewApplications = () => {
 
   const changeJobApplicationStatus = async (id, status) => {
     try {
+      console.log("Changing status for application:", id, "to:", status);
+      
       const { data } = await axios.post(
         `${backendUrl}/api/company/change-status`,
         { id, status },
@@ -44,28 +52,36 @@ const ViewApplications = () => {
       );
 
       if (data.success) {
-        fetchCompanyJobApplications();
+        setApplicants(prevApplicants => 
+          prevApplicants.map(applicant => 
+            applicant._id === id ? { ...applicant, status } : applicant
+          )
+        );
         toast.success(`Application ${status.toLowerCase()} successfully`);
+        setActiveDropdown(null); // Close dropdown after status change
       } else {
+        console.error("Status change failed:", data.message);
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error changing status:", error);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
-  // Fixed resume viewing function
   const handleViewResume = (resumeUrl, applicantName) => {
     if (!resumeUrl) {
       toast.error("Resume not available for this applicant");
       return;
     }
 
-    // Check if the URL is a full URL or needs to be constructed
     let fullUrl = resumeUrl;
     if (!resumeUrl.startsWith('http')) {
-      fullUrl = `${backendUrl}${resumeUrl.startsWith('/') ? '' : '/'}${resumeUrl}`;
+      const cleanUrl = resumeUrl.startsWith('/') ? resumeUrl.substring(1) : resumeUrl;
+      fullUrl = `${backendUrl}/${cleanUrl}`;
     }
+
+    console.log("Opening resume URL:", fullUrl);
 
     try {
       window.open(fullUrl, '_blank', 'noopener,noreferrer');
@@ -75,22 +91,137 @@ const ViewApplications = () => {
     }
   };
 
-  // Function to view applicant profile (if needed)
-  const handleViewProfile = (userId) => {
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return assets.default_avatar || "/default-avatar.png";
+    
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    if (imagePath.startsWith('/')) {
+      return `${backendUrl}${imagePath}`;
+    } else {
+      return `${backendUrl}/${imagePath}`;
+    }
+  };
+
+  const handleViewProfile = (userId, userData) => {
+    console.log("Viewing profile for user:", userId, userData);
+    
     if (!userId) {
       toast.error("User profile not available");
       return;
     }
     
-    // Navigate to user profile page or open in modal
-    // You can implement this based on your routing structure
-    console.log('Viewing profile for user:', userId);
-    // Example: navigate(`/profile/${userId}`);
+    setSelectedProfile(userData);
+    setProfileModalOpen(true);
   };
 
+  const ProfileModal = ({ isOpen, onClose, profile }) => {
+    if (!isOpen || !profile) return null;
+
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-2xl font-bold" style={{ color: '#020330' }}>
+                  Applicant Profile
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-6 mb-6">
+                <img
+                  src={getImageUrl(profile.image, profile.name)}
+                  alt={profile.name || 'User'}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                  onError={(e) => {
+                    const name = profile.name || 'User';
+                    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                    e.target.src = `https://ui-avatars.com/api/?name=${initials}&background=random&size=150`;
+                  }}
+                />
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {profile.name || 'Unknown'}
+                  </h3>
+                  <p className="text-gray-600">{profile.email || 'No email provided'}</p>
+                  {profile.phone && (
+                    <p className="text-gray-600">{profile.phone}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {profile.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className="text-gray-400" />
+                    <span className="text-gray-700">{profile.location}</span>
+                  </div>
+                )}
+                {profile.experience && (
+                  <div className="flex items-center gap-2">
+                    <Briefcase size={16} className="text-gray-400" />
+                    <span className="text-gray-700">{profile.experience} experience</span>
+                  </div>
+                )}
+              </div>
+              
+              {profile.bio && (
+                <div className="mt-4">
+                  <h4 className="font-semibold text-gray-800 mb-2">About</h4>
+                  <p className="text-gray-700">{profile.bio}</p>
+                </div>
+              )}
+              
+              <div className="mt-6 flex gap-3">
+                {profile.resume && (
+                  <button
+                    onClick={() => handleViewResume(profile.resume, profile.name)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors hover:opacity-90"
+                    style={{ backgroundColor: '#FF0000' }}
+                  >
+                    <FileText size={16} />
+                    View Resume
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  };
+
+  // Fixed click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
       }
     };
@@ -107,7 +238,6 @@ const ViewApplications = () => {
     }
   }, [companyToken]);
 
-  // Filter applicants based on search term and status filter
   const filteredApplicants = applicants
     .filter(item => item.jobId && item.userId)
     .filter(applicant => {
@@ -117,23 +247,25 @@ const ViewApplications = () => {
         (applicant.jobId?.location && applicant.jobId.location.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesStatus = filterStatus === "all" || 
-        (filterStatus === "pending" && applicant.status === "pending") ||
-        (filterStatus === "accepted" && applicant.status === "Accepted") ||
-        (filterStatus === "rejected" && applicant.status === "Rejected");
+        (filterStatus === "pending" && (!applicant.status || applicant.status.toLowerCase() === "pending")) ||
+        (filterStatus === "accepted" && applicant.status && applicant.status.toLowerCase() === "accepted") ||
+        (filterStatus === "rejected" && applicant.status && applicant.status.toLowerCase() === "rejected");
       
       return matchesSearch && matchesStatus;
     });
 
   const getStatusBadge = (status) => {
-    switch(status) {
-      case "Accepted":
+    const normalizedStatus = status?.toLowerCase() || "pending";
+    
+    switch(normalizedStatus) {
+      case "accepted":
         return (
           <div className="flex items-center gap-1 bg-emerald-50 text-emerald-600 px-3 py-2 rounded-full text-sm font-medium">
             <Check size={14} />
             <span>Accepted</span>
           </div>
         );
-      case "Rejected":
+      case "rejected":
         return (
           <div className="flex items-center gap-1 bg-red-50 text-red-600 px-3 py-2 rounded-full text-sm font-medium">
             <X size={14} />
@@ -212,7 +344,7 @@ const ViewApplications = () => {
                 }`}
                 style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
               >
-                All
+                All ({applicants.length})
               </button>
               <button 
                 onClick={() => setFilterStatus("pending")}
@@ -223,7 +355,7 @@ const ViewApplications = () => {
                 }`}
                 style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
               >
-                Pending
+                Pending ({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
               </button>
               <button 
                 onClick={() => setFilterStatus("accepted")}
@@ -233,7 +365,7 @@ const ViewApplications = () => {
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                Accepted
+                Accepted ({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
               </button>
               <button 
                 onClick={() => setFilterStatus("rejected")}
@@ -243,7 +375,7 @@ const ViewApplications = () => {
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                Rejected
+                Rejected ({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
               </button>
             </div>
           </div>
@@ -323,22 +455,29 @@ const ViewApplications = () => {
                         <div className="flex items-center gap-3">
                           <div 
                             className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 cursor-pointer hover:border-red-300 transition-colors"
-                            onClick={() => handleViewProfile(applicant.userId?._id)}
+                            onClick={() => handleViewProfile(applicant.userId?._id, applicant.userId)}
                             title="View profile"
                           >
                             <img
                               className="w-full h-full object-cover"
-                              src={applicant.userId?.image || assets.default_avatar}
+                              src={getImageUrl(applicant.userId?.image)}
                               alt={`${applicant.userId?.name || 'Applicant'}'s avatar`}
                               onError={(e) => {
-                                e.target.src = assets.default_avatar;
+                                console.log("Image load error for:", applicant.userId?.image);
+                                e.target.src = assets.default_avatar || "/default-avatar.png";
                               }}
                             />
                           </div>
                           <div>
-                            <div className="font-medium text-gray-800">{applicant.userId?.name || 'Unknown'}</div>
-                            <div className="text-gray-500 text-sm">{applicant.userId?.email || ''}</div>
-                            <div className="text-gray-500 text-sm md:hidden">{applicant.jobId?.title || 'N/A'}</div>
+                            <div className="font-medium text-gray-800">
+                              {applicant.userId?.name || 'Unknown'}
+                            </div>
+                            <div className="text-gray-500 text-sm">
+                              {applicant.userId?.email || 'No email'}
+                            </div>
+                            <div className="text-gray-500 text-sm md:hidden">
+                              {applicant.jobId?.title || 'N/A'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -360,7 +499,7 @@ const ViewApplications = () => {
                             Resume
                           </button>
                           <button
-                            onClick={() => handleViewProfile(applicant.userId?._id)}
+                            onClick={() => handleViewProfile(applicant.userId?._id, applicant.userId)}
                             className="inline-flex items-center gap-2 bg-purple-50 text-purple-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
                           >
                             <Eye size={14} />
@@ -369,10 +508,15 @@ const ViewApplications = () => {
                         </div>
                       </td>
                       <td className="py-4 px-5 relative">
-                        {applicant.status === "pending" ? (
-                          <div className="relative">
+                        {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
+                          <div className="relative" ref={dropdownRef}>
                             <button 
-                              onClick={() => setActiveDropdown(activeDropdown === index ? null : index)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log("Clicking pending button for index:", index);
+                                setActiveDropdown(activeDropdown === index ? null : index);
+                              }}
                               className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90"
                               style={{ backgroundColor: '#FF0000' }}
                             >
@@ -383,27 +527,33 @@ const ViewApplications = () => {
                             <AnimatePresence>
                               {activeDropdown === index && (
                                 <motion.div 
-                                  ref={menuRef}
-                                  initial={{ opacity: 0, y: 10 }}
+                                  initial={{ opacity: 0, y: -10 }}
                                   animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: 10 }}
+                                  exit={{ opacity: 0, y: -10 }}
                                   transition={{ duration: 0.2 }}
-                                  className="absolute right-0 top-full mt-1 z-10 w-36 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden"
+                                  className="absolute right-0 bottom-full mb-1 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+                                  style={{ 
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' 
+                                  }}
                                 >
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log("Accepting application:", applicant._id);
                                       changeJobApplicationStatus(applicant._id, "Accepted");
-                                      setActiveDropdown(null);
                                     }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors"
+                                    className="w-full px-4 py-3 text-left text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
                                   >
                                     <Check size={16} />
                                     Accept
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log("Rejecting application:", applicant._id);
                                       changeJobApplicationStatus(applicant._id, "Rejected");
-                                      setActiveDropdown(null);
                                     }}
                                     className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
                                   >
@@ -425,6 +575,12 @@ const ViewApplications = () => {
             </table>
           </div>
         </motion.div>
+
+        <ProfileModal 
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          profile={selectedProfile}
+        />
       </div>
     </div>
   );
