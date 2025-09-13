@@ -418,7 +418,7 @@ const navigate = useNavigate();
               {/* Job Channels */}
               <div className="mb-8">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-lg text-gray-800">Job Channel</h4>
+                  <h4 className="font-bold text-lg text-gray-800"> Channel</h4>
                   {selectedChannel.length > 0 && (
                     <button 
                       onClick={() => setSelectedChannel([])}
@@ -464,7 +464,7 @@ const navigate = useNavigate();
               {/* Job Categories */}
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-lg text-gray-800">Job Category</h4>
+                  <h4 className="font-bold text-lg text-gray-800"> Category</h4>
                   {selectedJobCategory.length > 0 && (
                     <button 
                       onClick={() => setSelectedJobCategory([])}

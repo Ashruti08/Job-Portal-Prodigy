@@ -407,7 +407,7 @@ const AddJob = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Job Channel
+                     Channel
                   </label>
                   <select
                     value={jobchannel}
@@ -424,7 +424,7 @@ const AddJob = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Job Category
+                   Category
                   </label>
                   <select
                     value={jobcategory}

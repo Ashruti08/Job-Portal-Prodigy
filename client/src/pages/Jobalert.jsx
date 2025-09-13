@@ -82,7 +82,7 @@ const Jobalert = () => {
         </div>
 
         <div className="field-select">
-          <label htmlFor="category">Job category</label>
+          <label htmlFor="category">category</label>
           <div className="form-select">
             <select name="category" id="category" className="civi-select2">
               <option value="">Select an option</option>
