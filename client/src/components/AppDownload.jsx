@@ -118,7 +118,7 @@ const AppDownload = () => {
               transition={{ delay: 0.6 }}
             >
               <Link
-                to="/jobs"
+                to="/joblisting"
                 className="px-8 py-4 text-white font-medium rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 text-center"
                 style={{ backgroundColor: "#FF0000" }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = "#CC0000"}
@@ -128,7 +128,7 @@ const AppDownload = () => {
               </Link>
 
               <Link
-                to="/recruiter-dashboard"
+                to="/dashboard/manage-job"
                 className="px-8 py-4 bg-white hover:bg-gray-50 font-medium rounded-lg shadow-sm border border-gray-300 transition-all duration-300 flex items-center justify-center gap-2"
                 style={{ color: "#FF0000" }}
               >
@@ -154,7 +154,7 @@ const AppDownload = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-gray-900/30 to-transparent"></div>
 
               {/* Floating card element */}
-              <div className="absolute bottom-6 left-6 right-6 bg-white p-4 rounded-xl shadow-lg max-w-xs">
+              {/* <div className="absolute bottom-6 left-6 right-6 bg-white p-4 rounded-xl shadow-lg max-w-xs">
                 <div className="flex items-center mb-2">
                   <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
                     <FiSearch className="text-red-700 w-5 h-5" />
@@ -176,7 +176,7 @@ const AppDownload = () => {
                     Apply now
                   </a>
                 </div>
-              </div>
+              </div> */}
             </div>
           </motion.div>
         </motion.div>

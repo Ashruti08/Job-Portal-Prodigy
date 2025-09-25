@@ -43,63 +43,63 @@ export const clerkWebhooks = async (req, res) => {
         console.log("Processing user.created event");
         console.log("Full data object:", JSON.stringify(data, null, 2));
         
-        // More robust email extraction - handle Clerk's actual structure
+        // More robust email extraction - DON'T use fallback email to avoid duplicates
         const email = data.email_addresses?.[0]?.email_address || 
                      data.primary_email_address || 
                      data.email || 
-                     "user@example.com"; // Fallback
+                     `${data.id}@clerk.user`; // Use unique fallback based on Clerk ID
         
         const firstName = data.first_name || "";
         const lastName = data.last_name || "";
-        const name = `${firstName} ${lastName}`.trim() || data.username || "User";
+        const name = `${firstName} ${lastName}`.trim() || 
+                     data.username || 
+                     `User_${data.id.slice(-8)}`; // Unique name fallback
+        
         const image = data.image_url || 
                      data.profile_image_url || 
-                     "\default-avatar.png"; // Fallback
+                     "/default-avatar.png";
 
         const userData = {
           _id: data.id,
           email: email,
           name: name,
           image: image,
-          resume: "", // Empty string as per your model
+          resume: "",
         };
 
         console.log("Creating user with data:", userData);
 
         try {
-          // Check if user already exists
-          const existingUser = await User.findById(data.id);
-          if (existingUser) {
-            console.log("User already exists, updating instead");
-            const updatedUser = await User.findByIdAndUpdate(data.id, userData, { 
-              new: true, 
-              runValidators: true 
-            });
-            console.log("User updated:", updatedUser);
-          } else {
-            const newUser = await User.create(userData);
-            console.log("User created successfully:", newUser);
-          }
-        } catch (dbError) {
-          console.error("Database error creating user:", dbError);
-          console.error("Error details:", dbError.message);
-          
-          // Try with absolute minimum required data
-          try {
-            const minimalUserData = {
-              _id: data.id,
-              name: name || "User",
-              email: email || "user@example.com",
-              image: "\default-avatar.png",
-              resume: ""
-            };
-            
-            await User.findByIdAndUpdate(data.id, minimalUserData, { 
+          // Use upsert to handle duplicates gracefully
+          const user = await User.findByIdAndUpdate(
+            data.id, 
+            userData, 
+            { 
               upsert: true, 
-              new: true,
-              runValidators: true
-            });
-            console.log("User created with minimal data");
+              new: true, 
+              runValidators: false // Disable validators to avoid issues with fallback data
+            }
+          );
+          console.log("User created/updated successfully:", user._id);
+        } catch (dbError) {
+          console.error("Database error:", dbError);
+          
+          // If there's still an error, try to find and update existing user
+          try {
+            const existingUser = await User.findById(data.id);
+            if (existingUser) {
+              console.log("User already exists, skipping creation");
+            } else {
+              // Last resort - create with minimal data
+              await User.create({
+                _id: data.id,
+                name: `User_${data.id.slice(-8)}`,
+                email: `${data.id}@clerk.user`,
+                image: "/default-avatar.png",
+                resume: ""
+              });
+              console.log("User created with minimal fallback data");
+            }
           } catch (finalError) {
             console.error("Final attempt failed:", finalError);
           }
@@ -112,35 +112,31 @@ export const clerkWebhooks = async (req, res) => {
       case "user.updated": {
         console.log("Processing user.updated event");
         
+        // Only update if we have real email data
         const email = data.email_addresses?.[0]?.email_address || 
-                     data.primary_email_address_id || 
-                     "";
+                     data.primary_email_address_id;
         
         const firstName = data.first_name || "";
         const lastName = data.last_name || "";
-        const name = `${firstName} ${lastName}`.trim() || "User";
-        const image = data.image_url || data.profile_image_url || "";
+        const name = `${firstName} ${lastName}`.trim();
+        const image = data.image_url || data.profile_image_url;
 
-        const userData = {
-          email: email,
-          name: name,
-          image: image,
-        };
+        // Only include fields that have actual values
+        const updateData = {};
+        if (email) updateData.email = email;
+        if (name) updateData.name = name;
+        if (image) updateData.image = image;
 
-        console.log("Updating user with data:", userData);
+        console.log("Updating user with data:", updateData);
 
         try {
-          const updatedUser = await User.findByIdAndUpdate(data.id, userData, { new: true });
-          if (updatedUser) {
-            console.log("User updated successfully");
-          } else {
-            console.log("User not found for update, creating new user");
-            // If user doesn't exist, create them
-            await User.create({
-              _id: data.id,
-              ...userData,
-              resume: ""
-            });
+          if (Object.keys(updateData).length > 0) {
+            const updatedUser = await User.findByIdAndUpdate(data.id, updateData, { new: true });
+            if (updatedUser) {
+              console.log("User updated successfully");
+            } else {
+              console.log("User not found for update");
+            }
           }
         } catch (dbError) {
           console.error("Database error updating user:", dbError);

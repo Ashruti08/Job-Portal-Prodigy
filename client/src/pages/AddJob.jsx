@@ -47,7 +47,7 @@ const AddJob = () => {
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("Bangalore");
   const [designation, setCategory] = useState("Branch Manager");
-  const [level, setLevel] = useState("Junior Level");
+  const [level, setLevel] = useState("Beginner Level");
   const [jobchannel, setJobChannel] = useState("Agency Channel");
   const [jobcategory, setJobCategory] = useState("Equity Broking");
   const [noticeperiod, setNoticeperiod] = useState("Immediate");
@@ -148,7 +148,7 @@ const AddJob = () => {
         setSalary(""); // Reset to empty string
         setLocation("Bangalore");
         setCategory("Branch Manager");
-        setLevel("Junior Level");
+        setLevel("Beginner Level");
         setJobChannel("Agency Channel");
         setJobCategory("Equity Broking");
         setNoticeperiod("Immediate");
@@ -399,7 +399,7 @@ const AddJob = () => {
                     onChange={(e) => setLevel(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
                   >
-                    <option value="Beginner level">Beginner level</option>
+                    <option value="Beginner Level">Beginner Level</option>
                     <option value="Intermediate level">Intermediate level</option>
                     <option value="Senior level">Senior level</option>
                   </select>

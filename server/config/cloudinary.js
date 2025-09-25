@@ -3,10 +3,10 @@ import { v2 as cloudinary } from 'cloudinary';
 const connectCloudinary = async () => {
   try {
     // Debug log to check if env variables are loaded
-    console.log('🔍 Cloudinary Config Check:');
-    console.log('CLOUDINARY_NAME:', process.env.CLOUDINARY_NAME);
-    console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY);
-    console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'Present' : 'Missing');
+    // console.log('🔍 Cloudinary Config Check:');
+    // console.log('CLOUDINARY_NAME:', process.env.CLOUDINARY_NAME ? 'Present' :'Missing');
+    // console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? 'Present':'Missing');
+    // console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'Present' : 'Missing');
 
     if (!process.env.CLOUDINARY_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       throw new Error('Missing Cloudinary environment variables');

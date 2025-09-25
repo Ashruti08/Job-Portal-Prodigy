@@ -85,64 +85,7 @@ const Footer = () => {
                 className="text-xl font-semibold mb-6 pb-2 border-b border-gray-200"
                 style={{ color: "#022030" }}
               >
-                Our Services
-              </h3>
-              <ul className="space-y-3">
-                <li>
-                  <a
-                    href="/"
-                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
-                  >
-                    <span className="text-red-500 mr-2">→</span>
-                    Hiring Solutions
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/"
-                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
-                  >
-                    <span className="text-red-500 mr-2">→</span>
-                    iRecruto Platform
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/"
-                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
-                  >
-                    <span className="text-red-500 mr-2">→</span>
-                    Payroll Processing & Benchmarking
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/"
-                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
-                  >
-                    <span className="text-red-500 mr-2">→</span>
-                    Digital Transformation HR
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/"
-                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
-                  >
-                    <span className="text-red-500 mr-2">→</span>
-                    Talent Acquisition
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 2 - Industries We Serve */}
-            <div>
-              <h3
-                className="text-xl font-semibold mb-6 pb-2 border-b border-gray-200"
-                style={{ color: "#022030" }}
-              >
-                Industries We Serve
+                Sectors We Serve
               </h3>
               <ul className="space-y-3">
                 <li>
@@ -192,6 +135,63 @@ const Footer = () => {
                 </li>
               </ul>
             </div>
+            {/* Column 2 - Industries We Serve */}
+
+            <div>
+              <h3
+                className="text-xl font-semibold mb-6 pb-2 border-b border-gray-200"
+                style={{ color: "#022030" }}
+              >
+                Our Services
+              </h3>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="/"
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
+                  >
+                    <span className="text-red-500 mr-2">→</span>
+                    End to End Recruitment
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/"
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
+                  >
+                    <span className="text-red-500 mr-2">→</span>
+                    Payroll Processing
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/"
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
+                  >
+                    <span className="text-red-500 mr-2">→</span>
+                    Salary Bench Marking
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/"
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
+                  >
+                    <span className="text-red-500 mr-2">→</span>
+                    Training
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/"
+                    className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
+                  >
+                    <span className="text-red-500 mr-2">→</span>
+                    HCM System & Processs Implemention
+                  </a>
+                </li>
+              </ul>
+            </div>
 
             {/* Column 3 - Solutions */}
             <div>
@@ -208,7 +208,7 @@ const Footer = () => {
                     className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
                   >
                     <span className="text-red-500 mr-2">→</span>
-                    End-to-End Recruitment
+                    Career Board & Sourcing
                   </a>
                 </li>
                 <li>
@@ -217,7 +217,7 @@ const Footer = () => {
                     className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
                   >
                     <span className="text-red-500 mr-2">→</span>
-                    Career Boards
+                    HR Payroll Softwate
                   </a>
                 </li>
                 <li>
@@ -226,7 +226,7 @@ const Footer = () => {
                     className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
                   >
                     <span className="text-red-500 mr-2">→</span>
-                    Intelligent Staffing
+                    On Boarding Solution
                   </a>
                 </li>
                 <li>
@@ -235,7 +235,7 @@ const Footer = () => {
                     className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
                   >
                     <span className="text-red-500 mr-2">→</span>
-                    Data-Driven Insights
+                    Learning & Development Solutions
                   </a>
                 </li>
                 <li>
@@ -244,7 +244,7 @@ const Footer = () => {
                     className="text-gray-600 hover:text-red-500 transition-colors duration-300 flex items-center"
                   >
                     <span className="text-red-500 mr-2">→</span>
-                    HR Digital Solutions
+                    Performance Management
                   </a>
                 </li>
               </ul>

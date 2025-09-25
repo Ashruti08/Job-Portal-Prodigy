@@ -22,6 +22,9 @@ const ApplyJob = () => {
   const [isAlreadyApplied, setAlreadyApplied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [similarJobs, setSimilarJobs] = useState([]);
+  const [similarCurrentSlide, setSimilarCurrentSlide] = useState(0);
+const [similarJobsPerSlide] = useState(1);
+
 
   const {
     jobs = [],
@@ -97,6 +100,26 @@ const ApplyJob = () => {
     ).slice(0, 4);
     setSimilarJobs(similar);
   };
+  useEffect(() => {
+  if (similarJobs.length > similarJobsPerSlide) {
+    const totalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
+    
+    const interval = setInterval(() => {
+      setSimilarCurrentSlide((prev) => (prev + 1) % totalSlides);
+    }, 4000); // Auto slide every 4 seconds
+
+    return () => clearInterval(interval);
+  }
+}, [similarJobs.length, similarJobsPerSlide]);
+
+// Calculate total slides
+const similarTotalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
+
+// Function to go to specific slide
+const goToSimilarSlide = (slideIndex) => {
+  setSimilarCurrentSlide(slideIndex);
+};
+
 
   // Handle job application
   const applyHandler = async () => {
@@ -503,33 +526,72 @@ const ApplyJob = () => {
                   <p className="text-gray-600 mb-4">
                     {jobData?.companyId?.description || "Leading company in their industry."}
                   </p>
-                  {/* <a 
+                  { <a 
                     href={`/company/${jobData?.companyId?._id}`}
                     className="font-medium flex items-center hover:opacity-80 transition-opacity"
                     style={{ color: '#FF0000' }}
                   >
                     View company profile <FiExternalLink className="ml-1" />
-                  </a> */}
+                  </a> }
                 </motion.div>
 
-                {/* Similar Jobs */}
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
-                >
-                  <h3 className="text-xl font-bold mb-4" style={{ color: '#020330' }}>Similar Jobs</h3>
-                  <div className="space-y-4">
-                    {similarJobs.length > 0 ? (
-                      similarJobs.map((job) => (
-                        <JobCard key={job._id} job={job} compact />
-                      ))
-                    ) : (
-                      <p className="text-gray-500">No similar jobs found</p>
-                    )}
-                  </div>
-                </motion.div>
+           <motion.div
+  initial={{ y: 20, opacity: 0 }}
+  animate={{ y: 0, opacity: 1 }}
+  transition={{ delay: 0.4 }}
+  className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
+>
+  <h3 className="text-xl font-bold mb-4" style={{ color: '#020330' }}>Similar Jobs</h3>
+  
+  {similarJobs.length > 0 ? (
+    <div className="space-y-4">
+      {/* Slider Container */}
+      <div className="overflow-hidden">
+        <motion.div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{
+            transform: `translateX(-${similarCurrentSlide * 100}%)`
+          }}
+        >
+          {Array.from({ length: similarTotalSlides }, (_, slideIndex) => (
+            <div
+              key={slideIndex}
+              className="w-full flex-shrink-0"
+            >
+              <div className="space-y-4">
+                {similarJobs
+                  .slice(slideIndex * similarJobsPerSlide, (slideIndex + 1) * similarJobsPerSlide)
+                  .map((job) => (
+                    <JobCard key={job._id} job={job} compact />
+                  ))}
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Dot Indicators - Only show if more than 3 jobs */}
+      {similarTotalSlides > 1 && (
+        <div className="flex justify-center gap-2 pt-4">
+          {Array.from({ length: similarTotalSlides }, (_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSimilarSlide(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                similarCurrentSlide === index
+                  ? 'bg-red-500 scale-110'
+                  : 'bg-gray-300 hover:bg-gray-400'
+              }`}
+              aria-label={`Go to similar jobs slide ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  ) : (
+    <p className="text-gray-500">No similar jobs found</p>
+  )}
+</motion.div>
 
                 {/* Quick Apply */}
                 <motion.div

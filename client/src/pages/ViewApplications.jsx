@@ -3,10 +3,12 @@ import { assets } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
 import Loading from "../components/Loading";
+import CandidateDetails from "./CandidateDetails"; // Import the new component
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, FileText, ChevronDown, User, MapPin, Briefcase, MoreHorizontal, Search, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import defaultAvatar from "../assets/default-avatar.png";
 
 const ViewApplications = () => {
   const { backendUrl, companyToken } = useContext(AppContext);
@@ -19,6 +21,17 @@ const ViewApplications = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const dropdownRef = useRef(null);
+
+  if (!companyToken) {
+    return (
+      <div className="flex items-center justify-center h-[70vh] bg-white rounded-xl shadow-md">
+        <div className="text-center">
+          <p className="text-xl sm:text-2xl text-gray-600 mb-4">Please login as a company first</p>
+       
+        </div>
+      </div>
+    );
+  }
 
   const fetchCompanyJobApplications = async () => {
     try {
@@ -92,7 +105,7 @@ const ViewApplications = () => {
   };
 
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return assets.default_avatar || "/default-avatar.png";
+    if (!imagePath) return defaultAvatar;
     
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
@@ -115,107 +128,6 @@ const ViewApplications = () => {
     
     setSelectedProfile(userData);
     setProfileModalOpen(true);
-  };
-
-  const ProfileModal = ({ isOpen, onClose, profile }) => {
-    if (!isOpen || !profile) return null;
-
-    return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-2xl font-bold" style={{ color: '#020330' }}>
-                  Applicant Profile
-                </h2>
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-6 mb-6">
-                <img
-                  src={getImageUrl(profile.image, profile.name)}
-                  alt={profile.name || 'User'}
-                  className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-                  onError={(e) => {
-                    const name = profile.name || 'User';
-                    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                    e.target.src = `https://ui-avatars.com/api/?name=${initials}&background=random&size=150`;
-                  }}
-                />
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    {profile.name || 'Unknown'}
-                  </h3>
-                  <p className="text-gray-600">{profile.email || 'No email provided'}</p>
-                  {profile.phone && (
-                    <p className="text-gray-600">{profile.phone}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {profile.location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} className="text-gray-400" />
-                    <span className="text-gray-700">{profile.location}</span>
-                  </div>
-                )}
-                {profile.experience && (
-                  <div className="flex items-center gap-2">
-                    <Briefcase size={16} className="text-gray-400" />
-                    <span className="text-gray-700">{profile.experience} experience</span>
-                  </div>
-                )}
-              </div>
-              
-              {profile.bio && (
-                <div className="mt-4">
-                  <h4 className="font-semibold text-gray-800 mb-2">About</h4>
-                  <p className="text-gray-700">{profile.bio}</p>
-                </div>
-              )}
-              
-              <div className="mt-6 flex gap-3">
-                {profile.resume && (
-                  <button
-                    onClick={() => handleViewResume(profile.resume, profile.name)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-colors hover:opacity-90"
-                    style={{ backgroundColor: '#FF0000' }}
-                  >
-                    <FileText size={16} />
-                    View Resume
-                  </button>
-                )}
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      </AnimatePresence>
-    );
   };
 
   // Fixed click outside handler
@@ -464,7 +376,8 @@ const ViewApplications = () => {
                               alt={`${applicant.userId?.name || 'Applicant'}'s avatar`}
                               onError={(e) => {
                                 console.log("Image load error for:", applicant.userId?.image);
-                                e.target.src = assets.default_avatar || "/default-avatar.png";
+                                e.target.onerror = null;
+                                e.target.src = defaultAvatar;
                               }}
                             />
                           </div>
@@ -575,8 +488,10 @@ const ViewApplications = () => {
             </table>
           </div>
         </motion.div>
+        
 
-        <ProfileModal 
+        {/* Replace the old ProfileModal with the new CandidateDetails */}
+        <CandidateDetails 
           isOpen={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
           profile={selectedProfile}

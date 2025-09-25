@@ -37,11 +37,11 @@ const testimonials = [
     name: "Mr. Jignesh",
     designation: "Sr. Technical Analyst",
     industry: "Equity Research",
-    text: "The agency was supportive at every step – from resume building to interview prep. Now I’m working as an Equity Research Analyst, which was my dream role.",
+    text: "The agency was supportive at every step – from resume building to interview prep. Now I'm working as an Equity Research Analyst, which was my dream role.",
   },
 ];
 
-const CallToAction = () => {
+const Testimonial = () => {
   const [index, setIndex] = useState(0);
 
   // Auto rotate every 5 seconds
@@ -53,67 +53,117 @@ const CallToAction = () => {
   }, []);
 
   return (
-    <section className="relative px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <img
-          src={CtaBackground}
-          alt="Background"
-          className="object-cover w-full h-full"
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "linear-gradient(to right, rgba(26, 28, 103, 0.7), rgba(255, 0, 0, 0.7))",
-          }}
-        ></div>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+    >
+      {/* Floating container with margin on all sides */}
+      <section className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl">
+        {/* Background with gradient overlay - matching Hero section style */}
+        <div className="absolute inset-0">
+          <img
+            src={CtaBackground}
+            alt="Background"
+            className="w-full h-full object-cover object-center"
+          />
+          <div 
+            className="absolute inset-0 mix-blend-multiply"
+            style={{
+              background: "linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(255, 0, 0, 0.33))"
+            }}
+          ></div>
+        </div>
 
-      {/* Content */}
-      <div className="relative max-w-4xl mx-auto">
-        <div className="px-8 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20 rounded-3xl backdrop-blur-sm bg-white/5 border border-white/10 shadow-2xl text-center">
-          <h2 className="text-3xl font-bold text-white sm:text-4xl mb-8">
-            What People Say <br />
-            <span className="text-red-400">About DE Employmint</span>
-          </h2>
-
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
+        {/* Content */}
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+          <div className="px-8 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20 rounded-3xl backdrop-blur-sm bg-white/5 border border-white/10 shadow-2xl text-center">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -30 }}
-              transition={{ duration: 0.6 }}
-              className="text-white"
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="text-4xl font-bold text-white sm:text-5xl mb-8"
             >
-              <p className="text-lg italic text-red-100 mb-6">
-                “{testimonials[index].text}”
-              </p>
-              <h4 className="text-xl font-semibold text-white">
-                {testimonials[index].name}
-              </h4>
-              <p className="text-sm text-red-200">
-                {testimonials[index].designation} — {testimonials[index].industry}
-              </p>
-            </motion.div>
-          </AnimatePresence>
+              What People Say <br />
+              About DE Employmint
+            </motion.h2>
 
-          {/* Dots Navigation */}
-          <div className="flex justify-center mt-6 gap-2">
-            {testimonials.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIndex(i)}
-                className={`w-3 h-3 rounded-full transition ${
-                  i === index ? "bg-red-500" : "bg-white/40"
-                }`}
-              ></button>
-            ))}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -30 }}
+                transition={{ duration: 0.6 }}
+                className="text-white"
+              >
+                <motion.p
+                  className="text-lg italic text-white/90 mb-6 leading-relaxed"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  "{testimonials[index].text}"
+                </motion.p>
+                <motion.h4
+                  className="text-xl font-semibold text-white mb-2"
+                  style={{ color: "#020330" }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {testimonials[index].name}
+                </motion.h4>
+                <motion.p
+                  className="text-sm"
+                  style={{ color: "#022030 " }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  {testimonials[index].designation} — {testimonials[index].industry}
+                </motion.p>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Enhanced Dots Navigation */}
+            <motion.div
+              className="flex justify-center mt-8 gap-3"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+            >
+              {testimonials.map((_, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => setIndex(i)}
+                  className={`relative w-3 h-3 rounded-full transition-all duration-300 ${
+                    i === index 
+                      ? "bg-white shadow-lg scale-125" 
+                      : "bg-white/40 hover:bg-white/60"
+                  }`}
+                  whileHover={{ scale: i === index ? 1.25 : 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  style={{
+                    backgroundColor: i === index ? "#FF0000" : "rgba(255, 255, 255, 0.4)"
+                  }}
+                >
+                  {i === index && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full"
+                      style={{ backgroundColor: "#FF0000" }}
+                      layoutId="activeDot"
+                      transition={{ type: "spring", damping: 15 }}
+                    />
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </motion.div>
   );
 };
 
-export default CallToAction;
+export default Testimonial;

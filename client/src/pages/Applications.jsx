@@ -1,499 +1,206 @@
-import React, { useContext, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { assets } from "../assets/assets";
-import moment from "moment";
-import Footer from "../components/Footer";
+// Candidate Dashboard Component - EXACT same structure as Company Dashboard
+import React, { useContext, useEffect, useState } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import { useAuth, useUser } from "@clerk/clerk-react";
-import { toast } from "react-toastify";
+import logo from "../assets/DEEmploymint.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, File, Edit, Download, Briefcase, TrendingUp, Calendar, MapPin, Clock, Eye, CheckCircle, XCircle, AlertCircle, User, BarChart3, Home } from "lucide-react";
-
+import { FiUser, FiBriefcase, FiBell,FiHome } from "react-icons/fi";
+import { useClerk } from "@clerk/clerk-react";
 const Applications = () => {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const {signOut}=useClerk();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState("");
+  const { userData, setUserData, userToken, setUserToken } = useContext(AppContext);
 
-  const [isEdit, setIsEdit] = useState(false);
-  const [resume, setResume] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const context = useContext(AppContext);
-  const { backendUrl, userData, userApplications, fetchUserData } = context;
+  useEffect(() => {
+    const path = location.pathname.split("/").pop();
+    setActiveTab(path);
+  }, [location]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
+  useEffect(() => {
+    if (userData) navigate("/applications/my-profile");
+  }, [userData]);
+
+  useEffect(() => {
+    const handleResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const formatTime = date => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+  };
+  
+    const logout = () => {
+    signOut().then(() => {
+      setUserToken(null);
+      localStorage.removeItem("userToken");
+      setUserData(null);
+      navigate("/");
+    }).catch((error) => {
+      console.error("Sign out error:", error);
+      navigate("/");
+    });
   };
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 15
-      }
-    }
+  const handleProfileClick = () => {
+    navigate("/applications/my-profile");
   };
 
-  const updateResume = async () => {
-    try {
-      if (!resume) {
-        toast.error("Please select a resume file.");
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("resume", resume);
-
-      const token = await getToken();
-
-      const response = await fetch(`${backendUrl}/api/users/update-resume`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(data.message);
-        await fetchUserData();
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error("Failed to update resume. Please try again.");
-    }
-
-    setIsEdit(false);
-    setResume(null);
-  };
-
-  const getStatusConfig = (status) => {
-    switch(status) {
-      case "Accepted":
-        return { 
-          bg: "bg-emerald-500/10", 
-          text: "text-emerald-400", 
-          border: "border-emerald-500/20",
-          icon: CheckCircle,
-          glow: "shadow-emerald-500/20"
-        };
-      case "Rejected":
-        return { 
-          bg: "bg-red-500/10", 
-          text: "text-red-400", 
-          border: "border-red-500/20",
-          icon: XCircle,
-          glow: "shadow-red-500/20"
-        };
-      default:
-        return { 
-          bg: "bg-amber-500/10", 
-          text: "text-amber-400", 
-          border: "border-amber-500/20",
-          icon: AlertCircle,
-          glow: "shadow-amber-500/20"
-        };
-    }
-  };
-
-  const getStatusStats = () => {
-    const stats = {
-      total: userApplications?.length || 0,
-      accepted: userApplications?.filter(app => app.status === 'Accepted').length || 0,
-      pending: userApplications?.filter(app => !app.status || app.status === 'Pending' || (app.status !== 'Accepted' && app.status !== 'Rejected')).length || 0,
-      rejected: userApplications?.filter(app => app.status === 'Rejected').length || 0
-    };
-    return stats;
-  };
-
-  const stats = getStatusStats();
-  const filteredApplications = selectedStatus === 'all' 
-    ? userApplications 
-    : userApplications?.filter(app => {
-        if (selectedStatus === 'pending') {
-          return !app.status || app.status === 'Pending' || (app.status !== 'Accepted' && app.status !== 'Rejected');
-        }
-        return app.status?.toLowerCase() === selectedStatus.toLowerCase();
-      }) || [];
+  // Candidate Dashboard Navigation Items
+  const navItems = [
+    { path: "my-profile", label: "My Profile", icon: <FiUser /> },
+    { path: "applied-jobs", label: "Applied Jobs", icon: <FiBriefcase /> },
+    { path: "job-alerts", label: "Job Alerts", icon: <FiBell /> },
+  ];
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Animated background grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20"></div>
-      
-      {/* Floating orbs */}
-      <div className="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse" style={{ backgroundColor: 'rgba(255, 0, 0, 0.1)' }}></div>
-      <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse delay-1000" style={{ backgroundColor: 'rgba(2, 3, 48, 0.1)' }}></div>
-      
-      {/* Home Button */}
-      <motion.button
-        onClick={() => navigate('/')}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed top-4 left-4 z-50 flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-lg"
-      >
-        <Home className="w-4 h-4 mr-2" />
-        Home
-      </motion.button>
-      
-      <motion.div 
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div 
-          variants={cardVariants}
-          className="mb-12 text-center"
-        >
-          <h1 className="text-6xl mt-20 font-bold mb-4" style={{ color: '#020330' }}>
-            Application Dashboard
-          </h1>
-          <p className="text-gray-600 text-lg">Track your career journey with precision</p>
-        </motion.div>
-
-        {/* Stats Grid */}
-        <motion.div 
-          variants={cardVariants}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
-        >
-          {[
-            { label: "Total Applications", value: stats.total, icon: Briefcase, color: "from-gray-600 to-gray-700" },
-            { label: "Accepted", value: stats.accepted, icon: CheckCircle, color: "from-emerald-600 to-emerald-700" },
-            { label: "Pending", value: stats.pending, icon: Clock, color: "from-amber-600 to-amber-700" }
-          ].map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: index * 0.1 + 0.3, type: "spring", stiffness: 100 }}
-              whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="group relative"
-            >
-              <div 
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-xl blur-xl"
-                style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.2), rgba(2, 3, 48, 0.2))' }}
-              ></div>
-              <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-all duration-300 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-600 text-sm font-medium">{stat.label}</p>
-                    <p className="text-3xl font-bold mt-1" style={{ color: '#020330' }}>{stat.value}</p>
-                  </div>
-                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center shadow-lg`}>
-                    <stat.icon className="w-6 h-6 text-white" />
-                  </div>
-                </div>
+    <div className="flex h-screen bg-gradient-to-tr from-[#f5f7fa] via-[#ebedfb] to-[#dce3ff] font-[Poppins]">
+      {/* Sidebar */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.aside
+            initial={{ x: -250, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -250, opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="fixed lg:static left-0 top-0 w-72 h-full bg-white/60 backdrop-blur-md z-50 flex flex-col justify-between border-r border-white/30"
+          >
+            <div className="p-6">
+              <img src={logo} alt="Logo" className="h-16 mb-8 cursor-pointer" onClick={() => navigate("/")} />
+              <div className="space-y-3">
+                  {/* Home Button - Above Add Job */}
+                              <motion.button
+                                onClick={() => navigate('/')}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.95 }}
+                                className=" flex items-center px-4 py-1.5 gap-3 bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800  transition-all duration-200 shadow-lg hover:scale-[1.02]"
+                                  style={{ 
+               
+                 marginBottom:"20px"
                 
-                {/* Animated progress bar */}
-                <div className="mt-4 w-full bg-gray-200 rounded-full h-1.5">
-                  <motion.div 
-                    className="h-1.5 rounded-full"
-                    style={{ 
-                      background: `linear-gradient(to right, #FF0000, #020330)`
-                    }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((stat.value / Math.max(stats.total, 1)) * 100, 100)}%` }}
-                    transition={{ delay: index * 0.1 + 0.8, duration: 1.2, ease: "easeOut" }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Resume Section */}
-        <motion.div
-          variants={cardVariants}
-          whileHover={{ y: -2 }}
-          className="mb-8 group relative"
-        >
-          <div 
-            className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
-          ></div>
-          <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl overflow-hidden shadow-lg">
-            <div 
-              className="absolute top-0 left-0 w-full h-px"
-              style={{ background: 'linear-gradient(to right, transparent, #FF0000, transparent)' }}
-            ></div>
-            
-            <div className="p-6">
-              <div className="flex items-center mb-6">
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 shadow-lg"
-                  style={{ background: " #FF0000" }}
-                >
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold" style={{ color: '#020330' }}>Resume Management</h3>
-                  <p className="text-gray-600">Keep your profile updated</p>
-                </div>
-              </div>
-              
-              <AnimatePresence mode="wait">
-                {isEdit || (userData && !userData.resume) ? (
-                  <motion.div
-                    key="edit"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex flex-wrap gap-4 items-center"
-                  >
-                    <label className="relative cursor-pointer group">
-                      <div className="flex items-center px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 hover:border-gray-400 transition-all duration-200">
-                        <Download className="w-4 h-4 text-gray-600 mr-2 group-hover:text-gray-800 transition-colors" />
-                        <span className="text-gray-600 group-hover:text-gray-800 transition-colors">
-                          {resume ? resume.name : "Select Resume"}
-                        </span>
-                      </div>
-                      <input
-                        type="file"
-                        className="sr-only"
-                        accept="application/pdf"
-                        onChange={(e) => setResume(e.target.files[0])}
-                      />
-                    </label>
-                    
-                    <motion.button
-                      onClick={updateResume}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 shadow-lg"
-                      style={{ 
-                        background: " #FF0000",
-                        boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)'
-                      }}
-                    >
-                      Save Resume
-                    </motion.button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="view"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex flex-wrap gap-4 items-center"
-                  >
-                    <motion.a 
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-medium rounded-lg hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
-                      href={userData?.resume || "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      
-                    >
-                      <Eye className="w-4 h-4 mr-2 "  />
-                      View Resume
-                    </motion.a>
-                    
-                    <motion.button
-                      onClick={() => setIsEdit(true)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex items-center px-6 py-3 bg-gray-100 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800 transition-all duration-200"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Update Resume
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Applications Section */}
-        <motion.div
-          variants={cardVariants}
-          className="group relative"
-        >
-          <div 
-            className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-            style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.1), rgba(2, 3, 48, 0.1))' }}
-          ></div>
-          <div className="relative bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl overflow-hidden shadow-lg">
-            <div 
-              className="absolute top-0 left-0 w-full h-px"
-              style={{ background: 'linear-gradient(to right, transparent, #FF0000, transparent)' }}
-            ></div>
-            
-            <div className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
-                <div className="flex items-center mb-4 lg:mb-0">
-                  <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center mr-4 shadow-lg"
-                    style={{ background: ' #FF0000' }}
-                  >
-                    <BarChart3 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold" style={{ color: '#020330' }}>Application Tracker</h3>
-                    <p className="text-gray-600">Monitor your progress</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {['all', 'accepted', 'pending', 'rejected'].map((status) => (
-                    <motion.button
-                      key={status}
-                      onClick={() => setSelectedStatus(status)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                        selectedStatus === status
-                          ? 'text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
-                      }`}
-                      style={selectedStatus === status ? {
-                        background: ' #FF0000',
-                        boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)'
-                      } : {}}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-
-              <AnimatePresence mode="wait">
-                {filteredApplications?.length > 0 ? (
-                  <motion.div
-                    key="applications"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-3"
-                  >
-                    {filteredApplications.map((job, index) => {
-                      const statusConfig = getStatusConfig(job.status);
-                      const StatusIcon = statusConfig.icon;
-                      
-                      return (
-                        <motion.div
-                          key={job.id || index}
-                          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          whileHover={{ y: -2, scale: 1.01 }}
-                          className="group relative"
-                        >
-                          <div 
-                            className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"
-                            style={{ background: 'linear-gradient(to right, rgba(255, 0, 0, 0.05), rgba(2, 3, 48, 0.05))' }}
-                          ></div>
-                          
-                          <div className="relative flex items-center justify-between p-4 bg-gray-50/50 border border-gray-200 rounded-lg hover:bg-white/80 hover:border-gray-300 transition-all duration-300 shadow-sm hover:shadow-md">
-                            <div className="flex items-center space-x-4 flex-1 min-w-0">
-                              <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
-                                  <img
-                                    className="w-full h-full object-cover"
-                                    src={job.companyId?.image || assets.default_company_icon}
-                                    alt={`${job.companyId?.name || "Company"} Logo`}
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate" style={{ color: '#020330' }}>
-                                  {job.jobId?.title || "N/A"}
-                                </p>
-                                <p className="text-gray-600 text-sm">
-                                  {job.companyId?.name || "Unknown Company"}
-                                </p>
-                                <div className="flex items-center text-xs text-gray-500 mt-1 space-x-4">
-                                  <div className="flex items-center">
-                                    <MapPin className="w-3 h-3 mr-1" />
-                                    {job.jobId?.location || "N/A"}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Calendar className="w-3 h-3 mr-1" />
-                                    {moment(job.date).format("MMM DD, YYYY")}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex-shrink-0">
-                              <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border} border backdrop-blur-sm`}>
-                                <StatusIcon className="w-3 h-3 mr-1.5" />
-                                {job.status || "Pending"}
-                              </span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
+                }} >
+                                <FiHome className="text-lg  " />
+                                <span>Home</span>
+                              </motion.button>
+                {navItems.map(({ path, label, icon }, i) => (
+                  <NavLink
+                    key={i}
+                    to={`/applications/${path}`}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium hover:scale-[1.02] ${
+                        isActive
+                          ? "text-white"
+                          : "text-gray-800 hover:bg-white/20"
+                      }`
+                    }
+                    style={({ isActive }) => ({
+                      backgroundColor: isActive ? "#ff0000" : "transparent"
                     })}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="text-center py-16"
                   >
-                    <motion.div
-                      animate={{ 
-                        y: [0, -10, 0],
-                        rotateY: [0, 180, 360]
-                      }}
-                      transition={{ 
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                      className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-xl"
-                      style={{ background: ' #FF0000' }}
-                    >
-                      <Briefcase className="w-8 h-8 text-white" />
-                    </motion.div>
-                    
-                    <h3 className="text-xl font-semibold mb-2" style={{ color: '#020330' }}>
-                      {selectedStatus === 'all' ? 'No applications yet' : `No ${selectedStatus} applications`}
-                    </h3>
-                    <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                      {selectedStatus === 'all' 
-                        ? 'Start your journey by applying to exciting opportunities'
-                        : `You don't have any ${selectedStatus} applications at the moment`
-                      }
-                    </p>
-                    
-                    <motion.button 
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-6 py-3 text-white font-medium rounded-lg transition-all duration-300 shadow-lg"
-                      style={{ 
-                        background: ' #FF0000',
-                        boxShadow: '0 0 20px rgba(255, 0, 0, 0.25)'
-                      }}
-                    >
-                      Explore Opportunities
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <span className="text-lg">{icon}</span>
+                    <span>{label}</span>
+                  </NavLink>
+                ))}
+                   {/* Logout button stays red */}
+              {/* <button
+                onClick={logout}
+                  whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className=" flex items-center   px-6 py-1.5  font-medium  bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800  transition-all duration-200 shadow-lg hover:scale-[1.02]"
+              style={{ 
+               
+                
+               
+                  marginLeft:"15px",
+                  marginTop:"33px"
+                }} >
+                Logout
+              </button> */}
+              </div>
+             
             </div>
+            
+            <div className="bg-white/50 backdrop-blur-sm p-5 rounded-bl-3xl">
+              <div 
+                className="flex items-center gap-4 cursor-pointer hover:bg-white/20 p-2 rounded-lg transition-all duration-200"
+                onClick={handleProfileClick}
+              >
+                {/* Circle with lighter red background */}
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md"
+                  style={{ backgroundColor: '#ff6666' }}
+                >
+                  {userData?.name?.[0] || "U"}
+                </div>
+
+                {/* Text with custom red shades */}
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#022030' }}>
+                    {userData?.name}
+                  </p>
+                   <p className="text-xs" style={{ color: '#022030' }}>
+                    Candidate Mode
+                  </p> 
+                </div>
+              </div>
+
+              {/* Logout button stays red */}
+              <button
+                onClick={logout}
+                className="mt-4 text-sm text-red-500 hover:underline w-full text-left"
+              >
+                Sign out
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Main Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white/70 backdrop-blur-md shadow px-8 py-5 flex justify-between items-center border-b border-white/20"
+        >
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {activeTab.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "Dashboard"}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">{currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
-        </motion.div>
-      </motion.div>
-      
-      <Footer />
+          <div className="text-right">
+            <p className="text-sm text-gray-600 font-semibold">{getGreeting()},</p>
+            <p className="text-xs text-gray-500">{userData?.name}</p>
+            <p className="text-sm text-gray-400">{formatTime(currentTime)}</p>
+          </div>
+        </motion.header>
+
+        <main className="flex-1 overflow-y-auto px-8 py-6">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="bg-white/70 backdrop-blur-md border border-white/20 rounded-3xl shadow-xl p-6 min-h-[500px]"
+          >
+            <Outlet />
+          </motion.div>
+        </main>
+      </div>
     </div>
   );
 };

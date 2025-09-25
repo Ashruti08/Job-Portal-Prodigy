@@ -24,6 +24,8 @@ export const AppContextProvider = (props) => {
     const [companyData, setCompanyData] = useState(null)
     const [userData,setUserData] = useState(null)
     const [userApplications,setUserApplications] = useState([])
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     // Function to Fetch Jobs data
     const fetchJobs = async () => {
@@ -32,90 +34,92 @@ export const AppContextProvider = (props) => {
 
         if(data.success){
           setJobs(data.data)
-          console.log("Jobs fetched:", data.data?.length || 0);
         }
         else{
           toast.error(data.message)
         }
         
       } catch (error) {
-        console.error('Error fetching jobs:', error);
         toast.error("Failed to fetch jobs")
         setJobs([]);
       }  
     }
 
-    // Function to fetch Company Data
+    // Function to fetch Company Data - merge from both company endpoints
     const fetchCompanyData = async () => {
+        if (!companyToken) return;
+        
         try {
-            const response = await axios.get(backendUrl + '/api/company/company',{
-                headers: {token: companyToken}
-            });
-            const data = response.data;
-            console.log("Company data:", data);
+            // Fetch both company basic info and profile info
+            const [companyResponse, profileResponse] = await Promise.all([
+                axios.get(backendUrl + '/api/company/company', {
+                    headers: { token: companyToken }
+                }),
+                axios.get(`${backendUrl}/api/employer/profile`, {
+                    headers: { token: companyToken }
+                }).catch(() => ({ data: { success: false } })) // Don't fail if profile doesn't exist
+            ]);
 
-            if(data.success){
-                setCompanyData(data.company);
+            let mergedData = {};
+
+            // Get basic company info
+            if (companyResponse.data.success) {
+                mergedData = { ...companyResponse.data.company };
             }
-            else{
-                toast.error(data.message);
+
+            // Merge with profile info (this has the companySize)
+            if (profileResponse.data.success) {
+                mergedData = { ...mergedData, ...profileResponse.data.data };
+            }
+
+            if (Object.keys(mergedData).length > 0) {
+                setCompanyData(mergedData);
+                localStorage.setItem('companyData', JSON.stringify(mergedData));
+            } else {
+                toast.error("Failed to fetch company data");
             }
 
         } catch (error) {
-            console.error('Error fetching company data:', error);
-            toast.error("Failed to fetch company data");
+            if (error.response?.status === 401) {
+                setCompanyToken(null);
+                setCompanyData(null);
+                localStorage.removeItem('companyToken');
+                localStorage.removeItem('companyData');
+                toast.error('Session expired. Please login again.');
+            } else {
+                toast.error("Failed to fetch company data");
+            }
         }
     }
 
-    // FIXED: Function to fetch User Data with proper error handling
     const fetchUserData = useCallback(async () => {
       try {
-        console.log("=== fetchUserData Debug ===");
-        console.log("User loaded:", userLoaded);
-        console.log("Auth loaded:", authLoaded);
-        console.log("User exists:", !!user);
-        
         if (!userLoaded || !authLoaded || !user) {
-          console.log('Prerequisites not met for fetching user data');
           return;
         }
 
         const token = await getToken();
         if (!token) {
-          console.log('No token available');
           setUserData(null);
           setUserApplications([]);
           return;
         }
 
-        console.log('Making request to fetch user data...');
-        console.log('Token length:', token.length);
-
         const {data} = await axios.get(backendUrl + "/api/users/user", {
           headers: {Authorization: `Bearer ${token}`}
         });
-        
-        console.log('User data response:', data);
 
         if(data.success){
-          setUserData(data.user); // FIXED: Now matches backend response
-          console.log('User data set successfully:', data.user);
+          setUserData(data.user);
         } else {
-          console.error('User data fetch failed:', data.message);
           toast.error(data.message);
-          // Don't clear user data on fetch failure, might be temporary
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
-        console.error('Error response:', error.response?.data);
-        
         if (error.response?.status === 401) {
-          console.log('Unauthorized - clearing user data');
           setUserData(null);
           setUserApplications([]);
           toast.error("Please login again");
         } else if (error.response?.status === 500) {
-          console.log('Server error fetching user data');
           toast.error("Server error. Please try again later.");
         } else {
           toast.error("Failed to fetch user data");
@@ -123,46 +127,31 @@ export const AppContextProvider = (props) => {
       }
     }, [backendUrl, getToken, user, userLoaded, authLoaded]);
 
-    // FIXED: Function to fetch User's Applied data with proper error handling
     const fetchUserApplications = useCallback(async () =>{
         try {
-          console.log("=== fetchUserApplications Debug ===");
-          
           if (!userLoaded || !authLoaded || !user) {
-            console.log('Prerequisites not met for fetching applications');
             return;
           }
 
           const token = await getToken()
           if (!token) {
-            console.log('No token available for applications');
             setUserApplications([]);
             return;
           }
-
-          console.log('Fetching user applications...');
 
           const {data} = await axios.get(backendUrl + "/api/users/applications", {
             headers: {Authorization: `Bearer ${token}`}
           });
 
-          console.log('User applications response:', data);
-
           if(data.success){
             setUserApplications(data.applications || [])
-            console.log('Applications set successfully:', data.applications?.length || 0);
           }
           else{
-            console.error('Applications fetch failed:', data.message);
             toast.error(data.message);
           }
 
         } catch (error) {
-          console.error('Error fetching user applications:', error);
-          console.error('Error response:', error.response?.data);
-          
           if (error.response?.status === 401) {
-            console.log('Unauthorized - clearing applications');
             setUserApplications([]);
           } else {
             toast.error("Failed to fetch applications");
@@ -170,68 +159,131 @@ export const AppContextProvider = (props) => {
         }
     }, [backendUrl, getToken, user, userLoaded, authLoaded]);
 
-    // Initial jobs fetch
+    // Initial setup
     useEffect(() => {
         fetchJobs();
-
+        
         const storedCompanyToken = localStorage.getItem('companyToken');
         if (storedCompanyToken) {
-          setCompanyToken(storedCompanyToken);
+            setCompanyToken(storedCompanyToken);
         }
     }, []);
 
-    // Company data management
+    // Company token management - always fetch fresh data when token is available
     useEffect(() => {
         if (companyToken) {
-          fetchCompanyData();
+            fetchCompanyData();
+        } else {
+            setCompanyData(null);
+            localStorage.removeItem('companyData');
         }
     }, [companyToken]);
 
-    useEffect(() => {
-        if (companyData) {
-          const storedCompanyData = JSON.stringify(companyData);
-          localStorage.setItem('companyData', storedCompanyData);
-        }
-    }, [companyData]);
-
-    useEffect(() => {
-        const storedCompanyData = localStorage.getItem('companyData');
-        if (storedCompanyData) {
-          setCompanyData(JSON.parse(storedCompanyData));
-        }
-    }, []);
-
-    // FIXED: User data management with better dependency handling
+    // User data management
     useEffect(() => {
         const handleUserDataFetch = async () => {
           if (userLoaded && authLoaded) {
             if (user) {
-              console.log('User authenticated, fetching data...');
               await fetchUserData();
               await fetchUserApplications();
             } else {
-              console.log('No user found, clearing data...');
               setUserData(null);
               setUserApplications([]);
             }
           }
         };
 
-        // Add a small delay to ensure Clerk is fully initialized
         const timer = setTimeout(handleUserDataFetch, 100);
         return () => clearTimeout(timer);
     }, [user, userLoaded, authLoaded, fetchUserData, fetchUserApplications]);
-
-    // Debug logging
-    useEffect(() => {
-        console.log('=== AppContext State Debug ===');
-        console.log('userLoaded:', userLoaded);
-        console.log('authLoaded:', authLoaded);
-        console.log('user:', user);
-        console.log('userData:', userData);
-        console.log('userApplications:', userApplications?.length || 0);
-    }, [userLoaded, authLoaded, user, userData, userApplications]);
   
+    const updateEmployerProfile = async (profileData) => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const response = await axios.put(`${backendUrl}/api/employer/profile`, profileData, {
+                headers: { token: companyToken }
+            });
+
+            const data = response.data;
+            if (data.success) {
+                setCompanyData(data.data);
+                localStorage.setItem('companyData', JSON.stringify(data.data));
+                toast.success('Profile updated successfully');
+                return { success: true, data: data.data };
+            } else {
+                setError(data.message);
+                toast.error(data.message);
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Error updating profile';
+            
+            if (error.response?.status === 401) {
+                setCompanyToken(null);
+                setCompanyData(null);
+                localStorage.removeItem('companyToken');
+                localStorage.removeItem('companyData');
+                toast.error('Session expired. Please login again.');
+            } else {
+                setError(errorMessage);
+                toast.error(errorMessage);
+            }
+            
+            return { success: false, message: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getEmployerProfile = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const response = await axios.get(`${backendUrl}/api/employer/profile`, {
+                headers: { token: companyToken }
+            });
+
+            const data = response.data;
+            if (data.success) {
+                setCompanyData(data.data);
+                localStorage.setItem('companyData', JSON.stringify(data.data));
+                return { success: true, data: data.data };
+            } else {
+                setError(data.message);
+                toast.error(data.message);
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            const errorMessage = error.response?.data?.message || 'Error fetching profile';
+            
+            if (error.response?.status === 401) {
+                setCompanyToken(null);
+                setCompanyData(null);
+                localStorage.removeItem('companyToken');
+                localStorage.removeItem('companyData');
+                toast.error('Session expired. Please login again.');
+            } else {
+                setError(errorMessage);
+                toast.error(errorMessage);
+            }
+            
+            return { success: false, message: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const logoutEmployer = () => {
+        setCompanyToken(null);
+        setCompanyData(null);
+        localStorage.removeItem('companyToken');
+        localStorage.removeItem('companyData');
+        toast.success('Logged out successfully');
+    };
+
    const value = {
     searchFilter, setSearchFilter,
     setIsSearched, isSearched,
@@ -243,7 +295,13 @@ export const AppContextProvider = (props) => {
     userData, setUserData,
     userApplications, setUserApplications,
     fetchUserData,
-    fetchUserApplications
+    fetchUserApplications,
+    isLoading,
+    error,
+    updateEmployerProfile,
+    getEmployerProfile,
+    fetchCompanyData,
+    logoutEmployer
 }
 
     return (

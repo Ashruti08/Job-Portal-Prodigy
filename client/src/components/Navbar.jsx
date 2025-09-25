@@ -10,7 +10,7 @@ const Navbar = () => {
   const { openSignIn } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
-  const { setShowRecruiterLogin } = useContext(AppContext);
+  const { setShowRecruiterLogin, companyToken } = useContext(AppContext);
   const [scrolled, setScrolled] = useState(false);
 
   // Handle scroll event
@@ -21,6 +21,16 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleRecruiterClick = () => {
+    if (companyToken) {
+      // If company is logged in, go directly to dashboard
+      navigate("/dashboard");
+    } else {
+      // If not logged in, show recruiter login modal
+      setShowRecruiterLogin(true);
+    }
+  };
 
   return (
     <>
@@ -68,7 +78,7 @@ const Navbar = () => {
               <Link to="/" className="hover:text-red-600 transition-colors duration-200">
                 Home
               </Link>
-              <Link to="/jobcategories" className="hover:text-red-600 transition-colors duration-200">
+              <Link to="/JobCategories" className="hover:text-red-600 transition-colors duration-200">
                 Job Categories
               </Link>
               
@@ -113,10 +123,14 @@ const Navbar = () => {
             ) : (
               <>
                 <button
-                  onClick={() => setShowRecruiterLogin(true)}
-                  className="hidden md:block text-sm font-medium text-gray-600 hover:text-red-600 transition-all duration-200 px-4 py-2 rounded-lg hover:bg-red-50"
+                  onClick={handleRecruiterClick}
+                  className={`hidden md:block text-sm font-medium transition-all duration-200 px-4 py-2 rounded-lg ${
+                    companyToken 
+                      ? "bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg" 
+                      : "text-gray-600 hover:text-red-600 hover:bg-red-50"
+                  }`}
                 >
-                  Recruiter Portal
+                  {companyToken ? "Recruiter Dashboard" : "Recruiter Portal"}
                 </button>
                 <button
                   onClick={() => openSignIn()}

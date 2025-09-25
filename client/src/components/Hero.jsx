@@ -35,9 +35,9 @@ const Navigate=useNavigate();
 
   const popularTags = [
     "Developer",
-    "Designer",
+    "Trader",
     "Marketing",
-    "Remote",
+    "Senior Research Analyst",
     "Manager",
   ];
 
@@ -97,9 +97,7 @@ const Navigate=useNavigate();
               transition={{ delay: 0.2, duration: 0.8 }}
               className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6"
             >
-              Find Your <span style={{ color: "#FF0000" }}>Dream Job</span>
-              <br />
-              With DE Employmint
+              Turning Resumes Into <span style={{ color: '#ff0000' }}>Realities</span>
             </motion.h1>
 
             <motion.p
@@ -108,8 +106,10 @@ const Navigate=useNavigate();
               transition={{ delay: 0.4, duration: 0.8 }}
               className="text-xl text-white/90 max-w-2xl mx-auto mb-10"
             >
-              Your next big career move starts here. Explore thousands of job
-              opportunities and take control of your future.
+              Turning <span style={{ color: '#ff0000' }}>Possibilities</span> into{' '}
+      Probabilities and {''}
+      <span style={{ color: '#ff0000' }}>Probabilities</span> into{' '}
+      <span style={{ color: '#ff0000' }}>Success</span>.
             </motion.p>
 
             {/* Stats bar */}
@@ -265,14 +265,14 @@ const Navigate=useNavigate();
       </section>
 
       {/* Trusted companies Section */}
-      <motion.div
+      {/* <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="py-7 px-4 max-w-6xl mx-auto bg-white"
-      >
+      > */}
         {/* Simple header */}
-        <div className="text-center mb-12">
+        {/* <div className="text-center mb-12">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
             Trusted By
           </p>
@@ -282,10 +282,10 @@ const Navigate=useNavigate();
           >
             Innovative companies worldwide
           </h3>
-        </div>
+        </div> */}
 
         {/* Clean logo grid */}
-        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 lg:gap-16">
+        {/* <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 lg:gap-16">
           {companyLogos.map((logo, index) => (
             <motion.div
               key={index}
@@ -310,10 +310,10 @@ const Navigate=useNavigate();
               </div>
             </motion.div>
           ))}
-        </div>
+        </div> */}
 
         {/* Minimal accent */}
-        <motion.div
+        {/* <motion.div
           className="flex justify-center mt-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -324,7 +324,7 @@ const Navigate=useNavigate();
             style={{ backgroundColor: "#FF0000" }}
           ></div>
         </motion.div>
-      </motion.div>
+      </motion.div> */}
     </motion.div>
   );
 };

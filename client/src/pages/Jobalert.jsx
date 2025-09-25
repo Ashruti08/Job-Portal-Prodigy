@@ -1,21 +1,37 @@
 import { useState } from "react";
 import { Home } from "lucide-react";
+import { useContext } from "react";
+import axios from 'axios'; // Make sure you have axios installed
+import { AppContext } from "../context/AppContext";
+import Navbar from "../components/Navbar";
 
-const Jobalert = () => {
+const JobAlert = () => {
+  const [formData, setFormData] = useState({
+    email: '',
+    phone: '',
+    category: '',
+    location: '',
+    level: '',
+    designation: '',
+    frequency: 'daily'
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+ const { backendUrl, companyToken } = useContext(AppContext);
+  
   const handleHomeClick = () => {
-    // Option 1: Simple page reload/redirect (works in any setup)
     window.location.href = '/';
-    
-    // Option 2: For React Router (uncomment if using React Router)
-    // navigate('/');
-    
-    // Option 3: For Next.js (uncomment if using Next.js)
-    // router.push('/');
-    
-    // Option 4: History API (for SPAs)
-    // window.history.pushState(null, null, '/');
   };
- const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle input changes
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   const JobCategories = [
     "Equity Broking",
     "Commodity Broking",
@@ -75,220 +91,280 @@ const Jobalert = () => {
     "Asst. Branch Manager(ABM)"
   ];
 
-  const handleSubmit = (e) => {
+  const locations = [
+    "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata", 
+    "Pune", "Ahmedabad", "Jaipur", "Lucknow", "Kanpur", "Nagpur",
+    "Indore", "Thane", "Bhopal", "Visakhapatnam", "Pimpri-Chinchwad",
+    "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik",
+    // Add more Indian cities as needed
+  ];
+
+  const experiences = [
+    "Beginner Level",
+    "Intermediate level", 
+    "Senior level",
+   
+  ];
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted");
-    // Add your form submission logic here
+    
+    // Basic validation
+    if (!formData.email) {
+      setMessage('Email is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage('');
+
+    try {
+      // Replace with your actual backend URL
+      const data = await axios.post(backendUrl+"/api/job-alerts", formData,
+          { 
+          headers: { 
+            token: companyToken,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      
+      setMessage('Job alert created successfully! You will receive notifications based on your preferences.');
+      
+      // Reset form
+      setFormData({
+        email: '',
+        phone: '',
+        category: '',
+        location: '',
+        level: '',
+        designation: '',
+        frequency: 'daily'
+      });
+      
+
+    } catch (error) {
+      console.error('Error creating job alert:', error);
+      setMessage('Error creating job alert. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+    
   };
-  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 py-8">
-      {/* Home Button */}
-      <button
-        onClick={handleHomeClick}
-        className="fixed top-4 left-4 z-50 flex items-center px-4 py-2 bg-white/90 backdrop-blur-sm border-2 border-red-200 text-red-700 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all duration-300 shadow-lg transform hover:scale-105 active:scale-95"
-      >
-        <Home className="w-4 h-4 mr-2" />
-        Home
-      </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <Navbar/>
       
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-2xl border border-red-100 p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center">
-            <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center mr-3 shadow-lg">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C10.3431 2 9 3.34315 9 5V6.084C6.16263 7.16514 4 9.93319 4 13V17L2 19V20H22V19L20 17V13C20 9.93319 17.8374 7.16514 15 6.084V5C15 3.34315 13.6569 2 12 2Z" fill="white"/>
-                <path d="M8.99999 20C8.99999 21.1046 9.89544 22 10.9999 22H13.0001C14.1046 22 15 21.1046 15 20H8.99999Z" fill="white"/>
-              </svg>
-            </div>
-            <span className="bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
-              Create Job Alert
-            </span>
-          </h2>
+      {/* Hero Section with Form */}
+      <div className="bg-white py-12 px-8">
+        <div className="max-w-6xl mx-auto text-center">
+          {/* Header Content */}
+          <div className="text-center mb-12">
+            <p className="text-sm font-medium tracking-wider mb-4 text-red-600">
+              STAY UPDATED
+            </p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: "#022030" }}>
+               Job alert
+            </h1>
+            {/* <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Get personalized job alerts delivered to your inbox. Never miss out on the perfect opportunity in the financial services industry.
+            </p> */}
+          </div>
 
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Your email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  placeholder="Your email"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 transition-colors duration-200"
-                />
+          {/* Form Card */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 md:p-12">
+            
+            {/* Success/Error Message */}
+            {message && (
+              <div className={`mb-8 p-4 rounded-xl ${
+                message.includes('successfully') 
+                  ? 'bg-green-50 text-green-800 border border-green-200' 
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Contact Information Section */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
+                  Contact Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Email Address <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      required
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Enter your email address"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="Enter your phone number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="tel" className="block text-sm font-medium text-gray-700 mb-2">
-                  Your phone
-                </label>
-                <input
-                  type="tel"
-                  id="tel"
-                  name="phone"
-                  placeholder="Your phone"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 transition-colors duration-200"
-                />
+              {/* Job Preferences Section */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
+                  Job Preferences
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Job Category
+                    </label>
+                    <select
+                      name="category"
+                      id="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                    >
+                      <option value="">Select a category</option>
+                      {JobCategories.map((category, index) => (
+                        <option key={index} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Preferred Location
+                    </label>
+                    <select
+                      name="location"
+                      id="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                    >
+                      <option value="">Select a location</option>
+                      {locations.map((location, index) => (
+                        <option key={index} value={location}>
+                          {location}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="level" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Experience Level
+                    </label>
+                    <select
+                      name="level"
+                      id="level"
+                      value={formData.level}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                    >
+                      <option value="">Select experience level</option>
+                      {experiences.map((exp, index) => (
+                        <option key={index} value={exp}>
+                          {exp}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="designation" className="block text-sm font-semibold text-gray-700 mb-3">
+                      Job Designation
+                    </label>
+                    <select
+                      name="designation"
+                      id="designation"
+                      value={formData.designation}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                    >
+                      <option value="">Select a designation</option>
+                      {JobDesignation.map((designation, index) => (
+                        <option key={index} value={designation}>
+                          {designation}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <select
-                name="category"
-                id="category"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="">Select an option</option>
-                {JobCategories.map((category, index) => (
-                  <option key={index} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Alert Settings Section */}
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">
+                  Alert Settings
+                </h3>
+                <div className="max-w-md">
+                  <label htmlFor="frequency" className="block text-sm font-semibold text-gray-700 mb-3">
+                    Notification Frequency
+                  </label>
+                  <select
+                    name="frequency"
+                    id="frequency"
+                    value={formData.frequency}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
 
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                Location
-              </label>
-              <select
-                name="location"
-                id="location"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="">Select an option</option>
-                <option value="39">Ab e Kamari</option>
-                <option value="42">Ashkasham</option>
-                <option value="49">Aurora</option>
-                <option value="65">Banu</option>
-                <option value="70">Bellevue</option>
-                <option value="71">Berkeley</option>
-                <option value="74">Boston</option>
-                <option value="81">Buffalo</option>
-                <option value="87">California</option>
-                <option value="90">Cambridge</option>
-                <option value="99">Chicago</option>
-                <option value="127">Evanston</option>
-                <option value="128">Everett</option>
-                <option value="147">Hai Chau</option>
-                <option value="157">Joliet</option>
-                <option value="161">Long Beach</option>
-                <option value="165">Long Bien</option>
-                <option value="183">Mountain View</option>
-                <option value="185">New York</option>
-                <option value="191">Newton</option>
-                <option value="210">Rochester</option>
-                <option value="214">Sacramento</option>
-                <option value="217">San Diego</option>
-                <option value="220">San Francisco</option>
-                <option value="222">San Jose</option>
-                <option value="228">Seattle</option>
-                <option value="238">Syracuse</option>
-                <option value="239">Tacoma</option>
-                <option value="246">Thu Duc</option>
-                <option value="261">Worcester</option>
-                <option value="265">Yonkers</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="experience" className="block text-sm font-medium text-gray-700 mb-2">
-                Job experience
-              </label>
-              <select
-                name="experience"
-                id="experience"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="">Select an option</option>
-                <option value="18">1 - 2 Years</option>
-                <option value="21">10+ Years</option>
-                <option value="27">3 - 5 Years</option>
-                <option value="35">6 - 9 Years</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-2">
-                Designation
-              </label>
-              <select
-                name="designation"
-                id="designation"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="">Select an option</option>
-                {JobDesignation.map((designation, index) => (
-                  <option key={index} value={designation}>
-                    {designation}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                Job type
-              </label>
-              <select
-                name="types"
-                id="type"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="">Select an option</option>
-                <option value="143">Full Time</option>
-                <option value="154">Internship</option>
-                <option value="196">Part Time</option>
-                <option value="208">Remote</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-2">
-                Frequency
-              </label>
-              <select
-                name="frequency"
-                id="frequency"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white hover:border-red-300 transition-colors duration-200"
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-
-            <div className="pt-4">
-              <button
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Creating...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2C10.3431 2 9 3.34315 9 5V6.084C6.16263 7.16514 4 9.93319 4 13V17L2 19V20H22V19L20 17V13C20 9.93319 17.8374 7.16514 15 6.084V5C15 3.34315 13.6569 2 12 2Z" fill="#FFFFFF"/>
-                      <path d="M8.99999 20C8.99999 21.1046 9.89544 22 10.9999 22H13.0001C14.1046 22 15 21.1046 15 20H8.99999Z" fill="#FFFFFF"/>
-                    </svg>
-                    <span>Create job alert</span>
-                  </>
-                )}
-              </button>
-            </div>
+              {/* Submit Button */}
+              <div className="pt-6 border-t border-gray-200">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full md:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:hover:shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>Creating Alert...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C10.3431 2 9 3.34315 9 5V6.084C6.16263 7.16514 4 9.93319 4 13V17L2 19V20H22V19L20 17V13C20 9.93319 17.8374 7.16514 15 6.084V5C15 3.34315 13.6569 2 12 2Z" fill="white"/>
+                        <path d="M8.99999 20C8.99999 21.1046 9.89544 22 10.9999 22H13.0001C14.1046 22 15 21.1046 15 20H8.99999Z" fill="white"/>
+                      </svg>
+                      <span>Create Job Alert</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-sm text-gray-500 mt-4">
+                  You'll receive email notifications for new job opportunities matching your preferences.
+                </p>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -296,4 +372,4 @@ const Jobalert = () => {
   );
 };
 
-export default Jobalert;
+export default JobAlert;

@@ -1,6 +1,6 @@
 import moment from "moment";
 import React, { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -11,7 +11,11 @@ const ManageJobs = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { backendUrl, companyToken } = useContext(AppContext);
+  const { backendUrl, companyToken, setShowRecruiterLogin } = useContext(AppContext);
+  
+  // Get context from Dashboard component
+  const outletContext = useOutletContext();
+  const { isLoggedIn, showLoginNotification, setShowRecruiterLogin: setShowRecruiterLoginFromContext } = outletContext || {};
 
   // Debug logging for token
   useEffect(() => {
@@ -20,8 +24,11 @@ const ManageJobs = () => {
     console.log("companyToken type:", typeof companyToken);
     console.log("localStorage companyToken:", localStorage.getItem('companyToken'));
     console.log("backendUrl:", backendUrl);
+    console.log("isLoggedIn:", isLoggedIn);
+    console.log("setShowRecruiterLogin available:", !!setShowRecruiterLogin);
+    console.log("setShowRecruiterLoginFromContext available:", !!setShowRecruiterLoginFromContext);
     console.log("========================");
-  }, [companyToken, backendUrl]);
+  }, [companyToken, backendUrl, isLoggedIn, setShowRecruiterLogin, setShowRecruiterLoginFromContext]);
 
   // Function to fetch company Job Applications
   const fetchCompanyJobs = async () => {
@@ -32,7 +39,6 @@ const ManageJobs = () => {
     try {
       if (!companyToken) {
         console.log("No companyToken available, skipping request");
-        toast.error("Please login as a company first");
         setIsLoading(false);
         return;
       }
@@ -104,18 +110,34 @@ const ManageJobs = () => {
     }
   }, [companyToken]);
 
+  // Updated to use setShowRecruiterLogin instead of navigate
+  const handleLoginClick = () => {
+    console.log("handleLoginClick called");
+    console.log("setShowRecruiterLogin available:", !!setShowRecruiterLogin);
+    console.log("setShowRecruiterLoginFromContext available:", !!setShowRecruiterLoginFromContext);
+    console.log("outletContext:", outletContext);
+    
+    // Try context function first, then fallback to direct context access
+    if (setShowRecruiterLoginFromContext) {
+      console.log("Opening recruiter login modal via context");
+      setShowRecruiterLoginFromContext(true);
+    } else if (setShowRecruiterLogin) {
+      console.log("Opening recruiter login modal via direct context");
+      setShowRecruiterLogin(true);
+    } else {
+      console.log("No setShowRecruiterLogin function available, using fallback");
+      toast.info("Please use the recruiter login option in the navigation");
+      navigate('/');
+    }
+  };
+
   // Show login message if no token
   if (!companyToken) {
     return (
       <div className="flex items-center justify-center h-[70vh] bg-white rounded-xl shadow-md">
         <div className="text-center">
           <p className="text-xl sm:text-2xl text-gray-600 mb-4">Please login as a company first</p>
-          <button 
-            onClick={() => navigate('/company-login')}
-            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
-          >
-            Go to Company Login
-          </button>
+       
         </div>
       </div>
     );
