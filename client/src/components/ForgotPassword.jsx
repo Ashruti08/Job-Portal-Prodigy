@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -6,9 +6,8 @@ import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, X, ArrowLeft } from "lucide-react";
 import { useSignIn } from '@clerk/clerk-react';
-import { useContext } from "react";
 
-const ClerkForgotPassword = ({ onBack, onClose }) => {
+const ForgotPassword = ({ onBack, onClose }) => {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -17,7 +16,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   
-  const { signIn, setActive } = useSignIn();
+  const { signIn, setActive, isLoaded } = useSignIn();
   const { backendUrl, setCompanyToken, setCompanyData } = useContext(AppContext);
   const navigate = useNavigate();
 
@@ -49,20 +48,23 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
       return;
     }
 
-    console.log("=== SENDING RESET EMAIL DEBUG ===");
+    console.log("=== SENDING RESET EMAIL ===");
     console.log("Email:", trimmedEmail);
-    console.log("Backend URL:", backendUrl);
-    console.log("=================================");
+
+    if (!isLoaded || !signIn) {
+      toast.error("Authentication system is loading. Please wait and try again.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // First, check if this email belongs to a recruiter in your backend
-      console.log("🔍 Checking if email is recruiter...");
+      // First verify email is a recruiter in MongoDB
+      console.log("Checking if email is recruiter...");
       const { data } = await axios.post(`${backendUrl}/api/company/check-recruiter-email`, {
         email: trimmedEmail
       });
 
-      console.log("📊 Check recruiter response:", data);
+      console.log("Check recruiter response:", data);
 
       if (!data.success || !data.isRecruiter) {
         toast.error(data.message || "This email is not registered as a recruiter account.");
@@ -70,51 +72,41 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
         return;
       }
 
-      console.log("✅ Email verified as recruiter, proceeding with Clerk reset...");
+      console.log("✅ Email verified as recruiter, sending Clerk reset code...");
 
-      // Check if signIn is available
-      if (!signIn) {
-        console.error("❌ signIn object is not available");
-        toast.error("Authentication service is not available. Please refresh the page and try again.");
-        setIsLoading(false);
-        return;
-      }
-
-      // If it's a recruiter, proceed with Clerk reset
-      const result = await signIn.create({
+      // Send reset code via Clerk
+      await signIn.create({
         strategy: "reset_password_email_code",
         identifier: trimmedEmail,
       });
       
-      console.log("📧 Clerk reset email result:", result);
-      
-      toast.success("Reset code sent to your recruiter email!");
+      console.log("✅ Reset code sent successfully");
+      toast.success("Reset code sent to your email! Check your inbox.");
       setStep(2);
+      
     } catch (error) {
-      console.error("❌ Error sending reset email:", error);
+      console.error("Error sending reset email:", error);
       
       if (error.response?.data?.message) {
         toast.error(error.response.data.message);
       } else if (error.errors && error.errors.length > 0) {
         const clerkError = error.errors[0];
-        console.log("🔍 Clerk error:", clerkError);
+        console.log("Clerk error:", clerkError);
         
         if (clerkError.code === "form_identifier_not_found") {
-          toast.error("This email is not found in our authentication system. Please contact support.");
-        } else if (clerkError.code === "form_password_not_supported") {
-          toast.error("Password reset is not supported for this account type.");
+          toast.error("No Clerk account found for this email. This might be an old account. Please contact support.");
         } else {
           toast.error(clerkError.longMessage || clerkError.message || "Failed to send reset email");
         }
       } else {
-        toast.error("Failed to send reset email. Please try again or contact support.");
+        toast.error("Failed to send reset email. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Step 2: Verify code and reset password
+  // Step 2: Verify code and reset password in BOTH systems
   const handleResetPassword = async (e) => {
     e.preventDefault();
     
@@ -132,95 +124,85 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
     }
 
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(trimmedPassword)) {
-      toast.error("Password must contain at least one uppercase letter, one lowercase letter, and one number");
+      toast.error("Password must contain uppercase, lowercase, and number");
       return;
     }
 
-    console.log("=== RESETTING PASSWORD DEBUG ===");
-    console.log("Code:", trimmedCode);
-    console.log("New password length:", trimmedPassword.length);
+    console.log("=== RESETTING PASSWORD ===");
+    console.log("Code provided:", trimmedCode.length > 0);
     console.log("Password strength:", passwordStrength);
-    console.log("===============================");
 
     setIsLoading(true);
     try {
-      // Check if signIn is available
       if (!signIn) {
-        console.error("❌ signIn object is not available");
-        toast.error("Authentication service is not available. Please refresh the page and try again.");
+        toast.error("Authentication service is not available. Please refresh and try again.");
         setIsLoading(false);
         return;
       }
 
-      console.log("🔄 Attempting password reset with Clerk...");
+      console.log("Step 1: Resetting password in Clerk...");
       
-      // First, attempt to reset the password with Clerk
+      // Step 1: Reset password in Clerk
       const result = await signIn.attemptFirstFactor({
         strategy: "reset_password_email_code",
         code: trimmedCode,
         password: trimmedPassword,
       });
 
-      console.log("📊 Clerk reset result status:", result.status);
-      console.log("📊 Clerk user ID:", result.user?.id);
+      console.log("Clerk reset result status:", result.status);
 
       if (result.status === "complete") {
         console.log("✅ Clerk password reset successful");
         
-        // Verify this is a recruiter account and sync with backend
+        // Step 2: CRITICAL - Sync password with MongoDB backend
         try {
-          console.log("🔍 Verifying recruiter and syncing with backend...");
+          console.log("Step 2: Syncing password with MongoDB...");
           
-          const authResponse = await axios.post(`${backendUrl}/api/company/clerk-auth`, {
+          const syncResponse = await axios.post(`${backendUrl}/api/company/clerk-auth`, {
             email: email.trim(),
-            clerkUserId: result.user?.id,
+            clerkUserId: result.createdUserId,
             newPassword: trimmedPassword
           });
 
-          console.log("📊 Backend auth response:", authResponse.data);
+          console.log("MongoDB sync response:", syncResponse.data);
 
-          if (!authResponse.data.success) {
-            // If backend sync fails, sign out from Clerk
-            try {
-              if (setActive) {
-                await setActive({ session: null });
-              }
-            } catch (signOutError) {
-              console.error("Sign out error:", signOutError);
+          if (!syncResponse.data.success) {
+            // If backend sync fails, warn user but continue
+            console.error("⚠️ MongoDB sync failed");
+            toast.warning("Password reset in Clerk succeeded, but database sync failed. Please contact support.");
+            
+            // Still try to set session
+            if (setActive && result.createdSessionId) {
+              await setActive({ session: result.createdSessionId });
             }
             
-            toast.error(authResponse.data.message || "Account verification failed. This email may not be registered as a recruiter.");
-            onClose();
+            setTimeout(() => {
+              onClose();
+            }, 2000);
             return;
           }
 
-          // Set the active Clerk session
+          // Step 3: Set Clerk session
           if (setActive && result.createdSessionId) {
             await setActive({ session: result.createdSessionId });
+            console.log("✅ Clerk session activated");
           }
           
-          // Set your backend authentication state
-          setCompanyData(authResponse.data.company);
-          setCompanyToken(authResponse.data.token);
-          localStorage.setItem("companyToken", authResponse.data.token);
+          // Step 4: Set MongoDB authentication
+          setCompanyData(syncResponse.data.company);
+          setCompanyToken(syncResponse.data.token);
+          localStorage.setItem("companyToken", syncResponse.data.token);
           
-          toast.success("Password reset successfully! Your password has been synchronized across all systems.");
+          console.log("✅ Password reset complete in both systems");
+          toast.success("Password reset successfully! Redirecting...");
           
-          // Close modal and navigate after a short delay
           setTimeout(() => {
             onClose();
             navigate('/dashboard');
           }, 1500);
           
         } catch (backendError) {
-          console.error("❌ Backend authentication failed:", backendError);
-          
-          // If backend sync fails, at least inform the user
-          if (backendError.response?.data?.message) {
-            toast.error(backendError.response.data.message);
-          } else {
-            toast.warning("Password reset in Clerk successful, but database sync failed. Please try logging in normally.");
-          }
+          console.error("❌ Backend synchronization failed:", backendError);
           
           // Sign out from Clerk on backend failure
           try {
@@ -230,6 +212,10 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
           } catch (signOutError) {
             console.error("Sign out error:", signOutError);
           }
+          
+          const errorMessage = backendError.response?.data?.message || 
+            "Password reset succeeded in authentication, but database sync failed. Please contact support.";
+          toast.error(errorMessage);
           
           setTimeout(() => {
             onClose();
@@ -241,21 +227,22 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
         console.log("❌ Clerk reset incomplete, status:", result.status);
         toast.error("Password reset incomplete. Please try again.");
       }
+      
     } catch (error) {
-      console.error("❌ Error resetting password:", error);
+      console.error("Error resetting password:", error);
       
       let errorMessage = "Failed to reset password. Please try again.";
       
       if (error.errors && error.errors.length > 0) {
         const clerkError = error.errors[0];
-        console.log("🔍 Clerk error details:", clerkError);
+        console.log("Clerk error details:", clerkError);
         
         const errorMsg = clerkError.longMessage || clerkError.message;
         
         if (errorMsg?.toLowerCase().includes('data breach') || errorMsg?.toLowerCase().includes('found in an online')) {
           errorMessage = "This password has been found in a data breach. Please choose a more secure password.";
         } else if (errorMsg?.toLowerCase().includes('too weak') || errorMsg?.toLowerCase().includes('strength')) {
-          errorMessage = "Password is too weak. Please use a stronger password with mixed case, numbers, and symbols.";
+          errorMessage = "Password is too weak. Use uppercase, lowercase, numbers, and symbols.";
         } else if (errorMsg?.toLowerCase().includes('invalid') && errorMsg?.toLowerCase().includes('code')) {
           errorMessage = "Invalid verification code. Please check your email and try again.";
         } else if (errorMsg?.toLowerCase().includes('expired')) {
@@ -263,8 +250,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
           setStep(1);
         } else if (clerkError.code === "form_code_incorrect") {
           errorMessage = "Invalid verification code. Please check your email and try again.";
-        } else if (clerkError.code === "session_exists") {
-          errorMessage = "You are already signed in. Please sign out and try again.";
         } else {
           errorMessage = errorMsg || "Failed to reset password. Please try again.";
         }
@@ -273,12 +258,12 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
       }
       
       toast.error(errorMessage);
+      
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Animation variants
   const overlayVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.3 } }
@@ -300,34 +285,51 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
     }
   };
 
+  // Loading state while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <motion.div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        initial="hidden"
+        animate="visible"
+        variants={overlayVariants}
+      >
+        <div className="bg-white rounded-3xl p-8 shadow-2xl">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mb-4"></div>
+            <p className="text-gray-600">Loading authentication system...</p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
       initial="hidden"
       animate="visible"
       variants={overlayVariants}
     >
       <motion.div 
-        className="relative w-full max-w-md"
+        className="relative w-full max-w-md mx-auto"
         variants={modalVariants}
       >
         <div className="relative overflow-hidden bg-white rounded-3xl shadow-2xl">
           
-          {/* Glass effect top area */}
-          <div className="relative h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
-            <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
-            <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
+          <div className="relative h-24 sm:h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
+            <div className="absolute -top-8 -left-8 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
+            <div className="absolute bottom-0 right-0 w-32 sm:w-40 h-32 sm:h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
             
-            <div className="absolute -bottom-12 flex items-center justify-center w-24 h-24 rounded-full bg-white shadow-lg p-1">
+            <div className="absolute -bottom-8 sm:-bottom-12 flex items-center justify-center w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-white shadow-lg p-1">
               <div className="flex items-center justify-center w-full h-full rounded-full" style={{ backgroundColor: '#FF0000' }}>
-                <Lock size={36} className="text-white" />
+                <Lock size={24} className="sm:size-9 text-white" />
               </div>
             </div>
           </div>
 
-          {/* Header text */}
-          <div className="px-8 pt-16 pb-4">
-            <h1 className="text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
+          <div className="px-6 sm:px-8 pt-12 sm:pt-16 pb-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
               {step === 1 ? "Reset Recruiter Password" : "Enter Reset Code"}
             </h1>
             <p className="text-sm text-center text-gray-500">
@@ -338,9 +340,8 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             </p>
           </div>
 
-          <form onSubmit={step === 1 ? handleSendResetEmail : handleResetPassword} className="px-8 pb-6 space-y-4">
+          <form onSubmit={step === 1 ? handleSendResetEmail : handleResetPassword} className="px-6 sm:px-8 pb-6 space-y-4">
             {step === 1 ? (
-              // Step 1: Email input
               <>
                 <div className="space-y-1.5">
                   <label htmlFor="reset-email" className="text-sm font-medium text-gray-700 ml-1 flex items-center gap-1.5">
@@ -361,17 +362,16 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
                 
                 <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-blue-800">
-                    <strong>Note:</strong> This will only work for recruiter accounts. 
-                    If you're a job seeker, please use the candidate login page.
+                    <strong>Note:</strong> This will only work for recruiter accounts with Clerk authentication. 
+                    If you registered before Clerk integration, please contact support.
                   </p>
                 </div>
               </>
             ) : (
-              // Step 2: Code and new password
               <>
                 <div className="text-center mb-4">
                   <p className="text-sm text-gray-600">
-                    We sent a reset code to: <strong>{email}</strong>
+                    We sent a reset code to: <strong className="break-all">{email}</strong>
                   </p>
                 </div>
 
@@ -399,7 +399,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
                   <div className="relative">
                     <input
                       id="new-password"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
+                      className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
                       style={{ '--tw-ring-color': '#FF0000' }}
                       value={newPassword}
                       onChange={handlePasswordChange}
@@ -417,7 +417,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
                     </button>
                   </div>
                   
-                  {/* Password strength indicator */}
                   {newPassword && (
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center gap-1 h-2">
@@ -476,7 +475,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
               )}
             </button>
 
-            {/* Password strength warning */}
             {step === 2 && newPassword && passwordStrength < 4 && (
               <div className="mt-2">
                 <p className="text-xs text-orange-600 text-center">
@@ -486,9 +484,8 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             )}
           </form>
 
-          {/* Back button */}
           {step === 2 && (
-            <div className="px-8 pb-4">
+            <div className="px-6 sm:px-8 pb-4">
               <button
                 onClick={() => setStep(1)}
                 disabled={isLoading}
@@ -500,10 +497,9 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             </div>
           )}
 
-          {/* Return to login */}
-          <div className="py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
-            <div className="flex justify-center px-8">
-              <p className="text-sm text-gray-600">
+          <div className="py-4 sm:py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
+            <div className="flex justify-center px-6 sm:px-8">
+              <p className="text-sm text-gray-600 text-center">
                 Remember your password? 
                 <button
                   type="button"
@@ -517,14 +513,13 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             </div>
           </div>
 
-          {/* Close button */}
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-white/80 transition-colors rounded-full hover:bg-white/20 hover:text-white focus:outline-none"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 text-white/90 transition-all duration-200 rounded-full hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
             aria-label="Close"
           >
-            <X size={18} />
+            <X size={20} className="sm:size-6" />
           </button>
         </div>
       </motion.div>
@@ -532,4 +527,4 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
   );
 };
 
-export default ClerkForgotPassword;
+export default ForgotPassword;

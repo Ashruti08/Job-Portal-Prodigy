@@ -2,15 +2,15 @@ import express from "express";
 import { 
   getUserData, 
   applyForJob, 
-  getUserJobApplications, 
+  getUserJobApplications,
   updateUserResume,
   updateUserProfile,
   fixUserData,
   forceRefreshUserData,
-  extractResumeData  // Add this import
+  extractResumeData
 } from "../controller/userController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import upload from "../config/multer.js";
+import { uploadResume } from "../config/multer.js";
 
 const userRouter = express.Router();
 
@@ -29,14 +29,16 @@ userRouter.get("/applications", getUserJobApplications);
 // Update user profile
 userRouter.post("/update-profile", updateUserProfile);
 
-// Update user resume
-userRouter.post("/update-resume", upload.single("resume"), updateUserResume);
+// Update user resume (single route - removed duplicate)
+userRouter.post("/update-resume", uploadResume.single("resume"), updateUserResume);
 
-// Extract resume data - ADD THIS LINE
+// Extract resume data
 userRouter.post("/extract-resume-data", extractResumeData);
-// Add this to your userRouter.js
+
+// Fix user data
 userRouter.get("/fix-user-data", fixUserData);
 
-// Add to userRouter.js
+// Force refresh user data
 userRouter.post("/force-refresh", forceRefreshUserData);
+
 export default userRouter;

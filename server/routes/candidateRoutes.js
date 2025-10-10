@@ -101,6 +101,8 @@ router.post('/assessment', async (req, res) => {
       });
     }
 
+    const currentDate = new Date();
+
     if (existingAssessment) {
       console.log('Assessment exists, updating...');
       
@@ -129,7 +131,8 @@ router.post('/assessment', async (req, res) => {
         productKnowledge,
         sourceOfRevenue,
         assessmentStatus: 'completed',
-        lastUpdated: new Date()
+        lastUpdated: currentDate,
+        lastContactedDate: currentDate // Update last contacted date
       };
 
       const updatedAssessment = await CandidateAssessment.findByIdAndUpdate(
@@ -138,7 +141,7 @@ router.post('/assessment', async (req, res) => {
         { new: true, runValidators: true }
       );
 
-      console.log('Assessment updated successfully:', updatedAssessment._id);
+      console.log('Assessment updated successfully:');
       
       return res.json({
         success: true,
@@ -146,7 +149,8 @@ router.post('/assessment', async (req, res) => {
         data: {
           id: updatedAssessment._id,
           candidateName: updatedAssessment.candidateName,
-          lastUpdated: updatedAssessment.lastUpdated
+          lastUpdated: updatedAssessment.lastUpdated,
+          lastContactedDate: updatedAssessment.lastContactedDate
         }
       });
     }
@@ -177,11 +181,12 @@ router.post('/assessment', async (req, res) => {
       softwares,
       productKnowledge,
       sourceOfRevenue,
-      assessmentStatus: 'completed'
+      assessmentStatus: 'completed',
+      lastContactedDate: currentDate
     });
 
     const savedAssessment = await assessment.save();
-    console.log('Assessment saved successfully:', savedAssessment._id);
+    console.log('Assessment saved successfully:');
 
     res.status(201).json({
       success: true,
@@ -189,7 +194,8 @@ router.post('/assessment', async (req, res) => {
       data: {
         id: savedAssessment._id,
         candidateName: savedAssessment.candidateName,
-        submittedAt: savedAssessment.submittedAt
+        submittedAt: savedAssessment.submittedAt,
+        lastContactedDate: savedAssessment.lastContactedDate
       }
     });
 
@@ -251,8 +257,10 @@ router.put('/assessment/email/:email', async (req, res) => {
       assessmentData.candidatePhone = assessmentData.candidatePhone.trim();
     }
     
-    // Update lastUpdated timestamp
-    assessmentData.lastUpdated = new Date();
+    // Update timestamps
+    const currentDate = new Date();
+    assessmentData.lastUpdated = currentDate;
+    assessmentData.lastContactedDate = currentDate; // Update last contacted date
     assessmentData.assessmentStatus = 'completed';
     
     // Find and update the assessment
@@ -280,7 +288,8 @@ router.put('/assessment/email/:email', async (req, res) => {
       data: {
         id: updatedAssessment._id,
         candidateName: updatedAssessment.candidateName,
-        lastUpdated: updatedAssessment.lastUpdated
+        lastUpdated: updatedAssessment.lastUpdated,
+        lastContactedDate: updatedAssessment.lastContactedDate
       }
     });
     
@@ -326,7 +335,7 @@ router.get('/assessments', async (req, res) => {
 
     const assessments = await CandidateAssessment
       .find(filter)
-      .sort({ submittedAt: -1 })
+      .sort({ lastContactedDate: -1 }) // Sort by last contacted date
       .skip(skip)
       .limit(limit)
       .select('-__v');
@@ -386,6 +395,116 @@ router.get('/assessment/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while fetching assessment'
+    });
+  }
+});
+
+// @desc    Download assessment as CSV
+// @route   GET /api/candidates/assessment/:id/download
+// @access  Public
+router.get('/assessment/:id/download', async (req, res) => {
+  try {
+    const assessment = await CandidateAssessment.findById(req.params.id);
+
+    if (!assessment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assessment not found'
+      });
+    }
+
+    // Create CSV headers
+    const headers = [
+      'Candidate Name',
+      'Email',
+      'Phone',
+      'Last Contacted',
+      'Consultancy',
+      'Financial Status',
+      'Daily Commute',
+      'Aspirations',
+      'Money Attitude',
+      'Loyalty Behavior',
+      'Work Style',
+      'Pressure Handling',
+      'Role Clarity Need',
+      'Fear 1',
+      'Motivation 1',
+      'Challenge 1',
+      'Power Language 1',
+      'Company Priority 1',
+      'Targets',
+      'References',
+      'Software Skills',
+      'Product Knowledge',
+      'Source of Revenue',
+      'Assessment Status',
+      'Submitted At'
+    ];
+
+    // Format date for CSV
+    const formatDate = (date) => {
+      return date ? new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }) : '';
+    };
+
+    // Create CSV row
+    const row = [
+      `"${assessment.candidateName || ''}"`,
+      `"${assessment.candidateEmail || ''}"`,
+      `"${assessment.candidatePhone || ''}"`,
+      `"${formatDate(assessment.lastContactedDate || assessment.lastUpdated || assessment.submittedAt)}"`,
+      `"${assessment.consultancy || ''}"`,
+      `"${assessment.financialStatus || ''}"`,
+      `"${assessment.dailyCommute || ''}"`,
+      `"${assessment.aspirations || ''}"`,
+      `"${assessment.moneyAttitude || ''}"`,
+      `"${assessment.loyaltyBehavior || ''}"`,
+      `"${assessment.workStyle || ''}"`,
+      `"${assessment.pressureHandling || ''}"`,
+      `"${assessment.roleClarityNeed || ''}"`,
+      `"${assessment.fear1 || ''}"`,
+      `"${assessment.motivation1 || ''}"`,
+      `"${assessment.challenge1 || ''}"`,
+      `"${assessment.powerLanguage1 || ''}"`,
+      `"${assessment.companyPriority1 || ''}"`,
+      `"${assessment.targets || ''}"`,
+      `"${assessment.references || ''}"`,
+      `"${assessment.softwares || ''}"`,
+      `"${assessment.productKnowledge || ''}"`,
+      `"${assessment.sourceOfRevenue || ''}"`,
+      `"${assessment.assessmentStatus || ''}"`,
+      `"${formatDate(assessment.submittedAt)}"`
+    ];
+
+    // Create CSV content
+    const csvContent = [headers.join(','), row.join(',')].join('\n');
+
+    // Set response headers for CSV download
+    const filename = `${assessment.candidateName || 'candidate'}.csv`;
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.send(csvContent);
+
+  } catch (error) {
+    console.error('Error downloading assessment:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid assessment ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error while downloading assessment'
     });
   }
 });

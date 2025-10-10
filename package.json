@@ -1,9 +1,9 @@
 {
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.899.0",
     "@clerk/express": "^1.7.30",
     "@sendgrid/mail": "^8.1.5",
     "bcryptjs": "^3.0.2",
-    "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
@@ -13,6 +13,7 @@
     "pdf2json": "^3.2.1",
     "pdf2pic": "^3.2.0",
     "pdfjs-dist": "^5.4.149",
+    "resend": "^6.1.2",
     "tesseract.js": "^6.0.1"
   }
 }

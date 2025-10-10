@@ -8,28 +8,29 @@ import {
   loginCompany,
   postJob,
   registerCompany,
-  checkRecruiterEmail,
-  verifyRecruiterReset,
-  clerkAuth,
-  resetPassword,
+ sendResetCode,
+ verifyResetCode,
   getPublicCompanyJobs,
   getPublicCompanyProfile,
-  linkClerkAccount
-} from "../controller/comapanyController.js";
-import upload from "../config/multer.js";
-import { companyAuthMiddleware } from "../middleware/companyAuthMiddleware.js";
 
+} from "../controller/comapanyController.js";
+
+import { companyAuthMiddleware } from "../middleware/companyAuthMiddleware.js";
+import { uploadImage } from '../config/multer.js';
 
 const router = express.Router();
-
+router.post('/register', uploadImage.single('image'), registerCompany);
 // Public routes (no authentication required)
-router.post("/register", upload.single("image"), registerCompany);
+
 router.post("/login", loginCompany);
-router.post('/check-recruiter-email', checkRecruiterEmail);
-router.post('/verify-recruiter-reset', verifyRecruiterReset);
-router.post('/clerk-auth', clerkAuth);
-router.post('/resetPassword', resetPassword);
-router.post('/link-clerk-account', linkClerkAccount);
+router.post("/verify-reset-code", verifyResetCode);
+
+router.post("/send-reset-code",sendResetCode);
+// router.post('/check-recruiter-email', checkRecruiterEmail);
+// router.post('/verify-recruiter-reset', verifyRecruiterReset);
+// router.post('/clerk-auth', clerkAuth);
+// router.post('/resetPassword', resetPassword);
+// router.post('/link-clerk-account', linkClerkAccount);
 
 // Protected routes (require COMPANY authentication)
 router.get("/company", companyAuthMiddleware, getCompanyData);

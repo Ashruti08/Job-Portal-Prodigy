@@ -458,7 +458,7 @@ const JobListing = () => {
   );
 
   return (
-    <div className="container mx-auto flex flex-col lg:flex-row max-lg:space-y-8 py-8 px-4 lg:px-8">
+    <div className="container mx-auto flex flex-col lg:flex-row max-lg:space-y-8 pb-8 px-4 lg:px-8">
       
       {/* FILTER SIDEBAR */}
       <motion.div 
@@ -490,9 +490,9 @@ const JobListing = () => {
         </button>
 
         {/* Spacer to align with job cards section */}
-        <div className="hidden lg:block">
-          <div className="h-4"></div> {/* This creates space to match job cards positioning */}
-        </div>
+         <div className="hidden lg:block">
+          <div className="h-4"></div> 
+        </div> 
 
         {/* Main Filter Container with JobCard styling - aligned with job cards */}
         {showFilter && (

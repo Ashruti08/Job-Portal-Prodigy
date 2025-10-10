@@ -66,11 +66,14 @@ const App = () => {
         {/* Public routes */}
         <Route path="/" element={<Home />} />
         <Route path="/apply-job/:id" element={<ApplyJob />} />
+          <Route path="/job/:id" element={<ApplyJob />} />
         <Route path="/JobAlert" element={<JobAlert />} />
         <Route path="/recruiter-login" element={<RecruiterLogin />} />
         <Route path="/applications" element={<Applications />}>
           <Route path="my-profile" element={<MyProfile />} />
           <Route path="applied-jobs" element={<AppliedJobs />} />
+        
+
           <Route path="job-alerts" element={<JobAlerts />} />
         </Route>
         <Route path="/JobCategories" element={<JobCategories />} />
