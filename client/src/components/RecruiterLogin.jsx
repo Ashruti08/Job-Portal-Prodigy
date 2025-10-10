@@ -8,8 +8,6 @@ import { User, Mail, Lock, Eye, EyeOff, X, Upload, Github, Linkedin, Phone, Arro
 import { useSignIn, useUser } from '@clerk/clerk-react';
 
 // Role-Based Clerk Forgot Password Component
-// Replace the existing ClerkForgotPassword component in your RecruiterLogin.jsx with this updated version
-
 const ClerkForgotPassword = ({ onBack, onClose }) => {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -51,7 +49,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
 
     setIsLoading(true);
     try {
-      // First, check if this email belongs to a recruiter in your backend
       const { data } = await axios.post(`${backendUrl}/api/company/check-recruiter-email`, {
         email
       });
@@ -62,7 +59,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
         return;
       }
 
-      // If it's a recruiter, proceed with Clerk reset
       await signIn.create({
         strategy: "reset_password_email_code",
         identifier: email,
@@ -109,7 +105,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
       });
 
       if (result.status === "complete") {
-        // First verify this is a recruiter account and get company data
         try {
           const backendVerification = await axios.post(`${backendUrl}/api/company/verify-recruiter-reset`, {
             email: email,
@@ -117,7 +112,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
           });
 
           if (!backendVerification.data.success || !backendVerification.data.isRecruiter) {
-            // Sign out immediately if not a recruiter
             try {
               await signIn.signOut();
             } catch (signOutError) {
@@ -129,10 +123,8 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             return;
           }
 
-          // Set the active Clerk session
           await setActive({ session: result.createdSessionId });
           
-          // Set additional metadata to ensure role persistence
           try {
             await result.user?.update({
               publicMetadata: { 
@@ -146,24 +138,20 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             console.warn("Could not update user metadata:", metadataError);
           }
 
-          // **CRITICAL FIX**: Now authenticate with your backend and update password
           try {
-            // Use the email, clerk ID, and new password to authenticate with your backend
             const authResponse = await axios.post(`${backendUrl}/api/company/clerk-auth`, {
               email: email,
               clerkUserId: result.user?.id,
-              newPassword: newPassword  // **This is the key addition**
+              newPassword: newPassword
             });
 
             if (authResponse.data.success) {
-              // Set your backend authentication state
               setCompanyData(authResponse.data.company);
               setCompanyToken(authResponse.data.token);
               localStorage.setItem("companyToken", authResponse.data.token);
               
               toast.success("Password reset successfully! Your backend password has been synchronized.");
               
-              // Close modal and navigate
               setTimeout(() => {
                 onClose();
                 navigate('/dashboard');
@@ -175,7 +163,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
           } catch (backendAuthError) {
             console.error("Backend authentication failed:", backendAuthError);
             
-            // Fallback: Use the company data from verification response
             if (backendVerification.data.companyData) {
               setCompanyData(backendVerification.data.companyData);
               toast.success("Password reset successfully! Please login with your new password next time.");
@@ -193,7 +180,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
         } catch (verificationError) {
           console.error("Recruiter verification failed:", verificationError);
           
-          // Sign out on verification failure
           try {
             await signIn.signOut();
           } catch (signOutError) {
@@ -231,7 +217,6 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
     }
   };
 
-  // ... rest of the component remains the same (overlayVariants, modalVariants, JSX)
   const overlayVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.3 } }
@@ -255,32 +240,32 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
       initial="hidden"
       animate="visible"
       variants={overlayVariants}
     >
       <motion.div 
-        className="relative w-full max-w-md"
+        className="relative w-full max-w-md mx-auto max-h-[95vh] overflow-y-auto"
         variants={modalVariants}
       >
         <div className="relative overflow-hidden bg-white rounded-3xl shadow-2xl">
           
           {/* Glass effect top area */}
-          <div className="relative h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
-            <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
-            <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
+          <div className="relative h-24 sm:h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
+            <div className="absolute -top-8 -left-8 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
+            <div className="absolute bottom-0 right-0 w-32 sm:w-40 h-32 sm:h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
             
-            <div className="absolute -bottom-12 flex items-center justify-center w-24 h-24 rounded-full bg-white shadow-lg p-1">
+            <div className="absolute -bottom-8 sm:-bottom-12 flex items-center justify-center w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-white shadow-lg p-1">
               <div className="flex items-center justify-center w-full h-full rounded-full" style={{ backgroundColor: '#FF0000' }}>
-                <Lock size={36} className="text-white" />
+                <Lock size={24} className="sm:size-9 text-white" />
               </div>
             </div>
           </div>
 
           {/* Header text */}
-          <div className="px-8 pt-16 pb-4">
-            <h1 className="text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
+          <div className="px-6 sm:px-8 pt-12 sm:pt-16 pb-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
               {step === 1 ? "Reset Recruiter Password" : "Enter Reset Code"}
             </h1>
             <p className="text-sm text-center text-gray-500">
@@ -291,7 +276,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             </p>
           </div>
 
-          <form onSubmit={step === 1 ? handleSendResetEmail : handleResetPassword} className="px-8 pb-6 space-y-4">
+          <form onSubmit={step === 1 ? handleSendResetEmail : handleResetPassword} className="px-6 sm:px-8 pb-6 space-y-4">
             {step === 1 ? (
               // Step 1: Email input
               <>
@@ -324,7 +309,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
               <>
                 <div className="text-center mb-4">
                   <p className="text-sm text-gray-600">
-                    We sent a reset code to: <strong>{email}</strong>
+                    We sent a reset code to: <strong className="break-all">{email}</strong>
                   </p>
                 </div>
 
@@ -352,7 +337,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
                   <div className="relative">
                     <input
                       id="new-password"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
+                      className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
                       style={{ '--tw-ring-color': '#FF0000' }}
                       value={newPassword}
                       onChange={handlePasswordChange}
@@ -471,7 +456,7 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
 
           {/* Back button */}
           {step === 2 && (
-            <div className="px-8 pb-4">
+            <div className="px-6 sm:px-8 pb-4">
               <button
                 onClick={() => setStep(1)}
                 disabled={isLoading}
@@ -484,9 +469,9 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
           )}
 
           {/* Return to login */}
-          <div className="py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
-            <div className="flex justify-center px-8">
-              <p className="text-sm text-gray-600">
+          <div className="py-4 sm:py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
+            <div className="flex justify-center px-6 sm:px-8">
+              <p className="text-sm text-gray-600 text-center">
                 Remember your password? 
                 <button
                   type="button"
@@ -500,20 +485,22 @@ const ClerkForgotPassword = ({ onBack, onClose }) => {
             </div>
           </div>
 
-          {/* Close button */}
+          {/* Close button - Made more responsive and visible */}
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-white/80 transition-colors rounded-full hover:bg-white/20 hover:text-white focus:outline-none"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 text-white/90 transition-all duration-200 rounded-full hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
             aria-label="Close"
           >
-            <X size={18} />
+            <X size={20} className="sm:size-6" />
           </button>
         </div>
       </motion.div>
     </motion.div>
   );
 };
+
+// Main RecruiterLogin Component starts here
 const RecruiterLogin = () => {
   const navigate = useNavigate();
   const [state, setState] = useState("Sign Up");
@@ -530,8 +517,7 @@ const RecruiterLogin = () => {
   const dragAreaRef = useRef(null);
 
   const { setShowRecruiterLogin, backendUrl, setCompanyToken, setCompanyData } =
-    useContext(AppContext);
-
+    useContext(AppContext);// Helper functions for password strength and phone formatting
   const checkPasswordStrength = (pass) => {
     let score = 0;
     if (!pass) return score;
@@ -561,6 +547,7 @@ const RecruiterLogin = () => {
     return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
   };
 
+  // Drag and drop handlers for image upload
   const handleDragOver = (e) => {
     e.preventDefault();
     if (dragAreaRef.current) {
@@ -589,6 +576,7 @@ const RecruiterLogin = () => {
     }
   };
 
+  // Main form submission handler
   const onSubmitHandler = async (e) => {
     e.preventDefault();
     
@@ -612,30 +600,26 @@ const RecruiterLogin = () => {
           email,
           password,
         });
-        
 
         if (data.success) {
           if (!data.company.clerkUserId) {
-    try {
-      // Create Clerk user silently
-      const { signUp } = await import('@clerk/clerk-react');
-      const clerkSignUp = await signUp.create({
-        emailAddress: email,
-        password: password,
-      });
-      
-      // Link Clerk ID to company
-      await axios.post(`${backendUrl}/api/company/link-clerk-account`, {
-        email: email,
-        clerkUserId: clerkSignUp.createdUserId
-      });
-      
-      console.log("Clerk account created and linked");
-    } catch (clerkCreationError) {
-      console.log("Clerk account creation failed:", clerkCreationError);
-      // Continue with normal login even if Clerk creation fails
-    }
-  }
+            try {
+              const { signUp } = await import('@clerk/clerk-react');
+              const clerkSignUp = await signUp.create({
+                emailAddress: email,
+                password: password,
+              });
+              
+              await axios.post(`${backendUrl}/api/company/link-clerk-account`, {
+                email: email,
+                clerkUserId: clerkSignUp.createdUserId
+              });
+              
+              console.log("Clerk account created and linked");
+            } catch (clerkCreationError) {
+              console.log("Clerk account creation failed:", clerkCreationError);
+            }
+          }
   
           setCompanyData(data.company);
           setCompanyToken(data.token);
@@ -749,32 +733,32 @@ const RecruiterLogin = () => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4"
       initial="hidden"
       animate="visible"
       variants={overlayVariants}
     >
       <motion.div 
-        className="relative w-full max-w-md"
+        className="relative w-full max-w-md mx-auto max-h-[95vh] overflow-y-auto"
         variants={modalVariants}
       >
         <div className="relative overflow-hidden bg-white rounded-3xl shadow-2xl">
           
           {/* Glass effect top area */}
-          <div className="relative h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
-            <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
-            <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
+          <div className="relative h-24 sm:h-32 flex items-center justify-center" style={{ backgroundColor: '#020330' }}>
+            <div className="absolute -top-8 -left-8 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-red-400 opacity-20 blur-xl"></div>
+            <div className="absolute bottom-0 right-0 w-32 sm:w-40 h-32 sm:h-40 rounded-full bg-red-300 opacity-20 blur-xl"></div>
             
-            <div className="absolute -bottom-12 flex items-center justify-center w-24 h-24 rounded-full bg-white shadow-lg p-1">
+            <div className="absolute -bottom-8 sm:-bottom-12 flex items-center justify-center w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-white shadow-lg p-1">
               <div className="flex items-center justify-center w-full h-full rounded-full" style={{ backgroundColor: '#FF0000' }}>
-                <User size={36} className="text-white" />
+                <User size={24} className="sm:size-9 text-white" />
               </div>
             </div>
           </div>
 
           {/* Header text */}
-          <div className="px-8 pt-16 pb-4">
-            <h1 className="text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
+          <div className="px-6 sm:px-8 pt-12 sm:pt-16 pb-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-center mb-1" style={{ color: '#020330' }}>
               {state === "Login" ? "Welcome Back" : 
                isTextDataSubmited ? "Add Your Brand" : "Join Our Platform"}
             </h1>
@@ -796,7 +780,7 @@ const RecruiterLogin = () => {
               exit="exit"
               variants={formVariants}
               onSubmit={onSubmitHandler}
-              className="px-8 pb-6 space-y-4"
+              className="px-6 sm:px-8 pb-6 space-y-4"
             >
               {state === "Sign Up" && isTextDataSubmited ? (
                 <div className="flex flex-col items-center my-6">
@@ -805,7 +789,7 @@ const RecruiterLogin = () => {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className="relative w-40 h-40 mb-4 overflow-hidden rounded-full border-2 border-dashed border-gray-300 transition-all duration-300 group cursor-pointer hover:border-red-400 bg-gray-50 flex items-center justify-center"
+                    className="relative w-32 h-32 sm:w-40 sm:h-40 mb-4 overflow-hidden rounded-full border-2 border-dashed border-gray-300 transition-all duration-300 group cursor-pointer hover:border-red-400 bg-gray-50 flex items-center justify-center"
                   >
                     {image ? (
                       <div className="relative w-full h-full">
@@ -824,11 +808,11 @@ const RecruiterLogin = () => {
                       </div>
                     ) : (
                       <label htmlFor="logo-upload" className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
-                        <div className="p-4 rounded-full bg-red-50 mb-3" style={{ color: '#FF0000' }}>
-                          <Upload size={28} />
+                        <div className="p-3 sm:p-4 rounded-full bg-red-50 mb-2 sm:mb-3" style={{ color: '#FF0000' }}>
+                          <Upload size={24} className="sm:size-7" />
                         </div>
                         <span className="text-sm font-medium" style={{ color: '#FF0000' }}>Upload logo</span>
-                        <span className="text-xs text-gray-500 mt-1">Click or drag & drop</span>
+                        <span className="text-xs text-gray-500 mt-1 text-center px-2">Click or drag & drop</span>
                         <input
                           id="logo-upload"
                           type="file"
@@ -908,7 +892,7 @@ const RecruiterLogin = () => {
                     <div className="relative">
                       <input
                         id="password"
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
+                        className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition-all placeholder:text-gray-400"
                         style={{ '--tw-ring-color': '#FF0000' }}
                         value={password}
                         onChange={handlePasswordChange}
@@ -1043,9 +1027,9 @@ const RecruiterLogin = () => {
           </AnimatePresence>
 
           {/* Account toggle */}
-          <div className="py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
-            <div className="flex justify-center px-8">
-              <p className="text-sm text-gray-600">
+          <div className="py-4 sm:py-5 bg-gray-50 border-t border-gray-100 rounded-b-3xl">
+            <div className="flex justify-center px-6 sm:px-8">
+              <p className="text-sm text-gray-600 text-center">
                 {state === "Login" ? "Don't have an account? " : "Already have an account? "}
                 <button
                   type="button"
@@ -1059,14 +1043,14 @@ const RecruiterLogin = () => {
             </div>
           </div>
 
-          {/* Close button */}
+          {/* Close button - Made more responsive and visible */}
           <button
             type="button"
             onClick={() => setShowRecruiterLogin(false)}
-            className="absolute top-4 right-4 p-2 text-white/80 transition-colors rounded-full hover:bg-white/20 hover:text-white focus:outline-none"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 text-white/90 transition-all duration-200 rounded-full hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 z-10"
             aria-label="Close"
           >
-            <X size={18} />
+            <X size={20} className="sm:size-6" />
           </button>
         </div>
       </motion.div>

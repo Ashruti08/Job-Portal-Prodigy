@@ -212,6 +212,13 @@ const candidateAssessmentSchema = new mongoose.Schema({
     enum: ['incomplete', 'completed'],
     default: 'incomplete'
   },
+  
+  // Last Contacted Date - tracks when assessment was last submitted/updated
+  lastContactedDate: {
+    type: Date,
+    default: Date.now
+  },
+  
   submittedAt: {
     type: Date,
     default: Date.now
@@ -228,10 +235,12 @@ const candidateAssessmentSchema = new mongoose.Schema({
 candidateAssessmentSchema.index({ candidateEmail: 1 });
 candidateAssessmentSchema.index({ submittedAt: -1 });
 candidateAssessmentSchema.index({ assessmentStatus: 1 });
+candidateAssessmentSchema.index({ lastContactedDate: -1 });
 
-// Pre-save middleware to update lastUpdated
+// Pre-save middleware to update lastUpdated and lastContactedDate
 candidateAssessmentSchema.pre('save', function(next) {
   this.lastUpdated = new Date();
+  this.lastContactedDate = new Date(); // Update last contacted date on every save
   next();
 });
 

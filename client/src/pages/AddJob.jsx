@@ -237,7 +237,7 @@ const AddJob = () => {
         </div>
         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300 ease-in-out"
+            className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-in-out"
             style={{ width: `${(formStep / 3) * 100}%` }}
           ></div>
         </div>
@@ -253,7 +253,7 @@ const AddJob = () => {
         >
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center mb-6">
-              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold mr-3">1</div>
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-semibold mr-3">1</div>
               <h3 className="text-xl font-semibold text-gray-800">Job Basics</h3>
             </div>
             
@@ -269,7 +269,7 @@ const AddJob = () => {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
                   />
                   {title && (
                     <span className="absolute right-3 top-3 text-green-500">
@@ -296,7 +296,7 @@ const AddJob = () => {
                     value={salary}
                     onChange={(e) => setSalary(e.target.value)} // Don't convert here
                     required
-                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all duration-200"
+                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
                   />
                   {salary && Number(salary) > 0 && (
                     <span className="absolute right-3 top-3 text-green-500">
@@ -316,7 +316,7 @@ const AddJob = () => {
               type="button"
               onClick={() => setFormStep(2)}
               disabled={!title || Number(salary) <= 0 || isNaN(Number(salary))}
-              className={`px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 ${
+              className={`px-6 py-3 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 ${
                 (!title || Number(salary) <= 0 || isNaN(Number(salary))) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -337,7 +337,7 @@ const AddJob = () => {
         >
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center mb-6">
-              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold mr-3">2</div>
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-semibold mr-3">2</div>
               <h3 className="text-xl font-semibold text-gray-800">Job Details</h3>
             </div>
             
@@ -363,7 +363,7 @@ const AddJob = () => {
                   <select
                     value={designation}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {Jobdesignation.map((cat, index) => (
                       <option key={index} value={cat}>
@@ -380,7 +380,7 @@ const AddJob = () => {
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {JobLocations.map((loc, index) => (
                       <option key={index} value={loc}>
@@ -397,7 +397,7 @@ const AddJob = () => {
                   <select
                     value={level}
                     onChange={(e) => setLevel(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     <option value="Beginner Level">Beginner Level</option>
                     <option value="Intermediate level">Intermediate level</option>
@@ -412,7 +412,7 @@ const AddJob = () => {
                   <select
                     value={jobchannel}
                     onChange={(e) => setJobChannel(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {JobChannels.map((channel, index) => (
                       <option key={index} value={channel}>
@@ -429,7 +429,7 @@ const AddJob = () => {
                   <select
                     value={jobcategory}
                     onChange={(e) => setJobCategory(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {JobCategories.map((category, index) => (
                       <option key={index} value={category}>
@@ -446,7 +446,7 @@ const AddJob = () => {
                   <select
                     value={noticeperiod}
                     onChange={(e) => setNoticeperiod(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition-all duration-200"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     <option value="Immediate">Immediate</option>
                     <option value="Within a week">Within a week</option>
@@ -471,7 +471,7 @@ const AddJob = () => {
             <button
               type="button"
               onClick={moveToPreview}
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200"
+              className="px-6 py-3 bg-red-600 text-white font-medium rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
             >
               Preview Job
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block ml-2" viewBox="0 0 20 20" fill="currentColor">
@@ -490,7 +490,7 @@ const AddJob = () => {
         >
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center mb-6">
-              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold mr-3">3</div>
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-semibold mr-3">3</div>
               <h3 className="text-xl font-semibold text-gray-800">Preview & Post</h3>
             </div>
             
@@ -500,7 +500,7 @@ const AddJob = () => {
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{title || "Job Title"}</h3>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         {location}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -554,7 +554,7 @@ const AddJob = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg shadow-md hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 ${
+              className={`px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-lg shadow-md hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 ${
                 isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >

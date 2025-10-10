@@ -5,6 +5,7 @@ import Hero from '../components/Hero'
 import AppDownload from '../components/AppDownload'
 import Footer from '../components/Footer'
 import Calltoaction from '../components/Calltoaction'
+import WhatsAppContact from '../components/WhatsAppContact'
 
 const Home = () => {
   
@@ -12,9 +13,10 @@ const Home = () => {
     <div>
       <Navbar />
       <Hero />
-     <JobListing />  
+      <JobListing />  
       <AppDownload />
       <Calltoaction />
+      <WhatsAppContact/>
       <Footer />
     </div>
   )

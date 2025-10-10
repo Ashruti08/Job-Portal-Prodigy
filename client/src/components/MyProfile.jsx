@@ -39,7 +39,7 @@ const MyProfile = () => {
     expectedCTC: '',
     noticePeriod: '',
     totalExperience: '',
-    roleType: '', // Broker Role/Company Role
+    roleType: 'Full Time', // Default to Full Time
     jobChangeStatus: '',
     sector: '',
     category: ''
@@ -166,35 +166,35 @@ const MyProfile = () => {
     };
   };
 
-  // Sector options (from job listing)
+  // Updated Sector options
   const sectorOptions = [
-    'IT/Software',
-    'Banking/Financial Services',
-    'Healthcare',
-    'Education',
-    'Manufacturing',
-    'Retail',
-    'Real Estate',
-    'Consulting',
-    'Media/Entertainment',
-    'Government/Public Sector',
-    'Non-Profit',
-    'Other'
+    'Life Insurance',
+    'General Insurance',
+    'Equity Broking',
+    'Equity Research',
+    'Wealth Management'
   ];
 
-  // Category options (from job listing)
+  // Updated Category options
   const categoryOptions = [
-    'Full-time',
-    'Part-time',
-    'Contract',
-    'Freelance',
-    'Internship',
-    'Remote',
-    'Hybrid'
+    'Equity Broking',
+    'Commodity Broking',
+    'Currency Broking',
+    'Fundamental Research',
+    'Technical Research',
+    'Data Analysis',
+    'Quant Analysis',
+    'Life Insurance',
+    'General Insurance',
+    'Asset Finance',
+    'Loan Companies',
+    'Microfinance MFI',
+    'Housing Finance Co. (HFC)',
+    'Discretionary Portfolio Management',
+    'Non-Discretionary Advisory'
   ];
 
   const maritalStatusOptions = ['Single', 'Married'];
-  const roleTypeOptions = ['Broker Role', 'Company Role'];
   const jobChangeStatusOptions = ['Actively Looking', 'Open to Offers', 'Not Looking'];
 
   useEffect(() => {
@@ -216,7 +216,7 @@ const MyProfile = () => {
         expectedCTC: userData.expectedCTC || '',
         noticePeriod: userData.noticePeriod || '',
         totalExperience: userData.totalExperience || '',
-        roleType: userData.roleType || '',
+        roleType: userData.roleType || 'Full Time', // Default to Full Time
         jobChangeStatus: userData.jobChangeStatus || '',
         sector: userData.sector || '',
         category: userData.category || ''
@@ -266,80 +266,79 @@ const MyProfile = () => {
   };
 
   // Autofill from resume function
-// Updated autofillFromResume function in your MyProfile component
-const autofillFromResume = async () => {
-  if (!userData?.resume) {
-    toast.error("Please upload a resume first to autofill details.");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const token = await getToken();
-    const response = await fetch(`${backendUrl}/api/users/extract-resume-data`, {
-      method: 'POST',
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ resumeUrl: userData.resume })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const autofillFromResume = async () => {
+    if (!userData?.resume) {
+      toast.error("Please upload a resume first to autofill details.");
+      return;
     }
 
-    const data = await response.json();
-    console.log("Autofill API Response:", data); // Debug log
-    
-    if (data.success && data.extractedData) {
-      // Log the extracted data to debug
-      console.log("Extracted Data:", data.extractedData);
-      
-      // Update the profile data state - this was the missing piece
-      setProfileData(prev => {
-        const updatedData = {
-          ...prev,
-          // Only update fields that have non-empty values
-          ...(data.extractedData.firstName && { firstName: data.extractedData.firstName }),
-          ...(data.extractedData.middleName && { middleName: data.extractedData.middleName }),
-          ...(data.extractedData.surname && { surname: data.extractedData.surname }),
-          ...(data.extractedData.emailId && { emailId: data.extractedData.emailId }),
-          ...(data.extractedData.mobileNo && { mobileNo: data.extractedData.mobileNo }),
-          ...(data.extractedData.currentDesignation && { currentDesignation: data.extractedData.currentDesignation }),
-          ...(data.extractedData.totalExperience && { totalExperience: data.extractedData.totalExperience }),
-          ...(data.extractedData.currentDepartment && { currentDepartment: data.extractedData.currentDepartment }),
-          ...(data.extractedData.linkedinId && { linkedinId: data.extractedData.linkedinId }),
-          ...(data.extractedData.city && { city: data.extractedData.city }),
-          ...(data.extractedData.state && { state: data.extractedData.state }),
-          ...(data.extractedData.languages && { languages: data.extractedData.languages })
-        };
-        
-        console.log("Updated Profile Data:", updatedData); // Debug log
-        return updatedData;
+    setIsLoading(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(`${backendUrl}/api/users/extract-resume-data`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ resumeUrl: userData.resume })
       });
-      
-      // Make sure editing mode is enabled so user can see the filled fields
-      if (!isEditing) {
-        setIsEditing(true);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data = await response.json();
+      console.log("Autofill API Response:", data); // Debug log
       
-      toast.success(data.message || "Details autofilled from resume! Please review and save.");
-    } else {
-      console.error("API returned success:false or no extractedData:", data);
-      toast.error(data.message || "Failed to extract data from resume.");
+      if (data.success && data.extractedData) {
+        // Log the extracted data to debug
+        console.log("Extracted Data:", data.extractedData);
+        
+        // Update the profile data state - this was the missing piece
+        setProfileData(prev => {
+          const updatedData = {
+            ...prev,
+            // Only update fields that have non-empty values
+            ...(data.extractedData.firstName && { firstName: data.extractedData.firstName }),
+            ...(data.extractedData.middleName && { middleName: data.extractedData.middleName }),
+            ...(data.extractedData.surname && { surname: data.extractedData.surname }),
+            ...(data.extractedData.emailId && { emailId: data.extractedData.emailId }),
+            ...(data.extractedData.mobileNo && { mobileNo: data.extractedData.mobileNo }),
+            ...(data.extractedData.currentDesignation && { currentDesignation: data.extractedData.currentDesignation }),
+            ...(data.extractedData.totalExperience && { totalExperience: data.extractedData.totalExperience }),
+            ...(data.extractedData.currentDepartment && { currentDepartment: data.extractedData.currentDepartment }),
+            ...(data.extractedData.linkedinId && { linkedinId: data.extractedData.linkedinId }),
+            ...(data.extractedData.city && { city: data.extractedData.city }),
+            ...(data.extractedData.state && { state: data.extractedData.state }),
+            ...(data.extractedData.languages && { languages: data.extractedData.languages })
+          };
+          
+          console.log("Updated Profile Data:", updatedData); // Debug log
+          return updatedData;
+        });
+        
+        // Make sure editing mode is enabled so user can see the filled fields
+        if (!isEditing) {
+          setIsEditing(true);
+        }
+        
+        toast.success(data.message || "Details autofilled from resume! Please review and save.");
+      } else {
+        console.error("API returned success:false or no extractedData:", data);
+        toast.error(data.message || "Failed to extract data from resume.");
+      }
+    } catch (error) {
+      console.error("Autofill error:", error);
+      if (error.message.includes('404')) {
+        toast.error("Backend endpoint not found. Please implement /api/users/extract-resume-data");
+      } else {
+        toast.error("Failed to extract data from resume. Please check backend implementation.");
+      }
     }
-  } catch (error) {
-    console.error("Autofill error:", error);
-    if (error.message.includes('404')) {
-      toast.error("Backend endpoint not found. Please implement /api/users/extract-resume-data");
-    } else {
-      toast.error("Failed to extract data from resume. Please check backend implementation.");
-    }
-  }
-  
-  setIsLoading(false);
-};
+    
+    setIsLoading(false);
+  };
 
   const saveProfile = async () => {
     if (!user) {
@@ -389,8 +388,6 @@ const autofillFromResume = async () => {
       <div className="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse" style={{ backgroundColor: 'rgba(255, 0, 0, 0.1)' }}></div>
       <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse delay-1000" style={{ backgroundColor: 'rgba(2, 3, 48, 0.1)' }}></div>
       
-      
-
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -793,18 +790,9 @@ const autofillFromResume = async () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Role Type</label>
-                  <select
-                    name="roleType"
-                    value={profileData.roleType}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select Role Type</option>
-                    {roleTypeOptions.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 flex items-center">
+                    Full Time
+                  </div>
                 </div>
 
                 <div>
@@ -921,7 +909,7 @@ const autofillFromResume = async () => {
                         expectedCTC: userData.expectedCTC || '',
                         noticePeriod: userData.noticePeriod || '',
                         totalExperience: userData.totalExperience || '',
-                        roleType: userData.roleType || '',
+                        roleType: userData.roleType || 'Full Time',
                         jobChangeStatus: userData.jobChangeStatus || '',
                         sector: userData.sector || '',
                         category: userData.category || ''
