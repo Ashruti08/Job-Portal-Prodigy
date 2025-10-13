@@ -11,6 +11,8 @@ import { Resend } from 'resend';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { OAuth2Client } from 'google-auth-library';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,9 +20,7 @@ const __dirname = path.dirname(__filename);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ==================== PART 1: AUTH & COMPANY MANAGEMENT ====================
-
-// Register Company (MongoDB only)
-export const registerCompany = async (req, res) => {
+export const registerCompany = async (req, res, next) => {
   const { name, email, password, phone } = req.body;
   const imageFile = req.file;
 
@@ -34,13 +34,30 @@ export const registerCompany = async (req, res) => {
   }
 
   try {
-    // Check if company already exists
-    const companyExists = await Company.findOne({ email });
-
-    if (companyExists) {
+    // ✅ Validate phone number format
+    const trimmedPhone = phone.trim();
+    if (!/^\d{10}$/.test(trimmedPhone)) {
       return res.json({ 
         success: false, 
-        message: "Company already exists with this email" 
+        message: "Phone number must be exactly 10 digits"
+      });
+    }
+
+    // ✅ Check if email already exists
+    const existingEmail = await Company.findOne({ email: email.trim().toLowerCase() });
+    if (existingEmail) {
+      return res.json({ 
+        success: false, 
+        message: "An account with this email already exists. Please login instead."
+      });
+    }
+
+    // ✅ Check if phone number already exists
+    const existingPhone = await Company.findOne({ phone: trimmedPhone });
+    if (existingPhone) {
+      return res.json({ 
+        success: false, 
+        message: "This phone number is already registered with another account. Please use a different phone number or login to your existing account."
       });
     }
 
@@ -50,20 +67,27 @@ export const registerCompany = async (req, res) => {
 
     let imageUrl = '';
 
-   if (imageFile) {
-  const fileName = `company_${Date.now()}_${imageFile.originalname}`;
-  const filePath = path.join(__dirname, '../uploads/images', fileName);
-  fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
-  imageUrl = `/uploads/images/${fileName}`;
-  fs.unlinkSync(imageFile.path); // Clean temp file
-}
+    if (imageFile) {
+      const fileName = `company_${Date.now()}_${imageFile.originalname}`;
+      const uploadDir = path.join(__dirname, '../uploads/images');
+      const filePath = path.join(uploadDir, fileName);
+      
+      // Ensure directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
+      imageUrl = `/uploads/images/${fileName}`;
+      fs.unlinkSync(imageFile.path); // Clean temp file
+    }
 
     // Create company
     const company = await Company.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
-      phone,
+      phone: trimmedPhone,
       image: imageUrl,
     });
 
@@ -83,8 +107,17 @@ export const registerCompany = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Registration error:", error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ Registration error:", error);
+    
+    // ✅ Pass MongoDB duplicate key errors to global handler
+    if (error.code === 11000) {
+      return next(error);
+    }
+    
+    res.json({ 
+      success: false, 
+      message: error.message || "Registration failed. Please try again."
+    });
   }
 };
 
@@ -728,4 +761,261 @@ export const getPublicCompanyJobs = async (req, res) => {
             error: error.message
         });
     }
+};
+// const { OAuth2Client } = require('google-auth-library');
+
+// Initialize with correct env variable (no VITE_ prefix for backend)
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    console.log("\n=== GOOGLE AUTH REQUEST START ===");
+    console.log("📋 Content-Type:", req.headers['content-type']);
+    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+    console.log("📁 File:", req.file ? req.file.originalname : 'No file');
+    console.log("================================\n");
+    
+    // ✅ Extract data (works for both JSON and FormData)
+    const credential = req.body.credential;
+    const phone = req.body.phone;
+    const customName = req.body.name;
+    const isSignup = req.body.isSignup;
+    const imageFile = req.file;
+    
+    // ✅ Critical validation
+    if (!credential || credential === 'undefined' || credential.trim() === '') {
+      console.error("❌ CREDENTIAL MISSING OR INVALID");
+      console.error("   Received credential:", credential);
+      console.error("   Full body:", req.body);
+      return res.json({ 
+        success: false, 
+        message: "Google credential is missing. Please try signing in again." 
+      });
+    }
+    
+    console.log("✅ Credential received (length):", credential.length);
+    console.log("📞 Phone:", phone || 'Not provided');
+    console.log("👤 Custom Name:", customName || 'Not provided');
+    console.log("🖼️ Image File:", imageFile ? 'Yes' : 'No');
+    
+    // ✅ Verify the Google token
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+      console.log("✅ Token verified successfully");
+    } catch (verifyError) {
+      console.error("❌ Token verification failed:", verifyError.message);
+      return res.json({ 
+        success: false, 
+        message: "Invalid Google token. Please try signing in again." 
+      });
+    }
+    
+    const { email, name: googleName, picture, sub: googleId } = payload;
+    
+    console.log("📧 Google Email:", email);
+    console.log("👤 Google Name:", googleName);
+    console.log("🆔 Google ID:", googleId);
+    
+    // ✅ Check if user exists (by email OR googleId)
+    let company = await Company.findOne({ 
+      $or: [
+        { email: email },
+        { googleId: googleId }
+      ]
+    });
+    
+    let isNewUser = false;
+    
+    if (!company) {
+      // ==========================================
+      // 🆕 NEW USER - SIGNUP FLOW
+      // ==========================================
+      
+      console.log("\n🆕 NEW USER DETECTED");
+      console.log("📋 Checking requirements...");
+      
+      // ✅ Phone number is REQUIRED for new registration
+      if (!phone || phone.trim() === '') {
+        console.log("❌ Phone number missing - requesting from user");
+        return res.json({ 
+          success: false, 
+          message: "Phone number is required for registration",
+          requiresPhone: true  // ✅ Frontend checks this flag
+        });
+      }
+      
+      // ✅ Validate phone number format (exactly 10 digits)
+      const trimmedPhone = phone.trim();
+      if (!/^\d{10}$/.test(trimmedPhone)) {
+        console.log("❌ Invalid phone format:", trimmedPhone);
+        return res.json({ 
+          success: false, 
+          message: "Phone number must be exactly 10 digits"
+        });
+      }
+      
+      console.log("✅ Valid phone number:", trimmedPhone);
+      
+      // ✅ CRITICAL: Check if phone number already exists
+      const existingPhone = await Company.findOne({ phone: trimmedPhone });
+      if (existingPhone) {
+        console.log("❌ Phone number already registered");
+        console.log("   Existing account:", existingPhone.email);
+        return res.json({ 
+          success: false, 
+          message: "This phone number is already registered with another account. Please use a different phone number or login to your existing account."
+        });
+      }
+      
+      console.log("✅ Phone number available");
+      
+      // ✅ Check if email is used by manual registration (has password)
+      const existingEmailWithPassword = await Company.findOne({ 
+        email: email, 
+        password: { $exists: true, $ne: '' } 
+      });
+      
+      if (existingEmailWithPassword) {
+        console.log("❌ Email already has password-based account");
+        return res.json({ 
+          success: false, 
+          message: "This email is already registered with a password. Please use email/password login instead."
+        });
+      }
+      
+      console.log("✅ Email available for Google signup");
+      
+      // ✅ Handle company logo upload
+      let imageUrl = picture || ''; // Default to Google profile picture
+      
+      if (imageFile) {
+        try {
+          console.log("📸 Processing image upload...");
+          const fileName = `company_${Date.now()}_${imageFile.originalname}`;
+          const uploadDir = path.join(__dirname, '../uploads/images');
+          const filePath = path.join(uploadDir, fileName);
+          
+          // Ensure upload directory exists
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+            console.log("📁 Created upload directory");
+          }
+          
+          // Move file from temp to uploads
+          fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
+          imageUrl = `/uploads/images/${fileName}`;
+          
+          // Clean up temp file
+          fs.unlinkSync(imageFile.path);
+          
+          console.log("✅ Image uploaded:", fileName);
+        } catch (imageError) {
+          console.error("⚠️ Image upload error:", imageError.message);
+          // Continue with Google profile picture if upload fails
+          console.log("   Using Google profile picture instead");
+        }
+      } else {
+        console.log("📸 No custom image - using Google profile picture");
+      }
+      
+      // ✅ Create new company account
+      console.log("\n💾 Creating new company account...");
+      company = new Company({
+        name: customName || googleName,
+        email,
+        image: imageUrl,
+        googleId,
+        phone: trimmedPhone,
+        password: '' // Empty password for Google OAuth users
+      });
+      
+      await company.save();
+      isNewUser = true;
+      
+      console.log("✅ NEW USER REGISTERED SUCCESSFULLY");
+      console.log("   Company ID:", company._id);
+      console.log("   Name:", company.name);
+      console.log("   Email:", company.email);
+      console.log("   Phone:", company.phone);
+      console.log("   Image:", imageUrl ? "Custom/Google" : "None");
+      
+    } else {
+      // ==========================================
+      // 👤 EXISTING USER - LOGIN FLOW
+      // ==========================================
+      
+      console.log("\n👤 EXISTING USER FOUND");
+      console.log("   Company ID:", company._id);
+      console.log("   Name:", company.name);
+      console.log("   Email:", company.email);
+      
+      // ✅ Update profile picture if missing or changed
+      if (picture && (!company.image || company.image === '')) {
+        company.image = picture;
+        await company.save();
+        console.log("   📸 Updated profile picture from Google");
+      }
+      
+      // ✅ Update googleId if missing (for accounts created before Google login)
+      if (!company.googleId) {
+        company.googleId = googleId;
+        await company.save();
+        console.log("   🆔 Added Google ID to existing account");
+      }
+      
+      console.log("✅ EXISTING USER LOGGED IN SUCCESSFULLY");
+    }
+    
+    // ✅ Generate JWT token (7 days expiry)
+    const token = jwt.sign(
+      { id: company._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log("\n✅ TOKEN GENERATED");
+    console.log("=== GOOGLE AUTH SUCCESS ===\n");
+    
+    res.json({
+      success: true,
+      token,
+      company: {
+        _id: company._id,
+        name: company.name,
+        email: company.email,
+        image: company.image,
+        phone: company.phone
+      },
+      isNewUser
+    });
+    
+  } catch (error) {
+    console.error('\n❌ GOOGLE AUTH ERROR:', error.message);
+    console.error('Stack:', error.stack);
+    
+    // ✅ Pass MongoDB duplicate key errors to global handler
+    if (error.code === 11000) {
+      return next(error);
+    }
+    
+    // ✅ Handle Google token verification errors
+    if (error.message?.includes('Token') || error.message?.includes('verify')) {
+      console.error("   Error type: Token Verification");
+      return res.json({ 
+        success: false, 
+        message: "Invalid Google authentication. Please try again."
+      });
+    }
+    
+    console.error("=== GOOGLE AUTH FAILED ===\n");
+    res.json({ 
+      success: false, 
+      message: error.message || "Google authentication failed" 
+    });
+  }
 };

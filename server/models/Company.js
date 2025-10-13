@@ -9,18 +9,34 @@ const companySchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    lowercase: true,
+    trim: true,
   },
   password: {
     type: String,
-    required: true,
+    required: false,  // Not required for Google OAuth users
+    default: '',
   },
   phone: {
     type: String,
     required: true,
+    unique: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return /^\d{10}$/.test(v);
+      },
+      message: 'Phone number must be exactly 10 digits'
+    }
   },
   image: {
     type: String,
     default: "",
+  },
+  googleId: {
+    type: String,
+    sparse: true, // Allows multiple null values but unique non-null values
+    unique: true,
   },
   // Password reset fields
   resetCode: {
@@ -35,8 +51,10 @@ const companySchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Add index for faster lookups
+// Add indexes for faster lookups
 companySchema.index({ email: 1 });
+companySchema.index({ phone: 1 });
+companySchema.index({ googleId: 1 });
 
 // Clean up expired reset codes automatically
 companySchema.pre('save', function(next) {

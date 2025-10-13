@@ -81,10 +81,27 @@ app.use('*', (req, res) => {
 // Sentry error handler (must be after all routes)
 Sentry.setupExpressErrorHandler(app);
 
-// Global error handler (must be after Sentry)
+// Global error handler (must be after Sentry)// Global error handler (must be after Sentry)
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
   
+  // Handle MongoDB duplicate key error
+  if (error.code === 11000) {
+    const field = Object.keys(error.keyPattern || {})[0];
+    
+    let message = 'This information is already registered.';
+    if (field === 'phone') {
+      message = 'This phone number is already registered with another account. Please use a different phone number.';
+    } else if (field === 'email') {
+      message = 'This email is already registered. Please try logging in instead.';
+    }
+    
+    return res.json({
+      success: false,
+      message: message
+    });
+  }
+   
   res.status(error.status || 500).json({
     success: false,
     message: error.message || 'Internal server error',
