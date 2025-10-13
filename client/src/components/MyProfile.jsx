@@ -54,37 +54,32 @@ const MyProfile = () => {
       return false;
     }
   };
+// Update viewResumeFixed function
+const viewResumeFixed = async (resumePath) => {
+  if (!resumePath) {
+    toast.error('No resume URL provided');
+    return;
+  }
+  
+  const fullUrl = `${backendUrl}${resumePath}`;
+  window.open(fullUrl, '_blank');
+};
 
-  const viewResumeFixed = async (cloudinaryUrl) => {
-    if (!cloudinaryUrl) {
-      toast.error('No resume URL provided');
-      return;
-    }
-    
-    // Test the URL first
-    const isWorking = await testPDFUrl(cloudinaryUrl);
-    if (isWorking) {
-      window.open(cloudinaryUrl, '_blank');
-    } else {
-      toast.error('PDF cannot be accessed. Please enable "PDF and ZIP files delivery" in your Cloudinary Dashboard → Settings → Security');
-    }
-  };
-
-  const downloadResume = (cloudinaryUrl, fileName = 'resume.pdf') => {
-    if (!cloudinaryUrl) {
-      toast.error('No resume URL provided');
-      return;
-    }
-    
-    const link = document.createElement('a');
-    link.href = cloudinaryUrl;
-    link.download = fileName;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
+// Update downloadResume function
+const downloadResume = (resumePath, fileName = 'resume.pdf') => {
+  if (!resumePath) {
+    toast.error('No resume URL provided');
+    return;
+  }
+  
+  const link = document.createElement('a');
+  link.href = `${backendUrl}${resumePath}`;
+  link.download = fileName;
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
   // Client-side PDF parsing for autofill
   const parseResumeClientSide = async (resumeUrl) => {
     try {
@@ -231,7 +226,26 @@ const MyProfile = () => {
       [name]: value
     }));
   };
-
+const handleResumeSelect = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  // Check file type
+  if (file.type !== 'application/pdf') {
+    toast.error('Only PDF files are allowed for resume');
+    e.target.value = '';
+    return;
+  }
+  
+  // Check file size (500KB = 512000 bytes)
+  if (file.size > 512000) {
+    toast.error('Resume size must be less than 500KB');
+    e.target.value = '';
+    return;
+  }
+  
+  setResume(file);
+};
   const updateResume = async () => {
     try {
       if (!resume) {
@@ -448,6 +462,7 @@ const MyProfile = () => {
         </motion.div>
 
         {/* Resume Section */}
+        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -487,12 +502,12 @@ const MyProfile = () => {
                         {resume ? resume.name : "Select Resume"}
                       </span>
                     </div>
-                    <input
-                      type="file"
-                      className="sr-only"
+                   <input
+                        type="file"
+                    className="sr-only"
                       accept="application/pdf"
-                      onChange={(e) => setResume(e.target.files[0])}
-                    />
+                     onChange={handleResumeSelect}
+                           />
                   </label>
                   
                   <motion.button
@@ -535,6 +550,7 @@ const MyProfile = () => {
                     <Edit className="w-4 h-4 mr-2" />
                     Update Resume
                   </motion.button>
+                  <p className="text-gray-600">Keep your profile updated (Max 500KB PDF)</p>
                 </motion.div>
               )}
             </AnimatePresence>

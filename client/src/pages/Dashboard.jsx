@@ -4,7 +4,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import logo from "../assets/DEEmploymint.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiAlertCircle, FiMenu, FiX, FiUpload, FiPackage } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiAlertCircle, FiMenu, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 const Dashboard = () => {
@@ -130,7 +130,6 @@ const Dashboard = () => {
   ];
 
   return (
-    
     <div className="flex h-screen bg-gradient-to-tr from-[#f5f7fa] via-[#ebedfb] to-[#dce3ff] font-[Poppins] relative">
       {/* Login Notification */}
       

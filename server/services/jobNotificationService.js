@@ -183,7 +183,7 @@ export const notifyJobAlerts = async (newJob) => {
 export const sendBatchNotifications = async (frequency = 'daily') => {
   try {
     console.log(`📅 Sending ${frequency} batch notifications...`);
-    
+
     // Get alerts with specified frequency
     const alerts = await JobAlert.find({ 
       frequency: frequency,

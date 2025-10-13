@@ -20,7 +20,7 @@ export const companyAuthMiddleware = async (req, res, next) => {
     try {
       // Verify the JWT token using your JWT_SECRET
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Company token decoded successfully, company ID:', decoded.id);
+      console.log('Company token decoded successfully');
       
       // Find the company
       const company = await Company.findById(decoded.id);

@@ -1,85 +1,64 @@
 import Company from "../models/Company.js";
 import bcrypt from "bcrypt";
-import { v2 as cloudinary } from "cloudinary";
+import jwt from "jsonwebtoken";
 import generateToken from "../utils/generateToken.js";
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
 import { notifyJobAlerts } from '../services/jobNotificationService.js';
 import EmployerProfile from '../models/EmployerProfile.js';
-// Register a new Company
-export const registerCompany = async (req, res) => {
-  console.log("=== ENVIRONMENT VARIABLES DEBUG ===");
-  console.log("CLOUDINARY_NAME:", process.env.CLOUDINARY_NAME);
-  console.log("CLOUDINARY_API_KEY:", process.env.CLOUDINARY_API_KEY);
-  console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "Present" : "Missing");
-  console.log("All CLOUDINARY env keys:", Object.keys(process.env).filter(key => key.includes('CLOUDINARY')));
-  console.log("======================================");
+import crypto from 'crypto';
+import { Resend } from 'resend';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ==================== PART 1: AUTH & COMPANY MANAGEMENT ====================
+
+// Register Company (MongoDB only)
+export const registerCompany = async (req, res) => {
   const { name, email, password, phone } = req.body;
   const imageFile = req.file;
 
-  console.log("📝 Registration attempt:", { name, email, phone, hasImage: !!imageFile });
+  console.log("📝 Registration attempt:", { name, email, phone });
 
   if (!name || !email || !password || !phone) {
-    return res.json({ success: false, message: "Name, email, password, and phone are required" });
+    return res.json({ 
+      success: false, 
+      message: "Name, email, password, and phone are required" 
+    });
   }
 
   try {
+    // Check if company already exists
     const companyExists = await Company.findOne({ email });
 
     if (companyExists) {
-      return res.json({ success: false, message: "Company Already Exists" });
+      return res.json({ 
+        success: false, 
+        message: "Company already exists with this email" 
+      });
     }
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     let imageUrl = '';
 
-    if (imageFile) {
-      try {
-        console.log("📤 Uploading image to Cloudinary...");
-        console.log("Image file path:", imageFile.path);
-        
-        cloudinary.config({
-          cloud_name: process.env.CLOUDINARY_NAME,
-          api_key: process.env.CLOUDINARY_API_KEY,
-          api_secret: process.env.CLOUDINARY_API_SECRET,
-        });
+   if (imageFile) {
+  const fileName = `company_${Date.now()}_${imageFile.originalname}`;
+  const filePath = path.join(__dirname, '../uploads/images', fileName);
+  fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
+  imageUrl = `/uploads/images/${fileName}`;
+  fs.unlinkSync(imageFile.path); // Clean temp file
+}
 
-        console.log("Cloudinary config after setup:", {
-          cloud_name: cloudinary.config().cloud_name,
-          api_key: cloudinary.config().api_key ? "Set" : "Missing",
-          api_secret: cloudinary.config().api_secret ? "Set" : "Missing"
-        });
-
-        if (!process.env.CLOUDINARY_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-          throw new Error("Cloudinary configuration missing. Check environment variables.");
-        }
-
-        console.log("Attempting Cloudinary upload...");
-        const imageUpload = await cloudinary.uploader.upload(imageFile.path, {
-          folder: "company_logos",
-          resource_type: "image",
-          transformation: [
-            { width: 300, height: 300, crop: "fill", gravity: "center" },
-            { quality: "auto", fetch_format: "auto" }
-          ]
-        });
-
-        imageUrl = imageUpload.secure_url;
-        console.log("✅ Image uploaded successfully:", imageUrl);
-        
-      } catch (uploadError) {
-        console.error("❌ Cloudinary upload error:", uploadError);
-        console.error("❌ Full error details:", JSON.stringify(uploadError, null, 2));
-        return res.json({ 
-          success: false, 
-          message: "Image upload failed: " + uploadError.message 
-        });
-      }
-    }
-
+    // Create company
     const company = await Company.create({
       name,
       email,
@@ -88,7 +67,7 @@ export const registerCompany = async (req, res) => {
       image: imageUrl,
     });
 
-    console.log("✅ Company created successfully:", company.name);
+    console.log("✅ Company created:", company.name);
 
     res.json({
       success: true,
@@ -113,72 +92,47 @@ export const registerCompany = async (req, res) => {
 export const loginCompany = async (req, res) => {
   const { email, password } = req.body;
 
-  console.log("=== LOGIN ATTEMPT DEBUG ===");
+  console.log("=== LOGIN ATTEMPT ===");
   console.log("Email:", email);
-  console.log("Password provided:", !!password);
-  console.log("Password length:", password?.length);
-  console.log("===========================");
-
-  if (!email || !password) {
-    return res.json({ success: false, message: "Email and password are required" });
-  }
 
   try {
-    // Use case-insensitive email search
-    const company = await Company.findOne({ 
-      email: { $regex: new RegExp("^" + email + "$", "i") }
-    });
+    const company = await Company.findOne({ email });
 
     if (!company) {
-      console.log("❌ Company not found for email:", email);
-      return res.json({ success: false, message: "Invalid email or password" });
+      return res.json({ 
+        success: false, 
+        message: "Company account not found" 
+      });
     }
 
-    console.log("✅ Company found:", company.name);
-    console.log("📊 Stored password hash:", company.password);
-    console.log("📊 Hash length:", company.password?.length);
-    console.log("🔍 Comparing passwords...");
+    // Verify password
+    const isMatch = await bcrypt.compare(password, company.password);
 
-    const isPasswordValid = await bcrypt.compare(password, company.password);
-    console.log("🔍 Password comparison result:", isPasswordValid);
-
-    if (isPasswordValid) {
-      console.log("✅ Login successfull for:", email);
-      res.json({
-        success: true,
-        message: "Login successfull",
-        company: {
-          _id: company._id,
-          name: company.name,
-          email: company.email,
-          phone: company.phone,
-          image: company.image,
-          clerkUserId: company.clerkUserId,
-        },
-        token: generateToken(company._id),
+    if (!isMatch) {
+      return res.json({ 
+        success: false, 
+        message: "Invalid credentials" 
       });
-    } else {
-      console.log("❌ Password comparison failed for:", email);
-      
-      console.log("🔍 Raw password being compared:", password);
-      console.log("🔍 Against hash:", company.password);
-      
-      try {
-        const testHash = await bcrypt.hash(password, 10);
-        console.log("🧪 Test hash of input password:", testHash);
-        const testCompare = await bcrypt.compare(password, testHash);
-        console.log("🧪 Test comparison with new hash:", testCompare);
-      } catch (testError) {
-        console.log("🧪 Test hashing failed:", testError);
+    }
+
+    console.log("✅ Login successful for:", company.name);
+
+    const token = jwt.sign({ id: company._id }, process.env.JWT_SECRET);
+
+    res.json({
+      success: true,
+      token,
+      company: {
+        _id: company._id,
+        name: company.name,
+        email: company.email,
+        image: company.image,
+        phone: company.phone,
       }
-      
-      res.json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
+    });
+
   } catch (error) {
-    console.error("❌ Login error:", error);
+    console.error('Login error:', error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -196,6 +150,347 @@ export const getCompanyData = async (req, res) => {
     });
   }
 };
+
+// Send password reset code via email using Resend
+export const sendResetCode = async (req, res) => {
+  const { email } = req.body;
+
+  console.log("=== SEND RESET CODE ===");
+  console.log("Email:", email);
+
+  if (!email || !email.trim()) {
+    return res.json({ 
+      success: false, 
+      message: "Email is required" 
+    });
+  }
+
+  try {
+    const trimmedEmail = email.trim();
+    const company = await Company.findOne({ 
+      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
+    });
+    
+    if (!company) {
+      return res.json({ 
+        success: false, 
+        message: "This email is not registered as a recruiter account" 
+      });
+    }
+
+    // Generate 6-digit reset code
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+    const resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Save reset code to company document
+    company.resetCode = resetCode;
+    company.resetCodeExpiry = resetCodeExpiry;
+    await company.save();
+
+    console.log("✅ Reset code generated:", resetCode);
+
+    // Send email using Resend
+    try {
+      const { data, error } = await resend.emails.send({
+        from: `${process.env.APP_NAME || 'Job Portal'} <onboarding@resend.dev>`,
+        to: [company.email],
+        subject: 'Password Reset Code - Action Required',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.6; 
+                color: #333;
+                margin: 0;
+                padding: 0;
+                background-color: #f5f5f5;
+              }
+              .container { 
+                max-width: 600px; 
+                margin: 40px auto; 
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              }
+              .header { 
+                background: #020330; 
+                color: white; 
+                padding: 40px 30px; 
+                text-align: center;
+              }
+              .header h1 {
+                margin: 0;
+                font-size: 24px;
+                font-weight: 600;
+              }
+              .content { 
+                padding: 40px 30px;
+                background: white;
+              }
+              .code-box { 
+                background: #f8f9fa;
+                border: 3px solid #FF0000; 
+                padding: 24px; 
+                text-align: center; 
+                font-size: 36px; 
+                font-weight: bold; 
+                color: #FF0000; 
+                margin: 30px 0; 
+                border-radius: 10px; 
+                letter-spacing: 8px;
+                font-family: 'Courier New', monospace;
+              }
+              .info-box {
+                background: #f8f9fa;
+                border-left: 4px solid #4CAF50;
+                padding: 16px;
+                margin: 20px 0;
+                border-radius: 4px;
+              }
+              .warning { 
+                background: #fff3cd; 
+                border-left: 4px solid #ffc107; 
+                padding: 16px; 
+                margin: 20px 0;
+                border-radius: 4px;
+              }
+              .footer { 
+                text-align: center; 
+                padding: 30px; 
+                color: #666; 
+                font-size: 13px;
+                background: #f8f9fa;
+                border-top: 1px solid #e0e0e0;
+              }
+              .button {
+                display: inline-block;
+                padding: 12px 30px;
+                background: #FF0000;
+                color: white !important;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+                margin: 20px 0;
+              }
+              p { margin: 12px 0; }
+              strong { color: #020330; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🔐 Password Reset Request</h1>
+              </div>
+              <div class="content">
+                <p>Hello <strong>${company.name}</strong>,</p>
+                <p>We received a request to reset the password for your recruiter account. Use the verification code below to proceed:</p>
+                
+                <div class="code-box">${resetCode}</div>
+                
+                <div class="info-box">
+                  <strong>⏰ This code will expire in 15 minutes</strong><br>
+                  <small>Please complete the password reset process before the code expires.</small>
+                </div>
+
+                <p>If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+                
+                <div class="warning">
+                  <strong>🔒 Security Tips:</strong>
+                  <ul style="margin: 8px 0; padding-left: 20px;">
+                    <li>Never share this code with anyone</li>
+                    <li>Our team will never ask for this code</li>
+                    <li>Make sure you're on the official website</li>
+                  </ul>
+                </div>
+
+                <p style="margin-top: 30px;">If you need assistance, please contact our support team.</p>
+              </div>
+              <div class="footer">
+                <p style="margin: 0 0 8px 0;"><strong>${process.env.APP_NAME || 'Job Portal'}</strong></p>
+                <p style="margin: 0;">This is an automated email, please do not reply directly to this message.</p>
+                <p style="margin: 8px 0 0 0; color: #999;">&copy; ${new Date().getFullYear()} All rights reserved.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      });
+
+      if (error) {
+        console.error("❌ Resend error:", error);
+        return res.json({ 
+          success: false, 
+          message: "Failed to send reset code email. Please try again." 
+        });
+      }
+
+      console.log("✅ Reset code email sent successfully via Resend:", data);
+
+      return res.json({ 
+        success: true, 
+        message: "Reset code sent to your email address" 
+      });
+
+    } catch (emailError) {
+      console.error("❌ Email sending error:", emailError);
+      return res.json({ 
+        success: false, 
+        message: "Failed to send reset code email. Please try again or contact support." 
+      });
+    }
+
+  } catch (error) {
+    console.error("Send reset code error:", error);
+    return res.json({ 
+      success: false, 
+      message: "Error processing reset request: " + error.message 
+    });
+  }
+};
+
+// Verify reset code and update password
+export const verifyResetCode = async (req, res) => {
+  const { email, code, newPassword } = req.body;
+
+  console.log("=== VERIFY RESET CODE ===");
+  console.log("Email:", email);
+  console.log("Code:", code);
+
+  if (!email || !code || !newPassword) {
+    return res.json({ 
+      success: false, 
+      message: "All fields are required" 
+    });
+  }
+
+  try {
+    const trimmedEmail = email.trim();
+    const trimmedCode = code.trim();
+    
+    const company = await Company.findOne({ 
+      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
+    });
+    
+    if (!company) {
+      return res.json({ 
+        success: false, 
+        message: "Company not found" 
+      });
+    }
+
+    // Check if reset code exists
+    if (!company.resetCode || !company.resetCodeExpiry) {
+      return res.json({ 
+        success: false, 
+        message: "No reset code found. Please request a new one." 
+      });
+    }
+
+    // Check if reset code has expired
+    if (new Date() > company.resetCodeExpiry) {
+      company.resetCode = undefined;
+      company.resetCodeExpiry = undefined;
+      await company.save();
+      
+      return res.json({ 
+        success: false, 
+        message: "Reset code has expired. Please request a new one." 
+      });
+    }
+
+    // Verify reset code
+    if (company.resetCode !== trimmedCode) {
+      return res.json({ 
+        success: false, 
+        message: "Invalid reset code. Please check and try again." 
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
+    
+    // Update password and clear reset code
+    company.password = hashedPassword;
+    company.resetCode = undefined;
+    company.resetCodeExpiry = undefined;
+    await company.save();
+
+    console.log("✅ Password reset successful for:", company.email);
+
+    // Generate new token
+    const token = jwt.sign({ id: company._id }, process.env.JWT_SECRET);
+
+    // Send confirmation email
+    try {
+      await resend.emails.send({
+        from: `${process.env.APP_NAME || 'Job Portal'} <onboarding@resend.dev>`,
+        to: [company.email],
+        subject: 'Password Changed Successfully',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #020330; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 16px; margin: 20px 0; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>✅ Password Changed</h1>
+              </div>
+              <div class="content">
+                <p>Hello <strong>${company.name}</strong>,</p>
+                <div class="success-box">
+                  <strong>Your password has been changed successfully!</strong>
+                </div>
+                <p>You can now log in to your recruiter account with your new password.</p>
+                <p>If you did not make this change, please contact our support team immediately.</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      });
+    } catch (confirmEmailError) {
+      console.log("Confirmation email failed but password was reset:", confirmEmailError);
+    }
+
+    return res.json({ 
+      success: true, 
+      message: "Password reset successfully",
+      token,
+      company: {
+        _id: company._id,
+        name: company.name,
+        email: company.email,
+        phone: company.phone,
+        image: company.image
+      }
+    });
+
+  } catch (error) {
+    console.error("Verify reset code error:", error);
+    return res.json({ 
+      success: false, 
+      message: "Failed to reset password: " + error.message 
+    });
+  }
+};
+
+// ==================== PART 2: JOB MANAGEMENT & PUBLIC ENDPOINTS ====================
 
 // Post a new Job
 export const postJob = async (req, res) => {
@@ -220,7 +515,7 @@ export const postJob = async (req, res) => {
 
     const savedJob = await newJob.save();
     const notificationCount = await notifyJobAlerts(savedJob);
-    console.log(`📧 Sent notifications to ${notificationCount} users`);
+    console.log(`Sent notifications to ${notificationCount} users`);
 
     res.status(201).json({
       success: true,
@@ -247,61 +542,6 @@ export const getCompanyJobApplicants = async (req, res) => {
     return res.json({ success: true, applications });
   } catch (error) {
     res.json({ success: false, message: error.message });
-  }
-};
-
-// Check if email belongs to a recruiter
-export const checkRecruiterEmail = async (req, res) => {
-  const { email } = req.body;
-
-  console.log("=== CHECK RECRUITER EMAIL DEBUG ===");
-  console.log("Email received:", email);
-  console.log("Email type:", typeof email);
-  console.log("Email trimmed:", email?.trim());
-  console.log("==================================");
-
-  if (!email || !email.trim()) {
-    return res.json({ 
-      success: false, 
-      message: "Email is required", 
-      isRecruiter: false 
-    });
-  }
-
-  try {
-    // Use case-insensitive search and trim the email
-    const trimmedEmail = email.trim();
-    const company = await Company.findOne({ 
-      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
-    });
-    
-    console.log("🔍 Company search result:", company ? `Found: ${company.name}` : "Not found");
-    
-    if (company) {
-      return res.json({ 
-        success: true, 
-        isRecruiter: true, 
-        message: "Email found in recruiter database",
-        companyData: {
-          _id: company._id,
-          name: company.name,
-          email: company.email
-        }
-      });
-    } else {
-      return res.json({ 
-        success: false, 
-        isRecruiter: false, 
-        message: "This email is not registered as a recruiter account. Please use the candidate login if you're a job seeker." 
-      });
-    }
-  } catch (error) {
-    console.error("❌ Check recruiter email error:", error);
-    return res.json({ 
-      success: false, 
-      isRecruiter: false, 
-      message: "Error checking email" 
-    });
   }
 };
 
@@ -384,334 +624,13 @@ export const changeVisiblity = async (req, res) => {
   }
 };
 
-// Verify recruiter during password reset
-export const verifyRecruiterReset = async (req, res) => {
-  const { email, clerkUserId } = req.body;
-
-  console.log("=== VERIFY RECRUITER RESET DEBUG ===");
-  console.log("Email:", email);
-  console.log("ClerkUserId:", clerkUserId);
-  console.log("===================================");
-
-  if (!email || !email.trim()) {
-    return res.json({ 
-      success: false, 
-      message: "Email is required",
-      isRecruiter: false 
-    });
-  }
-
-  try {
-    // Use case-insensitive search
-    const trimmedEmail = email.trim();
-    const company = await Company.findOne({ 
-      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
-    });
-    
-    console.log("🔍 Company found:", company ? `Yes: ${company.name}` : "No");
-    
-    if (!company) {
-      return res.json({ 
-        success: false, 
-        message: "This email is not registered as a recruiter account",
-        isRecruiter: false 
-      });
-    }
-
-    // Update clerkUserId if provided and not already set
-    if (clerkUserId && !company.clerkUserId) {
-      try {
-        await Company.findByIdAndUpdate(company._id, { 
-          clerkUserId: clerkUserId 
-        });
-        console.log("✅ ClerkUserId updated for company:", company.name);
-      } catch (updateError) {
-        console.warn("Could not update company with Clerk ID:", updateError);
-      }
-    }
-
-    return res.json({ 
-      success: true, 
-      message: "Email verified as recruiter account",
-      isRecruiter: true,
-      companyData: {
-        _id: company._id,
-        name: company.name,
-        email: company.email,
-        phone: company.phone,
-        image: company.image
-      }
-    });
-
-  } catch (error) {
-    console.error("❌ Verify recruiter reset error:", error);
-    return res.json({ 
-      success: false, 
-      message: "Error verifying recruiter account",
-      isRecruiter: false 
-    });
-  }
-};
-
-// Authenticate user after Clerk password reset
-export const clerkAuth = async (req, res) => {
-  const { email, clerkUserId, newPassword } = req.body;
-
-  console.log("=== CLERK AUTH DEBUG ===");
-  console.log("Email:", email);
-  console.log("ClerkUserId:", clerkUserId);
-  console.log("Has newPassword:", !!newPassword);
-  console.log("NewPassword length:", newPassword?.length);
-  console.log("=======================");
-
-  if (!email || !email.trim()) {
-    return res.json({ 
-      success: false, 
-      message: "Email is required" 
-    });
-  }
-
-  if (!clerkUserId) {
-    return res.json({ 
-      success: false, 
-      message: "Clerk user ID is required" 
-    });
-  }
-
-  try {
-    // Use case-insensitive search
-    const trimmedEmail = email.trim();
-    const company = await Company.findOne({ 
-      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
-    });
-    
-    if (!company) {
-      console.log("❌ Company not found for email:", email);
-      return res.json({ 
-        success: false, 
-        message: "Company not found with this email" 
-      });
-    }
-
-    console.log("✅ Company found:", company.name);
-
-    // Prepare update data
-    let updateData = {
-      clerkUserId: clerkUserId
-    };
-
-    // Hash and update password if provided
-    if (newPassword && newPassword.trim()) {
-      console.log("🔄 Hashing new password...");
-      const salt = await bcrypt.genSalt(12); // Use higher salt rounds
-      const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
-      updateData.password = hashedPassword;
-      console.log("✅ Password hashed successfully, length:", hashedPassword.length);
-    }
-
-    // Update the company with new data
-    const updatedCompany = await Company.findByIdAndUpdate(
-      company._id, 
-      updateData,
-      { 
-        new: true,
-        runValidators: false
-      }
-    );
-    
-    if (updatedCompany) {
-      console.log("✅ Company updated successfully");
-      
-      if (newPassword) {
-        // Verify the password was actually updated
-        const verifyCompany = await Company.findById(company._id);
-        console.log("🔍 Verification - password hash changed:", 
-          verifyCompany.password !== company.password);
-        console.log("🔍 Verification - new hash length:", verifyCompany.password.length);
-        
-        // Test the new password
-        const testCompare = await bcrypt.compare(newPassword.trim(), verifyCompany.password);
-        console.log("🧪 Test password comparison with new hash:", testCompare);
-      }
-    } else {
-      console.log("❌ Database update failed");
-      return res.json({ 
-        success: false, 
-        message: "Failed to update company data" 
-      });
-    }
-
-    const token = generateToken(updatedCompany._id);
-
-    console.log("✅ Token generated, returning success");
-
-    return res.json({ 
-      success: true, 
-      message: "Authentication successful",
-      company: {
-        _id: updatedCompany._id,
-        name: updatedCompany.name,
-        email: updatedCompany.email,
-        phone: updatedCompany.phone,
-        image: updatedCompany.image,
-        clerkUserId: updatedCompany.clerkUserId
-      },
-      token: token
-    });
-
-  } catch (error) {
-    console.error("❌ Clerk authentication error:", error);
-    return res.json({ 
-      success: false, 
-      message: "Authentication failed. Please try again." 
-    });
-  }
-};
-
-// Reset Password (for OTP-based reset)
-export const resetPassword = async (req, res) => {
-  const { email, otp, newPassword } = req.body;
-
-  console.log("=== RESET PASSWORD DEBUG ===");
-  console.log("Email:", email);
-  console.log("OTP:", otp);
-  console.log("New password received:", !!newPassword);
-  console.log("New password length:", newPassword?.length);
-  console.log("============================");
-
-  if (!email || !email.trim() || !otp || !newPassword || !newPassword.trim()) {
-    return res.json({ 
-      success: false, 
-      message: "All fields are required" 
-    });
-  }
-
-  try {
-    // Find company with case-insensitive search
-    const trimmedEmail = email.trim();
-    const company = await Company.findOne({ 
-      email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") }
-    });
-    
-    if (!company) {
-      console.log("❌ Company not found for email:", email);
-      return res.json({ 
-        success: false, 
-        message: "Company not found with this email" 
-      });
-    }
-
-    console.log("✅ Company found:", company.name);
-
-    // TODO: Implement OTP verification logic here
-    // For now, we'll assume OTP is valid
-    // In production, you should verify the OTP against stored value
-
-    // Hash the new password
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
-    
-    console.log("🔄 Updating password with hash length:", hashedPassword.length);
-    
-    const updatedCompany = await Company.findByIdAndUpdate(
-      company._id,
-      { password: hashedPassword },
-      { 
-        new: true,
-        runValidators: false
-      }
-    );
-    
-    if (updatedCompany) {
-      console.log("✅ Password successfully updated for:", email);
-      console.log("🔍 Updated password hash length:", updatedCompany.password.length);
-      
-      // Verify the password was actually changed
-      const verifyCompany = await Company.findById(company._id);
-      console.log("🔍 Verification - password changed:", 
-        verifyCompany.password !== company.password);
-      
-      // Test the new password
-      const testCompare = await bcrypt.compare(newPassword.trim(), verifyCompany.password);
-      console.log("🧪 Test password comparison:", testCompare);
-      
-      return res.json({ 
-        success: true, 
-        message: "Password reset successfully! You can now login with your new password." 
-      });
-    } else {
-      console.log("❌ No company found to update");
-      return res.json({ 
-        success: false, 
-        message: "Failed to update password" 
-      });
-    }
-
-  } catch (error) {
-    console.error("❌ Reset password error:", error);
-    return res.json({ 
-      success: false, 
-      message: "Failed to reset password: " + error.message 
-    });
-  }
-};
-
-// Link Clerk account with existing company
-export const linkClerkAccount = async (req, res) => {
-  const { email, clerkUserId } = req.body;
-
-  if (!email || !email.trim() || !clerkUserId) {
-    return res.json({ 
-      success: false, 
-      message: "Email and Clerk user ID are required" 
-    });
-  }
-
-  try {
-    const trimmedEmail = email.trim();
-    const company = await Company.findOneAndUpdate(
-      { email: { $regex: new RegExp("^" + trimmedEmail + "$", "i") } },
-      { clerkUserId: clerkUserId },
-      { new: true }
-    );
-
-    if (!company) {
-      return res.json({ 
-        success: false, 
-        message: "Company not found with this email" 
-      });
-    }
-
-    console.log(`✅ Linked Clerk account ${clerkUserId} with company ${company.name}`);
-
-    return res.json({ 
-      success: true, 
-      message: "Clerk account linked successfully",
-      company: {
-        _id: company._id,
-        name: company.name,
-        email: company.email,
-        phone: company.phone,
-        image: company.image,
-        clerkUserId: company.clerkUserId
-      }
-    });
-
-  } catch (error) {
-    console.error("❌ Link Clerk account error:", error);
-    return res.json({ 
-      success: false, 
-      message: "Error linking Clerk account: " + error.message 
-    });
-  }
-};
+// Get Public Company Profile
 export const getPublicCompanyProfile = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Fetch company and profile data
         const [company, profile] = await Promise.all([
-            Company.findById(id).select('-password'), // Exclude password
+            Company.findById(id).select('-password'),
             EmployerProfile.findOne({ companyId: id })
         ]);
 
@@ -722,7 +641,6 @@ export const getPublicCompanyProfile = async (req, res) => {
             });
         }
 
-        // Calculate real-time stats for public display
         const [activeJobs, totalApplications, totalHired] = await Promise.all([
             Job.countDocuments({ companyId: id, visible: true }),
             JobApplication.countDocuments({ companyId: id }),
@@ -731,14 +649,12 @@ export const getPublicCompanyProfile = async (req, res) => {
 
         const stats = { activeJobs, totalApplications, totalHired };
 
-        // Prepare response data - combine company and profile data
         const responseData = {
             _id: company._id,
             name: company.name,
             email: company.email,
             phone: company.phone,
             image: company.image,
-            // Include profile data if available
             location: profile?.location || '',
             website: profile?.website || '',
             companySize: profile?.companySize || '',
@@ -763,13 +679,12 @@ export const getPublicCompanyProfile = async (req, res) => {
     }
 };
 
-// Get public company jobs
+// Get Public Company Jobs
 export const getPublicCompanyJobs = async (req, res) => {
     try {
         const { id } = req.params;
         const { page = 1, limit = 10 } = req.query;
 
-        // Verify company exists
         const company = await Company.findById(id);
         if (!company) {
             return res.status(404).json({
@@ -778,7 +693,6 @@ export const getPublicCompanyJobs = async (req, res) => {
             });
         }
 
-        // Fetch company's public jobs with pagination
         const jobs = await Job.find({ 
             companyId: id, 
             visible: true 

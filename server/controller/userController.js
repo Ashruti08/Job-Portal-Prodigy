@@ -1,7 +1,6 @@
 import User from "../models/User.js";
 import JobApplication from "../models/JobApplication.js";
 import Job from "../models/Job.js";
-import { v2 as cloudinary } from "cloudinary";
 import fetch from 'node-fetch';
 import PDFParser from 'pdf2json';
 import fs from 'fs';
@@ -115,22 +114,20 @@ export const getUserJobApplications = async (req, res) => {
   }
 };
 
-// Update User Profile (resume)
+// Replace resume upload in updateUserResume
 export const updateUserResume = async (req, res) => {
   try {
-    console.log("=== updateUserResume Debug ===");
-    
     const clerkUserId = getClerkUserId(req);
     if (!clerkUserId) {
       return res.status(401).json({ 
         success: false, 
-        message: "Unauthorized - No user ID found" 
+        message: "Unauthorized" 
       });
     }
 
     const userData = await getOrCreateUser(clerkUserId, req.auth.sessionClaims);
-    
     const resumeFile = req.file;
+    
     if (!resumeFile) {
       return res.status(400).json({ 
         success: false, 
@@ -138,25 +135,22 @@ export const updateUserResume = async (req, res) => {
       });
     }
     
-    // Upload to cloudinary
-    const resumeUpload = await cloudinary.uploader.upload(resumeFile.path, {
-      resource_type: "auto",
-      folder: "resumes"
-    });
+    const fileName = `resume_${userData._id}_${Date.now()}.pdf`;
+    const filePath = path.join(__dirname, '../uploads/resumes', fileName);
+    fs.writeFileSync(filePath, fs.readFileSync(resumeFile.path));
+    const resumeUrl = `/uploads/resumes/${fileName}`;
+    fs.unlinkSync(resumeFile.path);
     
-    // Update user resume using findByIdAndUpdate for consistency
     const updatedUser = await User.findByIdAndUpdate(
       userData._id,
-      { resume: resumeUpload.secure_url },
+      { resume: resumeUrl },
       { new: true }
     );
-    
-    console.log("Resume updated for user:", updatedUser._id);
     
     res.json({ 
       success: true, 
       message: "Resume Updated Successfully",
-      user: updatedUser // Changed from userData to user
+      user: updatedUser
     });
   } catch (error) {
     console.error("Error updating resume:", error);
@@ -414,7 +408,7 @@ export const extractResumeData = async (req, res) => {
 
     console.log("Downloading PDF from:", resumeUrl);
 
-    // Download PDF from Cloudinary - Fixed for node-fetch compatibility
+ 
     const response = await fetch(resumeUrl);
     
     console.log("Download response status:", response.status);
