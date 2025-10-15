@@ -1,214 +1,151 @@
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
 import fs from 'fs/promises';
-import path from 'path';
+import mammoth from 'mammoth';
 
 class ResumeProcessor {
+  /**
+   * Extract text from PDF, DOC, or DOCX file
+   */
   static async extractTextFromFile(filePath, fileType) {
     try {
-      // Check if file exists
-      await fs.access(filePath);
+      const buffer = await fs.readFile(filePath);
       
-      switch (fileType.toLowerCase()) {
-        case 'pdf':
-          return await this.extractFromPDF(filePath);
-        case 'docx':
-          return await this.extractFromDOCX(filePath);
-        case 'doc':
-          // For .doc files, you might need additional libraries like 'antiword'
-          console.warn('DOC file processing not implemented yet');
-          return "DOC file processing not implemented yet";
-        default:
-          throw new Error(`Unsupported file type: ${fileType}`);
+      if (fileType === 'pdf') {
+        // For PDF, just return empty string - file is stored but not parsed
+        console.log('PDF file stored without text extraction');
+        return '';
+      } else if (fileType === 'doc' || fileType === 'docx') {
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value;
+      } else {
+        throw new Error(`Unsupported file type: ${fileType}`);
       }
     } catch (error) {
-      console.error('Text extraction error:', error.message);
-      if (error.code === 'ENOENT') {
-        throw new Error(`File not found: ${filePath}`);
-      }
+      console.error('Error extracting text:', error);
+      // Return empty string instead of throwing error
       return '';
     }
   }
 
-  static async extractFromPDF(filePath) {
-    try {
-      const dataBuffer = await fs.readFile(filePath);
-      
-      if (dataBuffer.length === 0) {
-        throw new Error('PDF file is empty');
-      }
-      
-      const data = await pdfParse(dataBuffer);
-      
-      if (!data.text || data.text.trim().length === 0) {
-        console.warn('No text content found in PDF');
-        return '';
-      }
-      
-      return data.text;
-    } catch (error) {
-      console.error('PDF extraction error:', error.message);
-      throw new Error(`Failed to extract text from PDF: ${error.message}`);
-    }
-  }
-
-  static async extractFromDOCX(filePath) {
-    try {
-      const result = await mammoth.extractRawText({ path: filePath });
-      
-      if (!result.value || result.value.trim().length === 0) {
-        console.warn('No text content found in DOCX');
-        return '';
-      }
-      
-      if (result.messages && result.messages.length > 0) {
-        console.log('DOCX processing messages:', result.messages);
-      }
-      
-      return result.value;
-    } catch (error) {
-      console.error('DOCX extraction error:', error.message);
-      throw new Error(`Failed to extract text from DOCX: ${error.message}`);
-    }
-  }
-
+  /**
+   * Parse resume data from extracted text
+   */
   static parseResumeData(text) {
-    if (!text || typeof text !== 'string') {
-      console.warn('Invalid text provided for parsing');
-      return this.getEmptyResumeData();
+    if (!text || text.trim().length === 0) {
+      return {
+        name: '',
+        email: '',
+        phone: '',
+        skills: [],
+        experience: '',
+        education: '',
+        summary: ''
+      };
     }
 
-    const parsedData = this.getEmptyResumeData();
-
-    try {
-      // Extract email with improved regex
-      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
-      const emailMatches = text.match(emailRegex);
-      if (emailMatches && emailMatches.length > 0) {
-        parsedData.email = emailMatches[0];
-      }
-
-      // Extract phone with improved regex for various formats
-      const phoneRegex = /(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4})|(?:\+?[1-9]\d{1,14})/g;
-      const phoneMatches = text.match(phoneRegex);
-      if (phoneMatches && phoneMatches.length > 0) {
-        // Filter out numbers that are too long/short to be phone numbers
-        const validPhone = phoneMatches.find(phone => {
-          const digits = phone.replace(/\D/g, '');
-          return digits.length >= 10 && digits.length <= 15;
-        });
-        if (validPhone) {
-          parsedData.phone = validPhone;
-        }
-      }
-
-      // Enhanced skills extraction
-      const skillKeywords = [
-        'javascript', 'typescript', 'python', 'java', 'c#', 'php', 'ruby', 'go',
-        'react', 'angular', 'vue.js', 'node.js', 'express', 'django', 'flask',
-        'html', 'css', 'sass', 'less', 'bootstrap', 'tailwind',
-        'sql', 'mongodb', 'mysql', 'postgresql', 'redis', 'elasticsearch',
-        'docker', 'kubernetes', 'jenkins', 'terraform',
-        'aws', 'azure', 'gcp', 'heroku', 'vercel',
-        'git', 'github', 'gitlab', 'bitbucket',
-        'agile', 'scrum', 'kanban', 'jira', 'confluence',
-        'machine learning', 'ai', 'data science', 'pandas', 'numpy',
-        'rest api', 'graphql', 'microservices', 'devops'
-      ];
-      
-      const foundSkills = skillKeywords.filter(skill => 
-        text.toLowerCase().includes(skill.toLowerCase())
-      );
-      parsedData.skills = [...new Set(foundSkills)];
-
-      // Extract name (improved heuristic)
-      const lines = text.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
-      
-      if (lines.length > 0) {
-        for (let i = 0; i < Math.min(3, lines.length); i++) {
-          const line = lines[i];
-          // Check if line looks like a name (not too long, not an email, not all caps)
-          if (line.length < 50 && 
-              !line.includes('@') && 
-              !line.includes('http') &&
-              line !== line.toUpperCase() &&
-              /^[a-zA-Z\s.'-]+$/.test(line)) {
-            parsedData.name = line;
-            break;
-          }
-        }
-      }
-
-      // Extract basic sections
-      parsedData.summary = this.extractSection(text, ['summary', 'objective', 'profile']);
-      parsedData.experience = this.extractSection(text, ['experience', 'employment', 'work history']);
-      parsedData.education = this.extractSection(text, ['education', 'academic', 'qualification']);
-
-    } catch (error) {
-      console.error('Resume parsing error:', error.message);
-    }
+    const parsedData = {
+      name: this.extractName(text),
+      email: this.extractEmail(text),
+      phone: this.extractPhone(text),
+      skills: this.extractSkills(text),
+      experience: this.extractExperience(text),
+      education: this.extractEducation(text),
+      summary: this.extractSummary(text)
+    };
 
     return parsedData;
   }
 
-  static getEmptyResumeData() {
-    return {
-      name: '',
-      email: '',
-      phone: '',
-      skills: [],
-      experience: '',
-      education: '',
-      summary: ''
-    };
-  }
-
-  static extractSection(text, keywords) {
-    try {
-      const lines = text.split('\n');
-      let sectionStart = -1;
-      
-      // Find section start
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].toLowerCase().trim();
-        if (keywords.some(keyword => line.includes(keyword.toLowerCase()))) {
-          sectionStart = i;
-          break;
-        }
+  /**
+   * Extract name (first line typically contains name)
+   */
+  static extractName(text) {
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length > 0) {
+      const firstLine = lines[0].trim();
+      if (firstLine.length < 50 && !firstLine.includes('@') && !/\d{3,}/.test(firstLine)) {
+        return firstLine;
       }
-      
-      if (sectionStart === -1) return '';
-      
-      // Extract section content (next few lines or until next section)
-      const sectionLines = [];
-      for (let i = sectionStart + 1; i < Math.min(sectionStart + 10, lines.length); i++) {
-        const line = lines[i].trim();
-        if (line.length === 0) continue;
-        
-        // Stop if we hit what looks like another section header
-        if (line.length < 20 && line.toUpperCase() === line) {
-          break;
-        }
-        
-        sectionLines.push(line);
-      }
-      
-      return sectionLines.join(' ').substring(0, 500); // Limit length
-    } catch (error) {
-      console.error('Section extraction error:', error.message);
-      return '';
     }
+    return '';
   }
 
-  // Utility method to validate file type
-  static getSupportedFileTypes() {
-    return ['pdf', 'docx'];
+  /**
+   * Extract email address
+   */
+  static extractEmail(text) {
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const emails = text.match(emailRegex);
+    return emails && emails.length > 0 ? emails[0] : '';
   }
 
-  static isFileTypeSupported(fileType) {
-    return this.getSupportedFileTypes().includes(fileType.toLowerCase());
+  /**
+   * Extract phone number
+   */
+  static extractPhone(text) {
+    const phoneRegex = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    const phones = text.match(phoneRegex);
+    return phones && phones.length > 0 ? phones[0] : '';
+  }
+
+  /**
+   * Extract skills (look for keywords like "Skills", "Technical Skills", etc.)
+   */
+  static extractSkills(text) {
+    const skillsSection = /(?:skills|technical skills|technologies|expertise)[\s:]*([^\n]+(?:\n(?!\n)[^\n]+)*)/i;
+    const match = text.match(skillsSection);
+    
+    if (match && match[1]) {
+      const skillsText = match[1];
+      const skills = skillsText
+        .split(/[,;\n|]/)
+        .map(skill => skill.trim())
+        .filter(skill => skill.length > 1 && skill.length < 50);
+      return [...new Set(skills)].slice(0, 20);
+    }
+    
+    return [];
+  }
+
+  /**
+   * Extract work experience
+   */
+  static extractExperience(text) {
+    const experienceSection = /(?:experience|work experience|employment|work history)[\s:]*([^\n]+(?:\n(?!\n)[^\n]+)*)/i;
+    const match = text.match(experienceSection);
+    
+    if (match && match[1]) {
+      return match[1].substring(0, 500);
+    }
+    
+    return '';
+  }
+
+  /**
+   * Extract education
+   */
+  static extractEducation(text) {
+    const educationSection = /(?:education|academic|qualification)[\s:]*([^\n]+(?:\n(?!\n)[^\n]+)*)/i;
+    const match = text.match(educationSection);
+    
+    if (match && match[1]) {
+      return match[1].substring(0, 500);
+    }
+    
+    return '';
+  }
+
+  /**
+   * Extract summary/objective
+   */
+  static extractSummary(text) {
+    const summarySection = /(?:summary|objective|profile|about)[\s:]*([^\n]+(?:\n(?!\n)[^\n]+)*)/i;
+    const match = text.match(summarySection);
+    
+    if (match && match[1]) {
+      return match[1].substring(0, 300);
+    }
+    
+    return text.substring(0, 200);
   }
 }
 

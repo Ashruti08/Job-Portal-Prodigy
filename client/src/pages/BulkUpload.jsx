@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOutletContext } from "react-router-dom";
 import axios from "axios";
+import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
 import {
   FiUpload,
   FiFile,
@@ -32,6 +34,12 @@ const BulkUpload = () => {
     csv: { totalCSVs: 0, processedCSVs: 0, failedCSVs: 0, totalRows: 0, totalSize: 0 }
   });
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [previewModal, setPreviewModal] = useState({
+    isOpen: false,
+    file: null,
+    data: null,
+    type: null
+  });
   
   const resumeInputRef = useRef(null);
   const csvInputRef = useRef(null);
@@ -97,26 +105,58 @@ const BulkUpload = () => {
       return;
     }
 
-    const validFiles = Array.from(files).filter(file => {
+    // Validate files exist
+    if (!files || files.length === 0) {
+      toast.error("Please select files to upload");
+      return;
+    }
+
+    // Convert FileList to Array
+    const filesArray = Array.from(files);
+    console.log('Files to upload:', filesArray.length);
+    console.log('Upload type:', type);
+
+    // Filter valid files
+    const validFiles = filesArray.filter(file => {
+      console.log('Checking file:', file.name, 'Type:', file.type);
+      
       if (type === "resumes") {
-        return file.type === "application/pdf" || 
+        const isValid = file.type === "application/pdf" || 
                file.name.toLowerCase().endsWith('.pdf') ||
                file.name.toLowerCase().endsWith('.doc') ||
                file.name.toLowerCase().endsWith('.docx') ||
                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                file.type === 'application/msword';
+        
+        if (!isValid) {
+          console.log('Invalid resume file:', file.name);
+        }
+        return isValid;
       } else {
-        return file.type === "text/csv" || 
+        // Accept CSV and Excel files
+        const isValid = file.type === "text/csv" || 
                file.name.toLowerCase().endsWith('.csv') ||
-               file.type === 'application/csv';
+               file.type === 'application/csv' ||
+               file.type === 'application/vnd.ms-excel' ||
+               file.name.toLowerCase().endsWith('.xlsx') ||
+               file.name.toLowerCase().endsWith('.xls') ||
+               file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+               file.type === 'application/vnd.ms-excel';
+        
+        if (!isValid) {
+          console.log('Invalid CSV/Excel file:', file.name);
+        }
+        return isValid;
       }
     });
+
+    console.log('Valid files:', validFiles.length);
 
     if (validFiles.length === 0) {
       toast.error(
         type === "resumes" 
           ? "Please select valid resume files (PDF, DOC, DOCX)"
-          : "Please select valid CSV files"
+          : "Please select valid CSV or Excel files (CSV, XLSX, XLS)"
       );
       return;
     }
@@ -127,7 +167,16 @@ const BulkUpload = () => {
     }
 
     if (validFiles.length > 10 && type === "csv") {
-      toast.error("Maximum 10 CSV files allowed at once");
+      toast.error("Maximum 10 CSV/Excel files allowed at once");
+      return;
+    }
+
+    // Check file sizes (increased limit for Excel files)
+    const maxSize = type === "csv" ? 5 * 1024 * 1024 : 400 * 1024; // 5MB for CSV/Excel, 400KB for resumes
+    const oversizedFiles = validFiles.filter(file => file.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      const sizeLimit = type === "csv" ? "5MB" : "400KB";
+      toast.error(`${oversizedFiles.length} file(s) exceed ${sizeLimit} limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
       return;
     }
 
@@ -136,23 +185,31 @@ const BulkUpload = () => {
     try {
       const formData = new FormData();
       
-      // Add files to FormData
-      validFiles.forEach(file => {
-        if (type === "resumes") {
-          formData.append('resumes', file);
-        } else {
-          formData.append('csvFiles', file);
-        }
+      // Add files to FormData with correct field name
+      const fieldName = type === "resumes" ? 'resumes' : 'csvFiles';
+      console.log('Using field name:', fieldName);
+      
+      validFiles.forEach((file, index) => {
+        console.log(`Adding file ${index + 1}:`, file.name, 'Size:', file.size);
+        formData.append(fieldName, file);
       });
 
-      // Add additional metadata if needed
+      // Add metadata for CSV
       if (type === "csv") {
-        formData.append('dataType', 'general'); // You can make this dynamic
+        formData.append('dataType', 'general');
+      }
+
+      // Log FormData contents
+      console.log('FormData entries:');
+      for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]);
       }
 
       const endpoint = type === "resumes" 
         ? `${backendUrl}/api/bulk-upload/upload-resumes`
         : `${backendUrl}/api/bulk-upload/upload-csv`;
+
+      console.log('Uploading to:', endpoint);
 
       const { data } = await axios.post(endpoint, formData, {
         headers: {
@@ -161,10 +218,11 @@ const BulkUpload = () => {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          // You can add a progress bar here if needed
           console.log(`Upload Progress: ${percentCompleted}%`);
         }
       });
+
+      console.log('Upload response:', data);
 
       if (data.success) {
         toast.success(data.message);
@@ -184,7 +242,10 @@ const BulkUpload = () => {
       
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error(error.response?.data?.message || "Failed to upload files. Please try again.");
+      console.error("Error response:", error.response?.data);
+      
+      const errorMessage = error.response?.data?.message || error.message || "Failed to upload files. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsUploading(false);
       // Reset file inputs
@@ -232,15 +293,141 @@ const BulkUpload = () => {
     }
   };
 
-  const downloadFile = async (file) => {
+  // Helper function to determine if file can be viewed
+  const canViewFile = (file) => {
+    const fileName = file.originalName.toLowerCase();
+    const fileType = file.fileType?.toLowerCase();
+    
+    // Check for PDF
+    if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
+      return true;
+    }
+    
+    // Check for Word documents - show eye icon for all Word docs
+    if (fileName.endsWith('.doc') || fileName.endsWith('.docx') || 
+        fileType === 'doc' || fileType === 'docx') {
+      return true;
+    }
+    
+    // Check for CSV
+    if (fileName.endsWith('.csv') || fileType === 'csv') {
+      return true;
+    }
+    
+    // Check for Excel
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || 
+        fileType === 'xlsx' || fileType === 'xls') {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const viewFile = async (file) => {
     try {
-      // Create a download request to your backend
+      const fileName = file.originalName.toLowerCase();
+      const fileType = file.fileType?.toLowerCase();
+      
       const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${file._id}`, {
         headers: { token: companyToken },
         responseType: 'blob'
       });
 
-      // Create download link
+      // Handle PDF files - open in new tab
+      if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      }
+      // Handle Word documents - show preview in modal
+      else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+        // Only try to preview .docx files, not legacy .doc files
+        if (fileName.endsWith('.doc') && !fileName.endsWith('.docx')) {
+          toast.info("Legacy .doc format cannot be previewed. Please download to view or convert to .docx format.");
+          return;
+        }
+        
+        try {
+          const arrayBuffer = await response.data.arrayBuffer();
+          
+          // Validate that it's actually a DOCX file (should start with PK zip signature)
+          const uint8View = new Uint8Array(arrayBuffer);
+          if (uint8View[0] !== 0x50 || uint8View[1] !== 0x4B) {
+            throw new Error("Invalid DOCX file format");
+          }
+          
+          const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+          const html = result.value;
+          
+          // Check if any content was extracted
+          if (!html || html.trim().length === 0) {
+            throw new Error("No content could be extracted from the document");
+          }
+          
+          setPreviewModal({
+            isOpen: true,
+            file: file,
+            data: html,
+            type: 'word'
+          });
+        } catch (error) {
+          console.error("Error parsing Word document:", error);
+          toast.error("Failed to preview Word document. The file may be corrupted or in an unsupported format. Please download to view.");
+        }
+      }
+      // Handle CSV files - show preview in modal
+      else if (fileName.endsWith('.csv')) {
+        try {
+          const text = await response.data.text();
+          const rows = text.split('\n').map(row => row.split(','));
+          setPreviewModal({
+            isOpen: true,
+            file: file,
+            data: rows,
+            type: 'csv'
+          });
+        } catch (error) {
+          console.error("Error parsing CSV:", error);
+          toast.error("Failed to preview CSV file. Please download to view.");
+        }
+      }
+      // Handle Excel files - show preview in modal
+      else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        try {
+          const arrayBuffer = await response.data.arrayBuffer();
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          setPreviewModal({
+            isOpen: true,
+            file: file,
+            data: jsonData,
+            type: 'excel'
+          });
+        } catch (error) {
+          console.error("Error parsing Excel:", error);
+          toast.error("Failed to preview Excel file. Please download to view.");
+        }
+      }
+      else {
+        toast.info("This file type cannot be previewed. Please use download instead.");
+      }
+    } catch (error) {
+      console.error("View error:", error);
+      toast.error("Failed to view file");
+    }
+  };
+
+  const downloadFile = async (file) => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${file._id}`, {
+        headers: { token: companyToken },
+        responseType: 'blob'
+      });
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -308,7 +495,7 @@ const BulkUpload = () => {
               >
                 Bulk Upload
               </h1>
-              <p className="text-gray-600">Upload multiple resumes or CSV files for bulk processing</p>
+              <p className="text-gray-600">Upload multiple resumes or CSV/Excel files for bulk processing</p>
             </div>
             <button
               onClick={() => {
@@ -347,7 +534,7 @@ const BulkUpload = () => {
             style={{ backgroundColor: activeTab === "csv" ? "#FF0000" : "transparent" }}
           >
             <FiDatabase />
-            <span>CSV Upload</span>
+            <span>CSV/Excel Upload</span>
           </button>
         </div>
 
@@ -377,13 +564,13 @@ const BulkUpload = () => {
               </div>
               
               <h3 className="text-lg font-semibold mb-2" style={{ color: '#020330' }}>
-                {activeTab === "resumes" ? "Upload Resume Files" : "Upload CSV Files"}
+                {activeTab === "resumes" ? "Upload Resume Files" : "Upload CSV or Excel Files"}
               </h3>
               
               <p className="text-gray-600 mb-4">
                 {activeTab === "resumes" 
                   ? "Drag and drop PDF, DOC, or DOCX files here, or click to browse (Max 20 files)"
-                  : "Drag and drop CSV files here, or click to browse (Max 10 files)"
+                  : "Drag and drop CSV or Excel files here, or click to browse (Max 10 files)"
                 }
               </p>
 
@@ -391,7 +578,7 @@ const BulkUpload = () => {
                 ref={activeTab === "resumes" ? resumeInputRef : csvInputRef}
                 type="file"
                 multiple
-                accept={activeTab === "resumes" ? ".pdf,.doc,.docx" : ".csv"}
+                accept={activeTab === "resumes" ? ".pdf,.doc,.docx" : ".csv,.xlsx,.xls"}
                 onChange={(e) => handleFileUpload(e.target.files, activeTab)}
                 className="hidden"
                 disabled={isUploading}
@@ -414,8 +601,8 @@ const BulkUpload = () => {
 
               <p className="text-xs text-gray-500 mt-2">
                 {activeTab === "resumes" 
-                  ? "Supported formats: PDF, DOC, DOCX (Max 10MB each)"
-                  : "Supported formats: CSV (Max 5MB each)"
+                  ? "Supported formats: PDF, DOC, DOCX (Max 400KB each)"
+                  : "Supported formats: CSV, XLSX, XLS (Max 5MB each)"
                 }
               </p>
             </div>
@@ -459,7 +646,7 @@ const BulkUpload = () => {
           ) : (
             <>
               <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF0000' }}>
-                <p className="text-gray-500 text-sm mb-1">Total CSV Files</p>
+                <p className="text-gray-500 text-sm mb-1">Total Files</p>
                 <p className="text-2xl font-bold" style={{ color: '#FF0000' }}>
                   {stats.csv.totalCSVs}
                 </p>
@@ -496,7 +683,7 @@ const BulkUpload = () => {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold" style={{ color: '#020330' }}>
-                Uploaded {activeTab === "resumes" ? "Resumes" : "CSV Files"} ({uploadedFiles.length})
+                Uploaded {activeTab === "resumes" ? "Resumes" : "Data Files"} ({uploadedFiles.length})
               </h3>
             </div>
             
@@ -554,6 +741,16 @@ const BulkUpload = () => {
                       )}
                       <td className="py-4 px-6">
                         <div className="flex justify-center space-x-2">
+                          {/* View button for all supported file types */}
+                          {canViewFile(file) && (
+                            <button
+                              onClick={() => viewFile(file)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="View File"
+                            >
+                              <FiEye size={16} />
+                            </button>
+                          )}
                           <button
                             onClick={() => downloadFile(file)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -582,11 +779,125 @@ const BulkUpload = () => {
               {activeTab === "resumes" ? <FiFileText size={48} /> : <FiDatabase size={48} />}
             </div>
             <p className="text-gray-600">
-              No {activeTab === "resumes" ? "resumes" : "CSV files"} uploaded yet
+              No {activeTab === "resumes" ? "resumes" : "data files"} uploaded yet
             </p>
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {previewModal.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <FiEye className="text-2xl" style={{ color: '#FF0000' }} />
+                  <div>
+                    <h3 className="text-xl font-semibold" style={{ color: '#020330' }}>
+                      File Preview
+                    </h3>
+                    <p className="text-sm text-gray-600">{previewModal.file?.originalName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <FiX className="text-xl text-gray-600" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-auto p-6">
+                {previewModal.type === 'word' ? (
+                  // Word Document Preview
+                  <div 
+                    className="prose max-w-none bg-white p-6 rounded-lg border border-gray-200"
+                    dangerouslySetInnerHTML={{ __html: previewModal.data }}
+                    style={{
+                      minHeight: '400px',
+                      fontFamily: 'Arial, sans-serif',
+                      lineHeight: '1.6'
+                    }}
+                  />
+                ) : previewModal.data && previewModal.data.length > 0 ? (
+                  // CSV/Excel Table Preview
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {previewModal.data[0].map((header, index) => (
+                            <th
+                              key={index}
+                              className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-200"
+                            >
+                              {header || `Column ${index + 1}`}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {previewModal.data.slice(1, 101).map((row, rowIndex) => (
+                          <tr key={rowIndex} className="hover:bg-gray-50">
+                            {row.map((cell, cellIndex) => (
+                              <td
+                                key={cellIndex}
+                                className="px-4 py-2 text-sm text-gray-900 border-r border-gray-200"
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {previewModal.data.length > 101 && (
+                      <div className="mt-4 text-center text-sm text-gray-600">
+                        Showing first 100 rows of {previewModal.data.length - 1} total rows
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    No data to display
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={() => downloadFile(previewModal.file)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <FiDownload />
+                  <span>Download</span>
+                </button>
+                <button
+                  onClick={() => setPreviewModal({ isOpen: false, file: null, data: null, type: null })}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

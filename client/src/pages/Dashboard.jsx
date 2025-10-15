@@ -4,7 +4,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import logo from "../assets/DEEmploymint.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiAlertCircle, FiMenu, FiX } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome,FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 const Dashboard = () => {

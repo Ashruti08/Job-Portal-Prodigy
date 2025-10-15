@@ -4,7 +4,8 @@ const csvDataSchema = new mongoose.Schema({
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company',
-    required: true
+    required: true,
+    index: true
   },
   fileName: {
     type: String,
@@ -17,6 +18,11 @@ const csvDataSchema = new mongoose.Schema({
   fileSize: {
     type: Number,
     required: true
+  },
+  fileType: {
+    type: String,
+    enum: ['csv', 'xlsx', 'xls'],
+    default: 'csv'
   },
   filePath: {
     type: String,
@@ -41,17 +47,24 @@ const csvDataSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['uploaded', 'processing', 'processed', 'failed'],
-    default: 'uploaded'
+    default: 'uploaded',
+    index: true
   },
   metadata: {
-    uploadBatch: String,
-    processingNotes: String,
-    dataType: String
+    uploadBatch: { type: String, index: true },
+    processingNotes: { type: String },
+    dataType: { type: String },
+    sheetName: { type: String }, // For Excel files - which sheet was processed
+    totalSheets: { type: Number } // For Excel files - total number of sheets
   }
 }, {
   timestamps: true
 });
 
-csvDataSchema.index({ companyId: 1, uploadDate: -1 });
+// Compound indexes for better query performance
+csvDataSchema.index({ companyId: 1, createdAt: -1 });
+csvDataSchema.index({ companyId: 1, status: 1 });
+csvDataSchema.index({ companyId: 1, fileType: 1 });
 
-export default mongoose.model('CSVData', csvDataSchema);
+const CsvData = mongoose.model('CsvData', csvDataSchema);
+export default CsvData;

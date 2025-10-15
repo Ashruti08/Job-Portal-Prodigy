@@ -4,7 +4,8 @@ const resumeSchema = new mongoose.Schema({
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company',
-    required: true
+    required: true,
+    index: true
   },
   fileName: {
     type: String,
@@ -20,7 +21,8 @@ const resumeSchema = new mongoose.Schema({
   },
   fileType: {
     type: String,
-    required: true
+    required: true,
+    enum: ['pdf', 'doc', 'docx']
   },
   filePath: {
     type: String,
@@ -31,13 +33,13 @@ const resumeSchema = new mongoose.Schema({
     default: ''
   },
   parsedData: {
-    name: String,
-    email: String,
-    phone: String,
-    skills: [String],
-    experience: String,
-    education: String,
-    summary: String
+    name: { type: String, default: '' },
+    email: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    skills: [{ type: String }],
+    experience: { type: String, default: '' },
+    education: { type: String, default: '' },
+    summary: { type: String, default: '' }
   },
   uploadDate: {
     type: Date,
@@ -46,16 +48,20 @@ const resumeSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['uploaded', 'processing', 'processed', 'failed'],
-    default: 'uploaded'
+    default: 'uploaded',
+    index: true
   },
   metadata: {
-    uploadBatch: String,
-    processingNotes: String
+    uploadBatch: { type: String, index: true },
+    processingNotes: { type: String }
   }
 }, {
   timestamps: true
 });
 
-resumeSchema.index({ companyId: 1, uploadDate: -1 });
+// Compound indexes for better query performance
+resumeSchema.index({ companyId: 1, createdAt: -1 });
+resumeSchema.index({ companyId: 1, status: 1 });
 
-export default mongoose.model('Resume', resumeSchema);
+const Resume = mongoose.model('Resume', resumeSchema);
+export default Resume;
