@@ -602,7 +602,7 @@ const BulkUpload = () => {
               <p className="text-xs text-gray-500 mt-2">
                 {activeTab === "resumes" 
                   ? "Supported formats: PDF, DOC, DOCX (Max 400KB each)"
-                  : "Supported formats: CSV, XLSX, XLS (Max 400Kb each)"
+                  : "Supported formats: CSV, XLSX, XLS (Max 5MB each)"
                 }
               </p>
             </div>
