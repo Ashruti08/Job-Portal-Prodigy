@@ -17,6 +17,7 @@ import ManageJobs from "./pages/ManageJobs";
 import ViewApplications from "./pages/ViewApplications";
 import MyProfile from "./components/MyProfile";
 import AppliedJobs from "./components/AppliedJobs";
+import BulkUpload from './pages/BulkUpload';
 import JobAlerts from "./components/JobAlerts";
 import "quill/dist/quill.snow.css";
 import { ToastContainer } from "react-toastify";
@@ -70,11 +71,10 @@ const App = () => {
         <Route path="/JobAlert" element={<JobAlert />} />
         <Route path="/recruiter-login" element={<RecruiterLogin />} />
         <Route path="/applications" element={<Applications />}>
-          <Route path="my-profile" element={<MyProfile />} />
-          <Route path="applied-jobs" element={<AppliedJobs />} />
+        <Route path="my-profile" element={<MyProfile />} />
         
-
-          <Route path="job-alerts" element={<JobAlerts />} />
+        <Route path="applied-jobs" element={<AppliedJobs />} />
+        <Route path="job-alerts" element={<JobAlerts />} />
         </Route>
         <Route path="/JobCategories" element={<JobCategories />} />
         <Route path="/JobListing" element={<JobListing />} />
@@ -119,6 +119,14 @@ const App = () => {
             element={
               <DemoFriendlyRecruiterRoute>
                 <EmployerProfile />
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+          <Route 
+            path="bulk-upload" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <BulkUpload />
               </DemoFriendlyRecruiterRoute>
             } 
           />

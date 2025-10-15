@@ -819,7 +819,7 @@ export const googleAuth = async (req, res, next) => {
     
     console.log("📧 Google Email:", email);
     console.log("👤 Google Name:", googleName);
-    console.log("🆔 Google ID:", googleId);
+    console.log("🆔 Google ID: received");
     
     // ✅ Check if user exists (by email OR googleId)
     let company = await Company.findOne({ 

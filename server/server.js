@@ -18,7 +18,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import employerProfileRoutes from './routes/employerProfileRoutes.js';
-
+import bulkUpload from './routes/bulkUpload.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -64,6 +64,7 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 // Routes
 app.post('/webhooks', clerkWebhooks);
 app.use('/api/company', companyRoutes);
+app.use('/api/bulk-upload', bulkUpload);
 app.use('/api/jobs', JobRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/employer', employerProfileRoutes);

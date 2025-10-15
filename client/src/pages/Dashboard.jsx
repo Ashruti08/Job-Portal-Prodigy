@@ -4,7 +4,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import logo from "../assets/DEEmploymint.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiAlertCircle, FiMenu, FiX } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome,FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 const Dashboard = () => {
@@ -119,15 +119,20 @@ const Dashboard = () => {
   };
 
   const navItems = [
-    { path: "add-job", label: "Add Job", icon: <FiPlusCircle /> },
+    { path: "profile", label: "Company Profile", icon: <FiUser /> },
     { path: "manage-job", label: "Manage Jobs", icon: <FiFolder /> },
     { path: "view-applications", label: "Applications", icon: <FiMail /> },
-    { path: "profile", label: "Company Profile", icon: <FiUser /> },
+    { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
+    { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
+    { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
+
+    
   ];
 
   return (
     <div className="flex h-screen bg-gradient-to-tr from-[#f5f7fa] via-[#ebedfb] to-[#dce3ff] font-[Poppins] relative">
       {/* Login Notification */}
+      
       <AnimatePresence>
         {showNotification && (
           <motion.div
