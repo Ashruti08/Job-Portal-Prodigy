@@ -7,7 +7,7 @@ import Applications from "./pages/Applications";
 import ApplyJob from "./pages/ApplyJob";
 import JobListing from "./pages/JobListing";
 import JobCategories from "./components/JobCategories";
-import JobAlert from "./pages/JobAlert";
+import JobAlert from "./pages/Jobalert"
 import RecruiterLogin from "./components/RecruiterLogin";
 import { AppContext } from "./context/AppContext";
 import Dashboard from "./pages/Dashboard";
