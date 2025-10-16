@@ -45,7 +45,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(clerkMiddleware());
 
 // Serve static files
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res, path) => {
+    res.set('Cache-Control', 'public, max-age=31536000');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 app.get("/", (req, res) => res.send("API Working"));
 

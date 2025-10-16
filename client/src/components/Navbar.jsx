@@ -1,11 +1,13 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Briefcase, Menu, X } from "lucide-react";
+import { AppContext } from "../context/AppContext";
+import { Zap, Briefcase, Menu, X } from "lucide-react";
+import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 
 // Mock context and assets for demo
-const AppContext = React.createContext({});
-const DEEmploymintIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23FF0000' width='100' height='100' rx='20'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EDE%3C/text%3E%3C/svg%3E";
+// const AppContext = React.createContext({});
+// const DEEmploymintIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23FF0000' width='100' height='100' rx='20'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EDE%3C/text%3E%3C/svg%3E";
 
 const Navbar = () => {
   const { openSignIn } = useClerk();

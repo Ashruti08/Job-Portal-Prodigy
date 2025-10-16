@@ -13,11 +13,36 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Initialize Google OAuth Client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ==================== HELPER FUNCTION FOR IMAGE UPLOAD ====================
+const saveImageWithFullUrl = (imageFile, dirname) => {
+  const fileName = `company_${Date.now()}_${imageFile.originalname}`;
+  const uploadDir = path.join(dirname, '../uploads/images');
+  const filePath = path.join(uploadDir, fileName);
+  
+  // Ensure directory exists
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  
+  fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
+  
+  // ✅ SAVE FULL URL instead of relative path
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+  const imageUrl = `${backendUrl}/uploads/images/${fileName}`;
+  
+  fs.unlinkSync(imageFile.path); // Clean temp file
+  
+  return imageUrl;
+};
 
 // ==================== PART 1: AUTH & COMPANY MANAGEMENT ====================
 export const registerCompany = async (req, res, next) => {
@@ -67,19 +92,10 @@ export const registerCompany = async (req, res, next) => {
 
     let imageUrl = '';
 
+    // ✅ Use helper function for image upload
     if (imageFile) {
-      const fileName = `company_${Date.now()}_${imageFile.originalname}`;
-      const uploadDir = path.join(__dirname, '../uploads/images');
-      const filePath = path.join(uploadDir, fileName);
-      
-      // Ensure directory exists
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      
-      fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
-      imageUrl = `/uploads/images/${fileName}`;
-      fs.unlinkSync(imageFile.path); // Clean temp file
+      imageUrl = saveImageWithFullUrl(imageFile, __dirname);
+      console.log("✅ Image uploaded:", imageUrl);
     }
 
     // Create company
@@ -762,11 +778,8 @@ export const getPublicCompanyJobs = async (req, res) => {
         });
     }
 };
-// const { OAuth2Client } = require('google-auth-library');
 
-// Initialize with correct env variable (no VITE_ prefix for backend)
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
+// ==================== GOOGLE AUTH ====================
 export const googleAuth = async (req, res, next) => {
   try {
     console.log("\n=== GOOGLE AUTH REQUEST START ===");
@@ -890,30 +903,14 @@ export const googleAuth = async (req, res, next) => {
       
       console.log("✅ Email available for Google signup");
       
-      // ✅ Handle company logo upload
+      // ✅ Handle company logo upload with FULL URL
       let imageUrl = picture || ''; // Default to Google profile picture
       
       if (imageFile) {
         try {
           console.log("📸 Processing image upload...");
-          const fileName = `company_${Date.now()}_${imageFile.originalname}`;
-          const uploadDir = path.join(__dirname, '../uploads/images');
-          const filePath = path.join(uploadDir, fileName);
-          
-          // Ensure upload directory exists
-          if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-            console.log("📁 Created upload directory");
-          }
-          
-          // Move file from temp to uploads
-          fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
-          imageUrl = `/uploads/images/${fileName}`;
-          
-          // Clean up temp file
-          fs.unlinkSync(imageFile.path);
-          
-          console.log("✅ Image uploaded:", fileName);
+          imageUrl = saveImageWithFullUrl(imageFile, __dirname);
+          console.log("✅ Image uploaded:", imageUrl);
         } catch (imageError) {
           console.error("⚠️ Image upload error:", imageError.message);
           // Continue with Google profile picture if upload fails

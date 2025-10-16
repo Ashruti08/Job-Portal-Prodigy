@@ -15,6 +15,55 @@ import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
 import { FiMapPin, FiBriefcase, FiDollarSign, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
 
+// Company Logo Component with loading state
+const CompanyLogo = ({ companyData }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <motion.div 
+      whileHover={{ scale: 1.05 }}
+      className="bg-white p-3 rounded-lg shadow-lg border border-white/20 flex items-center justify-center relative overflow-hidden"
+      style={{ 
+        width: '88px', 
+        height: '88px',
+        minWidth: '88px',
+        minHeight: '88px'
+      }}
+    >
+      {/* Loading skeleton */}
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+      )}
+      
+      {/* Actual image */}
+      <img
+        className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${
+          imageLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        src={companyData?.image || assets.placeholder}
+        alt={`${companyData?.name || 'Company'} Logo`}
+        onLoad={() => {
+          setImageLoaded(true);
+          setImageError(false);
+        }}
+        onError={(e) => {
+          setImageError(true);
+          setImageLoaded(true);
+          e.target.src = assets.placeholder;
+        }}
+        loading="eager"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto'
+        }}
+      />
+    </motion.div>
+  );
+};
+
 const ApplyJob = () => {
   const { id } = useParams();
   const { getToken } = useAuth();
@@ -23,8 +72,7 @@ const ApplyJob = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [similarJobs, setSimilarJobs] = useState([]);
   const [similarCurrentSlide, setSimilarCurrentSlide] = useState(0);
-const [similarJobsPerSlide] = useState(1);
-
+  const [similarJobsPerSlide] = useState(1);
 
   const {
     jobs = [],
@@ -34,13 +82,20 @@ const [similarJobsPerSlide] = useState(1);
     fetchUserApplications,
   } = useContext(AppContext);
 
+  // Preload company image
+  useEffect(() => {
+    if (jobData?.companyId?.image) {
+      const img = new Image();
+      img.src = jobData.companyId.image;
+    }
+  }, [jobData?.companyId?.image]);
+
   // Fetch job details
   const fetchJob = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/jobs/${id}`);
       
       if (data.success) {
-        // Handle both possible response formats
         const job = data.job || data.data;
         setJobData(job);
         findSimilarJobs(job);
@@ -55,13 +110,11 @@ const [similarJobsPerSlide] = useState(1);
       
       if (error.response?.status === 404) {
         toast.error("Job not found. It may have been removed or the link is invalid.");
-        // Try to find job in context as fallback
         findJobInContext();
       } else if (error.response?.status === 500) {
         toast.error("Server error. Please try again later.");
       } else {
         toast.error("Failed to fetch job details. Please check your connection.");
-        // Try to find job in context as fallback
         findJobInContext();
       }
     }
@@ -78,7 +131,6 @@ const [similarJobsPerSlide] = useState(1);
         toast.success("Job found in local data");
       } else {
         toast.error("Job not found anywhere. Please try again later.");
-        // Optional: Redirect to jobs page
         setTimeout(() => {
           window.history.back();
         }, 2000);
@@ -100,33 +152,30 @@ const [similarJobsPerSlide] = useState(1);
     ).slice(0, 4);
     setSimilarJobs(similar);
   };
+
   useEffect(() => {
-  if (similarJobs.length > similarJobsPerSlide) {
-    const totalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
-    
-    const interval = setInterval(() => {
-      setSimilarCurrentSlide((prev) => (prev + 1) % totalSlides);
-    }, 4000); // Auto slide every 4 seconds
+    if (similarJobs.length > similarJobsPerSlide) {
+      const totalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
+      
+      const interval = setInterval(() => {
+        setSimilarCurrentSlide((prev) => (prev + 1) % totalSlides);
+      }, 4000);
 
-    return () => clearInterval(interval);
-  }
-}, [similarJobs.length, similarJobsPerSlide]);
+      return () => clearInterval(interval);
+    }
+  }, [similarJobs.length, similarJobsPerSlide]);
 
-// Calculate total slides
-const similarTotalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
+  const similarTotalSlides = Math.ceil(similarJobs.length / similarJobsPerSlide);
 
-// Function to go to specific slide
-const goToSimilarSlide = (slideIndex) => {
-  setSimilarCurrentSlide(slideIndex);
-};
-
+  const goToSimilarSlide = (slideIndex) => {
+    setSimilarCurrentSlide(slideIndex);
+  };
 
   // Handle job application
   const applyHandler = async () => {
     try {
       console.log('=== Apply Handler Start ===');
       console.log('userData:', userData);
-      
       console.log('jobData:', jobData);
       
       if (!userData) {
@@ -139,16 +188,13 @@ const goToSimilarSlide = (slideIndex) => {
 
       const token = await getToken();
       
-      // Add token validation
       if (!token) {
         return toast.error("Authentication failed. Please login again.");
       }
 
-      // Debug token structure
       console.log('Token exists:', !!token);
       console.log('Token length:', token?.length);
       
-      // Try to decode token to see its structure (if it's a JWT)
       try {
         if (token && token.includes('.')) {
           const tokenPayload = JSON.parse(atob(token.split('.')[1]));
@@ -158,10 +204,9 @@ const goToSimilarSlide = (slideIndex) => {
         console.log('Could not decode token (might not be JWT)');
       }
 
-      // Prepare request data with companyId
       const requestData = {
         jobId: jobData._id,
-        companyId: jobData.companyId?._id || jobData.companyId // Handle both object and string cases
+        companyId: jobData.companyId?._id || jobData.companyId
       };
       
       console.log('Request data:', requestData);
@@ -193,7 +238,6 @@ const goToSimilarSlide = (slideIndex) => {
       console.error('Error status:', error.response?.status);
       console.error('Full error:', error);
       
-      // More specific error handling
       if (error.response?.status === 401) {
         toast.error("Authentication failed. Please logout and login again.");
       } else if (error.response?.status === 400) {
@@ -219,7 +263,6 @@ const goToSimilarSlide = (slideIndex) => {
       if (jobData && userApplications && userApplications.length > 0) {
         const hasApplied = userApplications.some(
           (item) => {
-            // Safe check for nested properties
             return item && item.jobId && item.jobId._id === jobData._id;
           }
         );
@@ -234,7 +277,7 @@ const goToSimilarSlide = (slideIndex) => {
       }
     } catch (error) {
       console.error('Error checking already applied:', error);
-      setAlreadyApplied(false); // Default to false on error
+      setAlreadyApplied(false);
     }
   };
 
@@ -248,7 +291,6 @@ const goToSimilarSlide = (slideIndex) => {
     checkAlreadyApplied();
   }, [jobData, userApplications]);
 
-  // Debug all context data
   useEffect(() => {
     console.log('=== AppContext Debug ===');
     console.log('jobs count:', jobs?.length);
@@ -262,7 +304,6 @@ const goToSimilarSlide = (slideIndex) => {
     console.log('fetchUserApplications type:', typeof fetchUserApplications);
   }, [userData, userApplications, jobs, backendUrl]);
 
-  // Debug Clerk authentication
   useEffect(() => {
     const debugAuth = async () => {
       try {
@@ -273,7 +314,6 @@ const goToSimilarSlide = (slideIndex) => {
         if (token) {
           console.log('Token first 50 chars:', token.substring(0, 50) + '...');
           
-          // Try to decode if it's a JWT
           try {
             if (token.includes('.')) {
               const parts = token.split('.');
@@ -286,7 +326,6 @@ const goToSimilarSlide = (slideIndex) => {
               console.log('JWT Payload:', payload);
               console.log('Payload keys:', Object.keys(payload));
               
-              // Check for different user ID fields
               console.log('Possible user IDs:');
               console.log('- payload.sub:', payload.sub);
               console.log('- payload.userId:', payload.userId);
@@ -305,7 +344,6 @@ const goToSimilarSlide = (slideIndex) => {
     debugAuth();
   }, []);
 
-  // Debug job data structure
   useEffect(() => {
     if (jobData) {
       console.log('=== Job Data Debug ===');
@@ -321,7 +359,6 @@ const goToSimilarSlide = (slideIndex) => {
     }
   }, [jobData]);
 
-  // Debug userApplications structure
   useEffect(() => {
     if (userApplications && userApplications.length > 0) {
       console.log('=== User Applications Debug ===');
@@ -382,16 +419,9 @@ const goToSimilarSlide = (slideIndex) => {
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
                 <div className="flex items-start space-x-6">
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }}
-                    className="bg-white p-3 rounded-lg shadow-lg border border-white/20"
-                  >
-                    <img
-                      className="h-20 w-20 object-contain"
-                      src={jobData?.companyId?.image || assets.placeholder}
-                      alt="Company Logo"
-                    />
-                  </motion.div>
+                  {/* Fixed Company Logo with loading state */}
+                  <CompanyLogo companyData={jobData?.companyId} />
+                  
                   <div>
                     <h1 className="text-3xl font-bold text-white">{jobData?.title}</h1>
                     <p className="text-xl text-red-100 mt-1">{jobData?.companyId?.name}</p>
@@ -405,18 +435,18 @@ const goToSimilarSlide = (slideIndex) => {
                         <FiBriefcase className="mr-2" />
                         {jobData?.level}
                       </div>
-                       <div className="flex items-center text-red-100">
+                      <div className="flex items-center text-red-100">
                         <FiBriefcase className="mr-2" />
                         {jobData?.noticeperiod}
-                      </div> 
-                       <div className="flex items-center text-red-100">
+                      </div>
+                      <div className="flex items-center text-red-100">
                         <FiBriefcase className="mr-2" />
                         {jobData?.jobcategory}
-                      </div> 
-                       <div className="flex items-center text-red-100">
+                      </div>
+                      <div className="flex items-center text-red-100">
                         <FiBriefcase className="mr-2" />
                         {jobData?.jobchannel}
-                      </div> 
+                      </div>
                       <div className="flex items-center text-red-100">
                         <FiDollarSign className="mr-2" />
                         {jobData?.salary ? kConvert.convertTo(jobData.salary) : "Competitive"}
@@ -526,72 +556,73 @@ const goToSimilarSlide = (slideIndex) => {
                   <p className="text-gray-600 mb-4">
                     {jobData?.companyId?.description || "Leading company in their industry."}
                   </p>
-                  { <a 
+                  <a 
                     href={`/company/${jobData?.companyId?._id}`}
                     className="font-medium flex items-center hover:opacity-80 transition-opacity"
                     style={{ color: '#FF0000' }}
                   >
                     View company profile <FiExternalLink className="ml-1" />
-                  </a> }
+                  </a>
                 </motion.div>
 
-           <motion.div
-  initial={{ y: 20, opacity: 0 }}
-  animate={{ y: 0, opacity: 1 }}
-  transition={{ delay: 0.4 }}
-  className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
->
-  <h3 className="text-xl font-bold mb-4" style={{ color: '#020330' }}>Similar Jobs</h3>
-  
-  {similarJobs.length > 0 ? (
-    <div className="space-y-4">
-      {/* Slider Container */}
-      <div className="overflow-hidden">
-        <motion.div
-          className="flex transition-transform duration-500 ease-in-out"
-          style={{
-            transform: `translateX(-${similarCurrentSlide * 100}%)`
-          }}
-        >
-          {Array.from({ length: similarTotalSlides }, (_, slideIndex) => (
-            <div
-              key={slideIndex}
-              className="w-full flex-shrink-0"
-            >
-              <div className="space-y-4">
-                {similarJobs
-                  .slice(slideIndex * similarJobsPerSlide, (slideIndex + 1) * similarJobsPerSlide)
-                  .map((job) => (
-                    <JobCard key={job._id} job={job} compact />
-                  ))}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </div>
+                {/* Similar Jobs */}
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-white rounded-xl shadow-md p-6 border border-gray-200"
+                >
+                  <h3 className="text-xl font-bold mb-4" style={{ color: '#020330' }}>Similar Jobs</h3>
+                  
+                  {similarJobs.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Slider Container */}
+                      <div className="overflow-hidden">
+                        <motion.div
+                          className="flex transition-transform duration-500 ease-in-out"
+                          style={{
+                            transform: `translateX(-${similarCurrentSlide * 100}%)`
+                          }}
+                        >
+                          {Array.from({ length: similarTotalSlides }, (_, slideIndex) => (
+                            <div
+                              key={slideIndex}
+                              className="w-full flex-shrink-0"
+                            >
+                              <div className="space-y-4">
+                                {similarJobs
+                                  .slice(slideIndex * similarJobsPerSlide, (slideIndex + 1) * similarJobsPerSlide)
+                                  .map((job) => (
+                                    <JobCard key={job._id} job={job} compact />
+                                  ))}
+                              </div>
+                            </div>
+                          ))}
+                        </motion.div>
+                      </div>
 
-      {/* Dot Indicators - Only show if more than 3 jobs */}
-      {similarTotalSlides > 1 && (
-        <div className="flex justify-center gap-2 pt-4">
-          {Array.from({ length: similarTotalSlides }, (_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSimilarSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                similarCurrentSlide === index
-                  ? 'bg-red-500 scale-110'
-                  : 'bg-gray-300 hover:bg-gray-400'
-              }`}
-              aria-label={`Go to similar jobs slide ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  ) : (
-    <p className="text-gray-500">No similar jobs found</p>
-  )}
-</motion.div>
+                      {/* Dot Indicators */}
+                      {similarTotalSlides > 1 && (
+                        <div className="flex justify-center gap-2 pt-4">
+                          {Array.from({ length: similarTotalSlides }, (_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => goToSimilarSlide(index)}
+                              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                similarCurrentSlide === index
+                                  ? 'bg-red-500 scale-110'
+                                  : 'bg-gray-300 hover:bg-gray-400'
+                              }`}
+                              aria-label={`Go to similar jobs slide ${index + 1}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No similar jobs found</p>
+                  )}
+                </motion.div>
 
                 {/* Quick Apply */}
                 <motion.div
