@@ -17,7 +17,7 @@ const Applications = () => {
   const [activeTab, setActiveTab] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { userData, setUserData, userToken, setUserToken } = useContext(AppContext);
-
+const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
@@ -34,27 +34,34 @@ const Applications = () => {
 
   // Responsive handling - Always open sidebar on mobile when entering applications
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      
+  const handleResize = () => {
+    const mobile = window.innerWidth < 1024;
+    setIsMobile(mobile);
+    
+    // Only auto-open sidebar on initial load, not on every resize
+    if (!hasInitiallyOpened) {
       if (mobile) {
-        // Always open sidebar when user enters applications on mobile
-        // This shows them all available features immediately
+        // Show sidebar initially on mobile so users see all features
         setIsSidebarOpen(true);
       } else {
         // Always open on desktop
         setIsSidebarOpen(true);
       }
-    };
-    
-    // Initial check
-    handleResize();
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
+      setHasInitiallyOpened(true);
+    } else {
+      // On subsequent resizes, keep desktop sidebar open
+      if (!mobile) {
+        setIsSidebarOpen(true);
+      }
+    }
+  };
+  
+  // Initial check
+  handleResize();
+  
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, [hasInitiallyOpened]);
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
     const handleClickOutside = (event) => {

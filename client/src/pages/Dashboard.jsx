@@ -17,7 +17,7 @@ const Dashboard = () => {
   const [showNotification, setShowNotification] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { companyData, setCompanyData, setCompanyToken, companyToken, setShowRecruiterLogin } = useContext(AppContext);
-
+const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
   // Check if user is logged in as recruiter
   const isLoggedIn = !!companyToken && !!companyData;
 
@@ -39,28 +39,35 @@ const Dashboard = () => {
   }, [location.pathname, navigate]);
 
   // Responsive handling - Always open sidebar on mobile when entering dashboard
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      
+ useEffect(() => {
+  const handleResize = () => {
+    const mobile = window.innerWidth < 1024;
+    setIsMobile(mobile);
+    
+    // Only auto-open sidebar on initial load, not on every resize
+    if (!hasInitiallyOpened) {
       if (mobile) {
-        // Always open sidebar when user enters dashboard on mobile
-        // This shows them all available features immediately
+        // Show sidebar initially on mobile so users see all features
         setIsSidebarOpen(true);
       } else {
         // Always open on desktop
         setIsSidebarOpen(true);
       }
-    };
-    
-    // Initial check
-    handleResize();
-    
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
+      setHasInitiallyOpened(true);
+    } else {
+      // On subsequent resizes, keep desktop sidebar open
+      if (!mobile) {
+        setIsSidebarOpen(true);
+      }
+    }
+  };
+  
+  // Initial check
+  handleResize();
+  
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, [hasInitiallyOpened]); 
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
     const handleClickOutside = (event) => {

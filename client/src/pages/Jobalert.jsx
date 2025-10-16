@@ -1,11 +1,51 @@
-import { useState } from "react";
-import { Home } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Home, X, CheckCircle, AlertCircle } from "lucide-react";
+import { useClerk, useUser } from "@clerk/clerk-react";
+import axios from 'axios';
 import { useContext } from "react";
-import axios from 'axios'; // Make sure you have axios installed
 import { AppContext } from "../context/AppContext";
 import Navbar from "../components/Navbar";
+import { useNavigate } from "react-router-dom";
+
+// Toast Notification Component
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+      <div className={`flex items-center gap-3 min-w-[300px] max-w-md p-4 rounded-xl shadow-2xl ${
+        type === 'success' 
+          ? 'bg-green-500 text-white' 
+          : 'bg-red-500 text-white'
+      }`}>
+        {type === 'success' ? (
+          <CheckCircle className="w-6 h-6 flex-shrink-0" />
+        ) : (
+          <AlertCircle className="w-6 h-6 flex-shrink-0" />
+        )}
+        <p className="flex-1 font-medium">{message}</p>
+        <button
+          onClick={onClose}
+          className="flex-shrink-0 hover:bg-white/20 rounded-lg p-1 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const JobAlert = () => {
+  const navigate = useNavigate();
+  const { openSignIn } = useClerk();
+  const { user, isLoaded } = useUser();
+  
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -18,18 +58,33 @@ const JobAlert = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
- const { backendUrl, companyToken } = useContext(AppContext);
+  const [showToast, setShowToast] = useState(false);
+  const [toastConfig, setToastConfig] = useState({ message: '', type: 'success' });
+  const { backendUrl, companyToken } = useContext(AppContext);
   
-  const handleHomeClick = () => {
-    window.location.href = '/';
-  };
+  // Check if user is logged in with Clerk
+  const isLoggedIn = isLoaded && user;
 
-  // Handle input changes
+  // Pre-fill email if user is logged in
+  useEffect(() => {
+    if (isLoggedIn && user.primaryEmailAddress) {
+      setFormData(prev => ({
+        ...prev,
+        email: user.primaryEmailAddress.emailAddress
+      }));
+    }
+  }, [isLoggedIn, user]);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const showToastNotification = (message, type = 'success') => {
+    setToastConfig({ message, type });
+    setShowToast(true);
   };
 
   const JobCategories = [
@@ -96,22 +151,30 @@ const JobAlert = () => {
     "Pune", "Ahmedabad", "Jaipur", "Lucknow", "Kanpur", "Nagpur",
     "Indore", "Thane", "Bhopal", "Visakhapatnam", "Pimpri-Chinchwad",
     "Patna", "Vadodara", "Ghaziabad", "Ludhiana", "Agra", "Nashik",
-    // Add more Indian cities as needed
   ];
 
   const experiences = [
     "Beginner Level",
     "Intermediate level", 
     "Senior level",
-   
   ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Basic validation
+    // Check if user is logged in
+    if (!isLoggedIn) {
+      showToastNotification('Please login to create job alerts', 'error');
+      setMessage('Please login to create job alerts');
+      setTimeout(() => {
+        openSignIn();
+      }, 1500);
+      return;
+    }
+
     if (!formData.email) {
       setMessage('Email is required');
+      showToastNotification('Email is required', 'error');
       return;
     }
 
@@ -119,9 +182,8 @@ const JobAlert = () => {
     setMessage('');
 
     try {
-      // Replace with your actual backend URL
-      const data = await axios.post(backendUrl+"/api/job-alerts", formData,
-          { 
+      const data = await axios.post(backendUrl + "/api/job-alerts", formData,
+        { 
           headers: { 
             token: companyToken,
             'Content-Type': 'application/json'
@@ -129,11 +191,13 @@ const JobAlert = () => {
         }
       );
       
-      setMessage('Job alert created successfully! You will receive notifications based on your preferences.');
+      const successMessage = 'Job alert created successfully! You will receive notifications based on your preferences.';
+      setMessage(successMessage);
+      showToastNotification('Job alert created successfully!', 'success');
       
-      // Reset form
+      // Reset form but keep email
       setFormData({
-        email: '',
+        email: user.primaryEmailAddress?.emailAddress || '',
         phone: '',
         category: '',
         location: '',
@@ -141,21 +205,30 @@ const JobAlert = () => {
         designation: '',
         frequency: 'daily'
       });
-      
 
     } catch (error) {
       console.error('Error creating job alert:', error);
-      setMessage('Error creating job alert. Please try again.');
+      const errorMessage = error.response?.data?.message || 'Error creating job alert. Please try again.';
+      setMessage(errorMessage);
+      showToastNotification(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
-    
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast Notification */}
+      {showToast && (
+        <Toast
+          message={toastConfig.message}
+          type={toastConfig.type}
+          onClose={() => setShowToast(false)}
+        />
+      )}
+
       {/* Header Section */}
-      <Navbar/>
+      <Navbar />
       
       {/* Hero Section with Form */}
       <div className="bg-white py-12 px-8">
@@ -166,15 +239,31 @@ const JobAlert = () => {
               STAY UPDATED
             </p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: "#022030" }}>
-               Job alert
+              Job Alert
             </h1>
-            {/* <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Get personalized job alerts delivered to your inbox. Never miss out on the perfect opportunity in the financial services industry.
-            </p> */}
           </div>
 
+          {/* Login Required Message (if not logged in) */}
+          {!isLoggedIn && isLoaded && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 max-w-2xl mx-auto">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+                <h3 className="text-lg font-semibold text-yellow-800">Login Required</h3>
+              </div>
+              <p className="text-yellow-700 mb-4">
+                You need to be logged in to create job alerts and receive personalized notifications.
+              </p>
+              <button
+                onClick={() => openSignIn()}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                Login to Continue
+              </button>
+            </div>
+          )}
+
           {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 md:p-12">
+          <div className={`bg-white rounded-2xl shadow-xl border border-gray-200 p-8 md:p-12 ${!isLoggedIn ? 'opacity-50 pointer-events-none' : ''}`}>
             
             {/* Success/Error Message */}
             {message && (
@@ -207,6 +296,7 @@ const JobAlert = () => {
                       onChange={handleChange}
                       placeholder="Enter your email address"
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                      disabled={!isLoggedIn}
                     />
                   </div>
 
@@ -222,6 +312,7 @@ const JobAlert = () => {
                       onChange={handleChange}
                       placeholder="Enter your phone number"
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-gray-400 transition-colors duration-200 bg-gray-50 focus:bg-white"
+                      disabled={!isLoggedIn}
                     />
                   </div>
                 </div>
@@ -243,6 +334,7 @@ const JobAlert = () => {
                       value={formData.category}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                      disabled={!isLoggedIn}
                     >
                       <option value="">Select a category</option>
                       {JobCategories.map((category, index) => (
@@ -263,6 +355,7 @@ const JobAlert = () => {
                       value={formData.location}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                      disabled={!isLoggedIn}
                     >
                       <option value="">Select a location</option>
                       {locations.map((location, index) => (
@@ -283,6 +376,7 @@ const JobAlert = () => {
                       value={formData.level}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                      disabled={!isLoggedIn}
                     >
                       <option value="">Select experience level</option>
                       {experiences.map((exp, index) => (
@@ -303,6 +397,7 @@ const JobAlert = () => {
                       value={formData.designation}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                      disabled={!isLoggedIn}
                     >
                       <option value="">Select a designation</option>
                       {JobDesignation.map((designation, index) => (
@@ -330,6 +425,7 @@ const JobAlert = () => {
                     value={formData.frequency}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
+                    disabled={!isLoggedIn}
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -342,7 +438,7 @@ const JobAlert = () => {
               <div className="pt-6 border-t border-gray-200">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isLoggedIn}
                   className="w-full md:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none disabled:hover:shadow-lg"
                 >
                   {isSubmitting ? (
@@ -356,18 +452,37 @@ const JobAlert = () => {
                         <path d="M12 2C10.3431 2 9 3.34315 9 5V6.084C6.16263 7.16514 4 9.93319 4 13V17L2 19V20H22V19L20 17V13C20 9.93319 17.8374 7.16514 15 6.084V5C15 3.34315 13.6569 2 12 2Z" fill="white"/>
                         <path d="M8.99999 20C8.99999 21.1046 9.89544 22 10.9999 22H13.0001C14.1046 22 15 21.1046 15 20H8.99999Z" fill="white"/>
                       </svg>
-                      <span>Create Job Alert</span>
+                      <span>{isLoggedIn ? 'Create Job Alert' : 'Login Required'}</span>
                     </>
                   )}
                 </button>
                 <p className="text-sm text-gray-500 mt-4">
-                  You'll receive email notifications for new job opportunities matching your preferences.
+                  {isLoggedIn 
+                    ? "You'll receive email notifications for new job opportunities matching your preferences."
+                    : "Please login to create job alerts and receive notifications."
+                  }
                 </p>
               </div>
             </form>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
