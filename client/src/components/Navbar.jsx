@@ -3,9 +3,7 @@ import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import { Zap, Briefcase, Menu, X } from "lucide-react";
-import DEEmploymintIcon from "../assets/DEEmploymint.png";
-import defont from "../assets/defont.png";
-
+import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 const Navbar = () => {
   const { openSignIn } = useClerk();
   const { user } = useUser();
@@ -201,7 +199,7 @@ const Navbar = () => {
               } group-hover:shadow-red-500/30 transition-all duration-300`}
             >
               <img 
-                src={defont} 
+                src={DEEmploymintIcon} 
                 alt="DEEmploymint" 
                 className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 object-contain"
               />
@@ -355,7 +353,7 @@ const Navbar = () => {
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <img 
-                    src={defont} 
+                    src={DEEmploymintIcon} 
                     alt="DEEmploymint" 
                     className="w-6 h-6 object-contain"
                   />

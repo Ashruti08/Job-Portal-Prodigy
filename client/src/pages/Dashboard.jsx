@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import logo from "../assets/DEEmploymint.png";
+import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome,FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
@@ -181,7 +181,7 @@ const Dashboard = () => {
 
             <div className="p-4 sm:p-6">
               <img 
-                src={logo} 
+                src={DEEmploymintIcon} 
                 alt="Logo" 
                 className="h-12 sm:h-16 mb-6 sm:mb-8 cursor-pointer" 
                 onClick={() => navigate("/")} 

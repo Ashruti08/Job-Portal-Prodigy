@@ -15,6 +15,7 @@ import AddJob from "./pages/AddJob";
 import EmployerProfile from "./pages/EmployerProfile";
 import ManageJobs from "./pages/ManageJobs";
 import ViewApplications from "./pages/ViewApplications";
+import ManagePackage from "./pages/ManagePackage";  // NEW IMPORT
 import MyProfile from "./components/MyProfile";
 import AppliedJobs from "./components/AppliedJobs";
 import BulkUpload from './pages/BulkUpload';
@@ -115,6 +116,14 @@ const App = () => {
             } 
           />
           <Route 
+            path="manage-package" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ManagePackage />
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+          <Route 
             path="profile" 
             element={
               <DemoFriendlyRecruiterRoute>
@@ -128,8 +137,7 @@ const App = () => {
               <DemoFriendlyRecruiterRoute>
                 <BulkUpload />
               </DemoFriendlyRecruiterRoute>
-            } 
-          />
+            } />
         </Route>
       </Routes>
     </div>

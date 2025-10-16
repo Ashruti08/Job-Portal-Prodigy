@@ -11,6 +11,8 @@ import { Resend } from 'resend';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { OAuth2Client } from 'google-auth-library';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,9 +20,7 @@ const __dirname = path.dirname(__filename);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ==================== PART 1: AUTH & COMPANY MANAGEMENT ====================
-
-// Register Company (MongoDB only)
-export const registerCompany = async (req, res) => {
+export const registerCompany = async (req, res, next) => {
   const { name, email, password, phone } = req.body;
   const imageFile = req.file;
 
@@ -34,13 +34,30 @@ export const registerCompany = async (req, res) => {
   }
 
   try {
-    // Check if company already exists
-    const companyExists = await Company.findOne({ email });
-
-    if (companyExists) {
+    // ✅ Validate phone number format
+    const trimmedPhone = phone.trim();
+    if (!/^\d{10}$/.test(trimmedPhone)) {
       return res.json({ 
         success: false, 
-        message: "Company already exists with this email" 
+        message: "Phone number must be exactly 10 digits"
+      });
+    }
+
+    // ✅ Check if email already exists
+    const existingEmail = await Company.findOne({ email: email.trim().toLowerCase() });
+    if (existingEmail) {
+      return res.json({ 
+        success: false, 
+        message: "An account with this email already exists. Please login instead."
+      });
+    }
+
+    // ✅ Check if phone number already exists
+    const existingPhone = await Company.findOne({ phone: trimmedPhone });
+    if (existingPhone) {
+      return res.json({ 
+        success: false, 
+        message: "This phone number is already registered with another account. Please use a different phone number or login to your existing account."
       });
     }
 
@@ -50,20 +67,27 @@ export const registerCompany = async (req, res) => {
 
     let imageUrl = '';
 
-   if (imageFile) {
-  const fileName = `company_${Date.now()}_${imageFile.originalname}`;
-  const filePath = path.join(__dirname, '../uploads/images', fileName);
-  fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
-  imageUrl = `/uploads/images/${fileName}`;
-  fs.unlinkSync(imageFile.path); // Clean temp file
-}
+    if (imageFile) {
+      const fileName = `company_${Date.now()}_${imageFile.originalname}`;
+      const uploadDir = path.join(__dirname, '../uploads/images');
+      const filePath = path.join(uploadDir, fileName);
+      
+      // Ensure directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      fs.writeFileSync(filePath, fs.readFileSync(imageFile.path));
+      imageUrl = `/uploads/images/${fileName}`;
+      fs.unlinkSync(imageFile.path); // Clean temp file
+    }
 
     // Create company
     const company = await Company.create({
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
-      phone,
+      phone: trimmedPhone,
       image: imageUrl,
     });
 
@@ -83,8 +107,17 @@ export const registerCompany = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Registration error:", error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ Registration error:", error);
+    
+    // ✅ Pass MongoDB duplicate key errors to global handler
+    if (error.code === 11000) {
+      return next(error);
+    }
+    
+    res.json({ 
+      success: false, 
+      message: error.message || "Registration failed. Please try again."
+    });
   }
 };
 
@@ -786,7 +819,7 @@ export const googleAuth = async (req, res, next) => {
     
     console.log("📧 Google Email:", email);
     console.log("👤 Google Name:", googleName);
-    console.log("🆔 Google ID: received");
+    console.log("🆔 Google ID:", googleId);
     
     // ✅ Check if user exists (by email OR googleId)
     let company = await Company.findOne({ 
