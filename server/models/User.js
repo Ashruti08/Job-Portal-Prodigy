@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema({
   mobileNo: { type: String, default: '' },
   emailId: { type: String, default: '' },
   linkedinId: { type: String, default: '' },
+  instagramId: { type: String, default: '' },
+  facebookId: { type: String, default: '' },
   city: { type: String, default: '' },
   state: { type: String, default: '' },
   languages: { type: String, default: '' },
@@ -34,16 +36,16 @@ const userSchema = new mongoose.Schema({
   expectedCTC: { type: String, default: '' },
   noticePeriod: { type: String, default: '' },
   totalExperience: { type: String, default: '' },
-  roleType: { type: String, default: '' },
+  roleType: { type: String, default: 'Full Time' },
   jobChangeStatus: { type: String, default: '' },
   sector: { type: String, default: '' },
-  category: { type: String, default: '' }
+  category: { type: String, default: '' },
+  otherSector: { type: String, default: '' },
+  otherCategory: { type: String, default: '' }
 }, {
-  timestamps: true
+  timestamps: true,
+  strict: false // Allow fields not in schema (for flexibility)
 });
-
-// Remove unique index on email since Clerk users might have same fallback email
-// userSchema.index({ email: 1 }); // Commented out to prevent duplicate key errors
 
 const User = mongoose.model("User", userSchema);
 

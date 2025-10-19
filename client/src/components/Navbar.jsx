@@ -2,12 +2,8 @@ import React, { useContext, useEffect, useState } from "react";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import { Zap, Briefcase, Menu, X } from "lucide-react";
+import { Zap, Briefcase, Menu, X, User } from "lucide-react";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
-
-// Mock context and assets for demo
-// const AppContext = React.createContext({});
-// const DEEmploymintIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23FF0000' width='100' height='100' rx='20'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EDE%3C/text%3E%3C/svg%3E";
 
 const Navbar = () => {
   const { openSignIn } = useClerk();
@@ -146,12 +142,24 @@ const Navbar = () => {
                       userButtonAvatarBox: "h-10 w-10 border-2 shadow-md",
                       userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
                       userButtonTrigger: "focus:ring-2",
+                      userButtonPopoverActionButton: "hover:bg-red-50",
+                      userButtonPopoverActionButtonIcon: "text-gray-600",
+                      userButtonPopoverActionButtonText: "text-gray-700 font-medium"
                     },
                     variables: {
                       borderRadius: "0.75rem",
                     },
                   }}
-                />
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Your Profile"
+                      labelIcon={<User size={16} />}
+                      onClick={() => navigate('/applications')}
+                    />
+                    <UserButton.Action label="manageAccount" />
+                  </UserButton.MenuItems>
+                </UserButton>
               </div>
             ) : (
               <>
@@ -163,14 +171,14 @@ const Navbar = () => {
                       : "text-gray-600 hover:text-red-600 hover:bg-red-50"
                   }`}
                 >
-                  {companyToken ? "Recruiter Dashboard" : "Recruiter Portal"}
+                  {companyToken ? "Recruiter Dashboard" : "Post Job for Free"}
                 </button>
                 <button
                   onClick={() => openSignIn()}
                   className="text-white px-6 py-2.5 rounded-xl font-medium text-sm shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                   style={{ backgroundColor: "#FF0000" }}
                 >
-                  Get Started
+                  Job Seeker
                 </button>
               </>
             )}
@@ -183,9 +191,22 @@ const Navbar = () => {
                 appearance={{
                   elements: {
                     userButtonAvatarBox: "h-9 w-9 border-2 shadow-md",
+                    userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
+                    userButtonPopoverActionButton: "hover:bg-red-50",
+                    userButtonPopoverActionButtonIcon: "text-gray-600",
+                    userButtonPopoverActionButtonText: "text-gray-700 font-medium"
                   },
                 }}
-              />
+              >
+                <UserButton.MenuItems>
+                  <UserButton.Action
+                    label="Your Profile"
+                    labelIcon={<User size={16} />}
+                    onClick={() => navigate('/applications')}
+                  />
+                  <UserButton.Action label="manageAccount" />
+                </UserButton.MenuItems>
+              </UserButton>
             )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -251,21 +272,47 @@ const Navbar = () => {
               {/* User Section */}
               <div className="border-t border-gray-100 p-4">
                 {user ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <UserButton
-                        appearance={{
-                          elements: {
-                            userButtonAvatarBox: "h-12 w-12 border-2 shadow-md",
-                            userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
-                          },
-                        }}
-                      />
-                      <div>
-                        <p className="font-medium text-gray-800">Hi, {user.firstName}!</p>
-                        <p className="text-sm text-gray-500">Job Seeker</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <UserButton
+                          appearance={{
+                            elements: {
+                              userButtonAvatarBox: "h-12 w-12 border-2 shadow-md",
+                              userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
+                            },
+                          }}
+                        >
+                          <UserButton.MenuItems>
+                            <UserButton.Action
+                              label="Your Profile"
+                              labelIcon={<User size={16} />}
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                navigate('/applications');
+                              }}
+                            />
+                            <UserButton.Action label="manageAccount" />
+                          </UserButton.MenuItems>
+                        </UserButton>
+                        <div>
+                          <p className="font-medium text-gray-800">Hi, {user.firstName}!</p>
+                          <p className="text-sm text-gray-500">Job Seeker</p>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Quick Profile Link Button */}
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        navigate('/applications');
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      <User size={18} />
+                      Go to Your Profile
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -277,7 +324,7 @@ const Navbar = () => {
                           : "bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600"
                       }`}
                     >
-                      {companyToken ? "Recruiter Dashboard" : "Recruiter Portal"}
+                      {companyToken ? "Recruiter Dashboard" : "Post Job for Free"}
                     </button>
                     <button
                       onClick={() => {
@@ -287,7 +334,7 @@ const Navbar = () => {
                       className="w-full px-4 py-3 rounded-xl font-medium text-white transition-all duration-300 shadow-md hover:shadow-lg"
                       style={{ backgroundColor: "#FF0000" }}
                     >
-                      Get Started
+                      Job Seeker
                     </button>
                   </div>
                 )}

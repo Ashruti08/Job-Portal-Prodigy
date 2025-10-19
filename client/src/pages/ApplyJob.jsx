@@ -15,10 +15,15 @@ import Calltoaction from "../components/Calltoaction";
 import { motion } from "framer-motion";
 import { FiMapPin, FiBriefcase, FiDollarSign, FiClock, FiCheckCircle, FiExternalLink } from "react-icons/fi";
 
-// Company Logo Component with loading state
+// Company Logo Component with loading state and fallback
 const CompanyLogo = ({ companyData }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  // Check if image exists and is valid
+  const hasValidImage = companyData?.image && 
+    companyData.image !== assets.placeholder &&
+    !imageError;
 
   return (
     <motion.div 
@@ -31,39 +36,46 @@ const CompanyLogo = ({ companyData }) => {
         minHeight: '88px'
       }}
     >
-      {/* Loading skeleton */}
-      {!imageLoaded && !imageError && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+      {hasValidImage ? (
+        <>
+          {/* Loading skeleton */}
+          {!imageLoaded && (
+            <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+          )}
+          
+          {/* Actual image */}
+          <img
+            className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            src={companyData.image}
+            alt={`${companyData?.name || 'Company'} Logo`}
+            onLoad={() => {
+              setImageLoaded(true);
+              setImageError(false);
+            }}
+            onError={() => {
+              setImageError(true);
+              setImageLoaded(true);
+            }}
+            loading="eager"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto'
+            }}
+          />
+        </>
+      ) : (
+        // Fallback: Show first letter of company name
+        <span className="text-3xl font-bold text-gray-700">
+          {companyData?.name?.[0]?.toUpperCase() || 'C'}
+        </span>
       )}
-      
-      {/* Actual image */}
-      <img
-        className={`max-w-full max-h-full object-contain transition-opacity duration-300 ${
-          imageLoaded ? 'opacity-100' : 'opacity-0'
-        }`}
-        src={companyData?.image || assets.placeholder}
-        alt={`${companyData?.name || 'Company'} Logo`}
-        onLoad={() => {
-          setImageLoaded(true);
-          setImageError(false);
-        }}
-        onError={(e) => {
-          setImageError(true);
-          setImageLoaded(true);
-          e.target.src = assets.placeholder;
-        }}
-        loading="eager"
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto'
-        }}
-      />
     </motion.div>
   );
 };
-
 const ApplyJob = () => {
   const { id } = useParams();
   const { getToken } = useAuth();

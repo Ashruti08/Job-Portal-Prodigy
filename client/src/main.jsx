@@ -15,12 +15,22 @@ if (!PUBLISHABLE_KEY) {
 }
 
 createRoot(document.getElementById('root')).render(
-  <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-  <BrowserRouter>
-  <AppContextProvider >
-    <App />
-   </AppContextProvider>
-  </BrowserRouter>
+  <ClerkProvider 
+    publishableKey={PUBLISHABLE_KEY} 
+    afterSignOutUrl="/"
+    localization={{
+      signIn: {
+        start: {
+          title: "Join as a Candidate",
+          subtitle: "to access your job portal"
+        }
+      }
+    }}
+  >
+    <BrowserRouter>
+      <AppContextProvider>
+        <App />
+      </AppContextProvider>
+    </BrowserRouter>
   </ClerkProvider>,
-  
 )

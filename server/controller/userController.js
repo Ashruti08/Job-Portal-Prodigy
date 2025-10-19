@@ -160,11 +160,12 @@ export const updateUserResume = async (req, res) => {
 
 export const updateUserProfile = async (req, res) => {
   try {
-    const userId = req.auth?.userId; // Add optional chaining
+    const userId = req.auth?.userId;
     const profileData = req.body;
     
-    console.log("Auth object:", req.auth); // Debug log
-    console.log("User ID:", userId); // Debug log
+    console.log("=== UPDATE PROFILE DEBUG ===");
+    console.log("User ID:", userId);
+    console.log("Profile Data Received:", profileData);
     
     if (!userId) {
       return res.json({
@@ -173,27 +174,64 @@ export const updateUserProfile = async (req, res) => {
       });
     }
     
-    // Try to find user first
+    // Find user first
     let user = await User.findById(userId);
     
     if (!user) {
-      // If user doesn't exist, create one (for Clerk users)
+      // If user doesn't exist, create one
+      console.log("Creating new user");
       user = new User({
-        _id: userId, // Make sure this is not null/undefined
+        _id: userId,
         name: profileData.firstName || profileData.name || 'Unknown',
         email: profileData.emailId || profileData.email || '',
         ...profileData
       });
       
-      console.log("Creating new user with data:", user); // Debug log
       await user.save();
+      console.log("New user created");
     } else {
-      // Update existing user
-      user = await User.findByIdAndUpdate(
-        userId, 
-        profileData, 
-        { new: true, runValidators: true }
-      );
+      // Update existing user - explicitly update all fields
+      console.log("Updating existing user");
+      
+      // Personal Details
+      if (profileData.firstName !== undefined) user.firstName = profileData.firstName;
+      if (profileData.middleName !== undefined) user.middleName = profileData.middleName;
+      if (profileData.surname !== undefined) user.surname = profileData.surname;
+      if (profileData.mobileNo !== undefined) user.mobileNo = profileData.mobileNo;
+      if (profileData.emailId !== undefined) user.emailId = profileData.emailId;
+      if (profileData.linkedinId !== undefined) user.linkedinId = profileData.linkedinId;
+      if (profileData.instagramId !== undefined) user.instagramId = profileData.instagramId;
+      if (profileData.facebookId !== undefined) user.facebookId = profileData.facebookId;
+      if (profileData.city !== undefined) user.city = profileData.city;
+      if (profileData.state !== undefined) user.state = profileData.state;
+      if (profileData.languages !== undefined) user.languages = profileData.languages;
+      if (profileData.maritalStatus !== undefined) user.maritalStatus = profileData.maritalStatus;
+      
+      // Professional Details
+      if (profileData.currentDesignation !== undefined) user.currentDesignation = profileData.currentDesignation;
+      if (profileData.currentDepartment !== undefined) user.currentDepartment = profileData.currentDepartment;
+      if (profileData.currentCTC !== undefined) user.currentCTC = profileData.currentCTC;
+      if (profileData.expectedCTC !== undefined) user.expectedCTC = profileData.expectedCTC;
+      if (profileData.noticePeriod !== undefined) user.noticePeriod = profileData.noticePeriod;
+      if (profileData.totalExperience !== undefined) user.totalExperience = profileData.totalExperience;
+      if (profileData.roleType !== undefined) user.roleType = profileData.roleType;
+      if (profileData.jobChangeStatus !== undefined) user.jobChangeStatus = profileData.jobChangeStatus;
+      if (profileData.sector !== undefined) user.sector = profileData.sector;
+      if (profileData.category !== undefined) user.category = profileData.category;
+      if (profileData.otherSector !== undefined) user.otherSector = profileData.otherSector;
+      if (profileData.otherCategory !== undefined) user.otherCategory = profileData.otherCategory;
+      
+      // Update name if firstName or surname changed
+      if (profileData.firstName || profileData.surname) {
+        user.name = `${profileData.firstName || user.firstName || ''} ${profileData.surname || user.surname || ''}`.trim() || user.name;
+      }
+      
+      await user.save();
+      console.log("User updated successfully");
+      console.log("Updated user data:", {
+        instagramId: user.instagramId,
+        facebookId: user.facebookId
+      });
     }
     
     res.json({
