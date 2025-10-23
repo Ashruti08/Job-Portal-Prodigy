@@ -171,7 +171,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
     if (!candidateEmail) return null;
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:5000/api/candidates/assessment/email/${candidateEmail}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment/email/${candidateEmail}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" }
       });
@@ -248,7 +248,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/candidates/assessment", {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(filteredData),
