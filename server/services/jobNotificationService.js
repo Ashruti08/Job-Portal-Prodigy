@@ -1,201 +1,211 @@
-// services/jobNotificationService.js - FIXED VERSION
-import sgMail from '@sendgrid/mail';
+// services/jobNotificationService.js - SIMPLIFIED: Fixed 9 AM Daily Digest
 import JobAlert from '../models/JobAlert.js';
+import Job from '../models/Job.js';
+import Company from '../models/Company.js';
+import { sendJobMatchEmail } from './emailService.js';
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-// Function to send job notification email
-const sendJobNotificationEmail = async (email, job, alertData) => {
-  const msg = {
-    to: email,
-    from: process.env.EMAIL_FROM,
-    subject: `🚀 New Job Match: ${job.title}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">New Job Alert! 🎯</h2>
-        
-        <p>Hi there,</p>
-        
-        <p>A new job has been posted that matches your job alert criteria:</p>
-        
-        <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; border-left: 4px solid #dc2626; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #dc2626;">${job.title}</h3>
-          <p><strong>Company:</strong> ${job.companyId?.name || 'Company Name'}</p>
-          <p><strong>Location:</strong> ${job.location}</p>
-          <p><strong>Level:</strong> ${job.level}</p>
-          <p><strong>Category:</strong> ${job.jobcategory}</p>
-          <p><strong>Designation:</strong> ${job.designation}</p>
-          ${job.salary ? `<p><strong>Salary:</strong> ${job.salary}</p>` : ''}
-          
-          <div style="margin-top: 15px;">
-            <h4 style="color: #374151;">Job Description:</h4>
-            <p style="color: #6b7280;">${job.description?.substring(0, 200)}${job.description?.length > 200 ? '...' : ''}</p>
-          </div>
-          
-          <div style="margin-top: 20px;">
-            <a href="${process.env.FRONTEND_URL}/jobs/${job._id}" 
-               style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Full Job Details
-            </a>
-          </div>
-        </div>
-        
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 6px; margin: 20px 0;">
-          <h4 style="margin-top: 0; color: #374151;">Your Alert Criteria:</h4>
-          ${alertData.category ? `<p><strong>Category:</strong> ${alertData.category}</p>` : ''}
-          ${alertData.location ? `<p><strong>Location:</strong> ${alertData.location}</p>` : ''}
-          ${alertData.level ? `<p><strong>Level:</strong> ${alertData.level}</p>` : ''}
-          ${alertData.designation ? `<p><strong>Designation:</strong> ${alertData.designation}</p>` : ''}
-        </div>
-        
-        <p>Don't wait too long - great opportunities get filled quickly!</p>
-        
-        <p>Best regards,<br>Your Job Portal Team</p>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        <p style="font-size: 12px; color: #666;">
-          You're receiving this because you created a job alert. 
-          <a href="${process.env.FRONTEND_URL}/unsubscribe?email=${email}" style="color: #dc2626;">Unsubscribe here</a>
-        </p>
-      </div>
-    `
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log('✅ Job notification email sent to:', email);
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to send job notification email:', error.response?.body || error.message);
-    return false;
-  }
-};
-
-// Function to check if a job matches job alert criteria - FIXED
+/**
+ * Check if job matches alert criteria
+ */
 const jobMatchesAlert = (job, alert) => {
-  console.log('🔍 Checking job match:', {
-    jobTitle: job.title,
-    jobCategory: job.jobcategory,
-    jobLocation: job.location,
-    jobLevel: job.level,
-    jobDesignation: job.designation,
-    alertCategory: alert.category,
-    alertLocation: alert.location,
-    alertLevel: alert.level,
-    alertDesignation: alert.designation
-  });
-
-  // Check category match (job.jobcategory vs alert.category)
-  if (alert.category && job.jobcategory !== alert.category) {
-    console.log('❌ Category mismatch:', job.jobcategory, 'vs', alert.category);
+  if (!alert.designation || !job.designation) {
     return false;
   }
   
-  // Check location match
-  if (alert.location && job.location !== alert.location) {
-    console.log('❌ Location mismatch:', job.location, 'vs', alert.location);
-    return false;
-  }
-  
-  // Check designation match (job.designation vs alert.designation)
-  if (alert.designation && job.designation !== alert.designation) {
-    console.log('❌ Designation mismatch:', job.designation, 'vs', alert.designation);
-    return false;
-  }
-  
-  // Check level match (job.level vs alert.level)
-  if (alert.level && job.level !== alert.level) {
-    console.log('❌ Level mismatch:', job.level, 'vs', alert.level);
-    return false;
-  }
-  
-  // Check job channel match (if alert has this field)
-  if (alert.jobchannel && job.jobchannel !== alert.jobchannel) {
-    console.log('❌ Job channel mismatch:', job.jobchannel, 'vs', alert.jobchannel);
-    return false;
-  }
-  
-  console.log('✅ Job matches alert criteria!');
-  return true;
+  return job.designation.toLowerCase().includes(alert.designation.toLowerCase()) ||
+         alert.designation.toLowerCase().includes(job.designation.toLowerCase());
 };
 
-// Main function to notify matching job alerts
-export const notifyJobAlerts = async (newJob) => {
+/**
+ * Record job match - Add to pendingJobs for batch digest
+ * Called when a new job is posted
+ */
+export const recordJobMatch = async (newJob) => {
   try {
-    console.log('🔍 Checking job alerts for new job:', {
+    console.log('🔍 Recording job matches for:', {
       title: newJob.title,
-      category: newJob.jobcategory,
-      location: newJob.location,
-      level: newJob.level,
       designation: newJob.designation
     });
     
-    // Get all active job alerts
+    const company = await Company.findById(newJob.companyId).select('name image');
     const activeAlerts = await JobAlert.find({ isActive: true });
     
-    console.log(`📊 Found ${activeAlerts.length} active job alerts`);
+    console.log(`📊 Checking against ${activeAlerts.length} active alerts`);
     
-    if (activeAlerts.length === 0) {
-      console.log('⚠️ No active job alerts found');
-      return 0;
-    }
-
-    let notificationCount = 0;
+    let matchCount = 0;
     
-    // Check each alert against the new job
     for (const alert of activeAlerts) {
-      console.log(`🔍 Checking alert for ${alert.email}:`, {
-        alertCategory: alert.category,
-        alertLocation: alert.location,
-        alertDesignation: alert.designation,
-      });
-
       if (jobMatchesAlert(newJob, alert)) {
         console.log(`✅ Job matches alert for: ${alert.email}`);
         
-        const emailSent = await sendJobNotificationEmail(alert.email, newJob, alert);
+        const alreadyPending = alert.pendingJobs?.some(
+          pj => pj.jobId?.toString() === newJob._id.toString()
+        );
         
-        if (emailSent) {
-          notificationCount++;
-          
-          // Update last notification time
+        if (!alreadyPending) {
           await JobAlert.findByIdAndUpdate(alert._id, {
-            lastNotificationSent: new Date()
+            $push: { 
+              pendingJobs: {
+                jobId: newJob._id,
+                title: newJob.title,
+                company: company?.name || 'Company',
+                companyImage: company?.image || '',
+                location: newJob.location,
+                salary: newJob.salary,
+                category: newJob.jobcategory,
+                designation: newJob.designation,
+                level: newJob.level,
+                description: newJob.description,
+                postedDate: newJob.date || new Date(),
+                matchedAt: new Date()
+              }
+            }
           });
-        } else {
-          console.log(`❌ Failed to send email to: ${alert.email}`);
+          
+          matchCount++;
+          console.log(`  ✅ Added to alert ${alert._id} (${alert.email})`);
         }
-      } else {
-        console.log(`❌ Job does not match alert for: ${alert.email}`);
       }
     }
     
-    console.log(`📧 Final result: Sent ${notificationCount} job notification emails out of ${activeAlerts.length} alerts`);
-    return notificationCount;
+    console.log(`✅ Job added to ${matchCount} job alerts' pending queues`);
+    return matchCount;
     
   } catch (error) {
-    console.error('❌ Error notifying job alerts:', error);
+    console.error('❌ Error recording job matches:', error);
     return 0;
   }
 };
 
-// Function to send batch notifications (for daily/weekly alerts)
-export const sendBatchNotifications = async (frequency = 'daily') => {
+/**
+ * ⭐ SIMPLIFIED: Send daily digest at 9 AM for ALL alerts
+ * Jobs shown depend on user's frequency preference:
+ * - Daily: Last 24 hours
+ * - Weekly: Last 7 days
+ * - Monthly: Last 30 days
+ */
+export const sendDailyDigestAt9AM = async () => {
   try {
-    console.log(`📅 Sending ${frequency} batch notifications...`);
-
-    // Get alerts with specified frequency
-    const alerts = await JobAlert.find({ 
-      frequency: frequency,
-      isActive: true 
+    console.log(`📅 Starting daily digest at 9 AM - ${new Date().toISOString()}`);
+    
+    // Get ALL active alerts (regardless of frequency)
+    const allAlerts = await JobAlert.find({ 
+      isActive: true,
+      'pendingJobs.0': { $exists: true } // Only alerts with pending jobs
     });
     
-    // You can implement batch logic here
-    // For example, collect jobs from last day/week and send summary
+    console.log(`📧 Found ${allAlerts.length} alerts with pending jobs`);
     
-    return alerts.length;
+    let emailsSent = 0;
+    let emailsSkipped = 0;
+    let emailsFailed = 0;
+    
+    const now = new Date();
+    
+    for (const alert of allAlerts) {
+      try {
+        // ⭐ Calculate time window based on frequency
+        let hoursBack = 24; // Default: daily
+        
+        if (alert.frequency === 'weekly') {
+          hoursBack = 168; // 7 days
+        } else if (alert.frequency === 'monthly') {
+          hoursBack = 720; // 30 days
+        }
+        
+        const cutoffDate = new Date(now.getTime() - (hoursBack * 60 * 60 * 1000));
+        
+        // ⭐ Filter jobs based on frequency time window
+        const relevantJobs = alert.pendingJobs.filter(job => {
+          const jobDate = new Date(job.matchedAt || job.postedDate);
+          return jobDate >= cutoffDate;
+        });
+        
+        if (relevantJobs.length === 0) {
+          console.log(`⏭️ No jobs in ${alert.frequency} window for ${alert.email}`);
+          emailsSkipped++;
+          continue;
+        }
+        
+        console.log(`📧 Sending ${alert.frequency} digest to ${alert.email} with ${relevantJobs.length} jobs`);
+        
+        // Send email with jobs from the relevant time window
+        await sendJobMatchEmail(alert, relevantJobs);
+        
+        // Clear ALL pending jobs (they've been processed)
+        await JobAlert.findByIdAndUpdate(alert._id, {
+          $set: { pendingJobs: [] },
+          lastNotificationSent: new Date()
+        });
+        
+        emailsSent++;
+        console.log(`✅ Email sent to ${alert.email}`);
+        
+      } catch (error) {
+        console.error(`❌ Failed to send email to ${alert.email}:`, error.message);
+        emailsFailed++;
+      }
+    }
+    
+    const summary = {
+      emailsSent,
+      emailsSkipped,
+      emailsFailed,
+      totalAlerts: allAlerts.length,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`
+      📊 Daily Digest Summary (9 AM):
+      - Emails sent: ${emailsSent}
+      - Emails skipped (no jobs in window): ${emailsSkipped}
+      - Emails failed: ${emailsFailed}
+      - Total alerts processed: ${allAlerts.length}
+    `);
+    
+    return summary;
+    
   } catch (error) {
-    console.error('❌ Error sending batch notifications:', error);
-    return 0;
+    console.error('❌ Error in daily digest process:', error);
+    return { 
+      emailsSent: 0, 
+      emailsSkipped: 0, 
+      emailsFailed: 0, 
+      totalAlerts: 0,
+      error: error.message 
+    };
   }
+};
+
+/**
+ * Get pending job statistics
+ */
+export const getPendingJobStats = async () => {
+  try {
+    const stats = await JobAlert.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: '$frequency',
+          totalAlerts: { $sum: 1 },
+          totalPendingJobs: { $sum: { $size: '$pendingJobs' } }
+        }
+      }
+    ]);
+    
+    console.log('📊 Pending Job Statistics:', stats);
+    return stats;
+    
+  } catch (error) {
+    console.error('❌ Error getting stats:', error);
+    return [];
+  }
+};
+
+/**
+ * Manual trigger for testing
+ */
+export const triggerDigestNow = async () => {
+  console.log('🔥 Manually triggering daily digest...');
+  return await sendDailyDigestAt9AM();
 };

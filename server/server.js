@@ -21,7 +21,11 @@ import employerProfileRoutes from './routes/employerProfileRoutes.js';
 import bulkUpload from './routes/bulkUpload.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import { sendDailyDigestAt9AM } from './services/jobNotificationService.js'; 
 
+// NEW
+import { initializeCronJobs } from '../cronJobs.mjs';
+initializeCronJobs();
 // Create uploads directories
 const uploadsDir = path.join(__dirname, 'uploads');
 const resumesDir = path.join(__dirname, 'uploads', 'resumes');
@@ -62,6 +66,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// app.get('/api/test-digest', async (req, res) => {
+//   const result = await sendDailyDigestAt9AM();
+//   res.json(result);
+// });
 app.get("/debug-sentry", function mainHandler(req, res) {
   throw new Error("My first Sentry error!");
 });

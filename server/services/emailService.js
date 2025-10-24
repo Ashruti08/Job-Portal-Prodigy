@@ -1,30 +1,30 @@
-// services/emailService.js - Enhanced SendGrid Email Service
-import sgMail from '@sendgrid/mail';
+// services/emailService.js - Brevo Email Service with Batch Digest Strategy
+import SibApiV3Sdk from '@getbrevo/brevo';
 
-// Initialize SendGrid with error handling
-try {
-  if (!process.env.SENDGRID_API_KEY) {
-    throw new Error('SENDGRID_API_KEY is not set in environment variables');
-  }
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log('✅ SendGrid initialized successfully');
-} catch (error) {
-  console.error('❌ SendGrid initialization failed:', error.message);
-}
+// Initialize Brevo API
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, 
+  process.env.BREVO_API_KEY
+);
 
-// Enhanced email sending function with better formatting
-export const sendJobEmail = async (alert, jobs) => {
+console.log('✅ Brevo initialized successfully');
+
+/**
+ * Send job notification email - ONLY when job matches alert criteria
+ * This is the ONLY email we send (no welcome emails)
+ */
+export const sendJobMatchEmail = async (alert, matchingJobs) => {
   try {
-    console.log(`📧 Preparing email for ${alert.email} with ${jobs.length} jobs`);
+    console.log(`📧 Preparing job match email for ${alert.email} with ${matchingJobs.length} jobs`);
     
     // Create beautiful HTML for job listings
-    const jobsHtml = jobs.map(job => {
-      // Handle different job object structures
-      const title = job.title || job.jobTitle || 'Job Title Not Available';
-      const company = job.company || job.companyName || 'Company Not Specified';
-      const location = job.location || 'Location Not Specified';
-      const salary = job.salary || job.salaryRange || 'Not Disclosed';
-      const description = job.description || job.jobDescription || '';
+    const jobsHtml = matchingJobs.map(job => {
+      const title = job.title || 'Job Title';
+      const company = job.companyId?.name || 'Company';
+      const location = job.location || 'Location';
+      const salary = job.salary || 'Not Disclosed';
+      const description = job.description || '';
       const shortDescription = description.length > 150 ? 
         description.substring(0, 150) + '...' : description;
       
@@ -72,19 +72,34 @@ export const sendJobEmail = async (alert, jobs) => {
               line-height: 1.4;
             ">${shortDescription}</p>
           ` : ''}
+          
+          <div style="margin-top: 15px;">
+            <a href="${process.env.FRONTEND_URL || 'https://yoursite.com'}/jobs/${job._id}" 
+               style="
+                 display: inline-block;
+                 background-color: #dc2626;
+                 color: white;
+                 padding: 10px 20px;
+                 text-decoration: none;
+                 border-radius: 6px;
+                 font-weight: 600;
+                 font-size: 14px;
+               ">
+              Apply Now →
+            </a>
+          </div>
         </div>
       `;
     }).join('');
     
-    // Create email message
-    const msg = {
-      to: alert.email,
-      from: {
-        email: process.env.EMAIL_FROM || 'noreply@yourjobportal.com',
+    const sendSmtpEmail = {
+      to: [{ email: alert.email }],
+      sender: { 
+        email: process.env.EMAIL_FROM || 'noreply@yoursite.com',
         name: 'Job Portal Alerts'
       },
-      subject: `🎯 ${jobs.length} New Job${jobs.length > 1 ? 's' : ''} Found - ${alert.location || 'All Locations'}`,
-      html: `
+      subject: `🎯 ${matchingJobs.length} New Job Match${matchingJobs.length > 1 ? 'es' : ''} - ${alert.category || 'Your Criteria'}`,
+      htmlContent: `
         <div style="
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
           max-width: 600px; 
@@ -103,7 +118,7 @@ export const sendJobEmail = async (alert, jobs) => {
               margin: 0; 
               font-size: 28px;
               font-weight: 700;
-            ">🎯 New Jobs Alert!</h1>
+            ">🎯 Perfect Job Match${matchingJobs.length > 1 ? 'es' : ''}!</h1>
           </div>
           
           <div style="
@@ -116,7 +131,7 @@ export const sendJobEmail = async (alert, jobs) => {
               color: #1f2937; 
               margin: 0 0 20px 0;
               font-size: 22px;
-            ">Hi there! 👋</h2>
+            ">Hi! 👋</h2>
             
             <p style="
               color: #4b5563; 
@@ -124,13 +139,24 @@ export const sendJobEmail = async (alert, jobs) => {
               line-height: 1.6;
               margin: 0 0 25px 0;
             ">
-              Great news! We found <strong>${jobs.length} new job${jobs.length > 1 ? 's' : ''}</strong> 
-              that match your preferences:
+              Great news! We found <strong>${matchingJobs.length} new job${matchingJobs.length > 1 ? 's' : ''}</strong> 
+              that perfectly match your alert:
             </p>
             
-            ${alert.category ? `<p style="color: #6b7280; font-size: 14px; margin: 0 0 20px 0;"><strong>Category:</strong> ${alert.category}</p>` : ''}
-            ${alert.location ? `<p style="color: #6b7280; font-size: 14px; margin: 0 0 20px 0;"><strong>Location:</strong> ${alert.location}</p>` : ''}
-            ${alert.level ? `<p style="color: #6b7280; font-size: 14px; margin: 0 0 20px 0;"><strong>Experience:</strong> ${alert.level}</p>` : ''}
+            <div style="
+              background-color: #f3f4f6;
+              padding: 15px;
+              border-radius: 6px;
+              margin: 0 0 25px 0;
+            ">
+              <p style="margin: 5px 0; color: #374151; font-size: 14px;">
+                <strong>Your Alert Criteria:</strong>
+              </p>
+              ${alert.category ? `<p style="color: #6b7280; font-size: 13px; margin: 5px 0;">• Category: ${alert.category}</p>` : ''}
+              ${alert.location ? `<p style="color: #6b7280; font-size: 13px; margin: 5px 0;">• Location: ${alert.location}</p>` : ''}
+              ${alert.level ? `<p style="color: #6b7280; font-size: 13px; margin: 5px 0;">• Level: ${alert.level}</p>` : ''}
+              ${alert.designation ? `<p style="color: #6b7280; font-size: 13px; margin: 5px 0;">• Designation: ${alert.designation}</p>` : ''}
+            </div>
             
             <div style="margin: 30px 0;">
               ${jobsHtml}
@@ -147,8 +173,8 @@ export const sendJobEmail = async (alert, jobs) => {
                 color: #4b5563;
                 font-size: 16px;
                 margin: 0 0 15px 0;
-              ">Ready to apply? 🚀</p>
-              <a href="${process.env.FRONTEND_URL || 'https://yourjobportal.com'}" 
+              ">Apply quickly before positions are filled! 🚀</p>
+              <a href="${process.env.FRONTEND_URL || 'https://yoursite.com'}/joblisting" 
                  style="
                    display: inline-block;
                    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
@@ -176,90 +202,77 @@ export const sendJobEmail = async (alert, jobs) => {
               text-align: center;
               margin: 0;
             ">
-              You're receiving this email because you created a job alert on our platform.<br>
-              Alert frequency: <strong>${alert.frequency}</strong><br>
-              <a href="${process.env.FRONTEND_URL || 'https://yourjobportal.com'}/unsubscribe?email=${alert.email}" 
-                 style="color: #6b7280;">Unsubscribe</a> | 
-              <a href="${process.env.FRONTEND_URL || 'https://yourjobportal.com'}/job-alerts" 
-                 style="color: #6b7280;">Manage Alerts</a>
+              Alert Frequency: <strong>${alert.frequency}</strong><br>
+              <a href="${process.env.FRONTEND_URL}/job-alerts" 
+                 style="color: #6b7280; text-decoration: underline;">Manage Your Alerts</a>
             </p>
           </div>
         </div>
       `
     };
     
-    console.log(`📤 Sending email to: ${alert.email}`);
+    console.log(`📤 Sending email via Brevo to: ${alert.email}`);
     
-    // Send email with SendGrid
-    const response = await sgMail.send(msg);
+    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
     
     console.log(`✅ Email sent successfully to ${alert.email}`, {
-      messageId: response[0].headers['x-message-id'],
-      statusCode: response[0].statusCode
+      messageId: response.messageId
     });
     
     return {
       success: true,
-      messageId: response[0].headers['x-message-id']
+      messageId: response.messageId
     };
     
   } catch (error) {
-    console.error('❌ SendGrid error:', {
+    console.error('❌ Brevo error:', {
       email: alert.email,
-      error: error.response?.body || error.message,
-      code: error.code
+      error: error.response?.text || error.message
     });
-    
-    // Log specific SendGrid errors
-    if (error.response?.body?.errors) {
-      console.error('📋 SendGrid error details:', error.response.body.errors);
-    }
     
     throw error;
   }
 };
 
-// Test email function
+/**
+ * Test Brevo configuration
+ */
 export const sendTestEmail = async (email) => {
   try {
     const testMsg = {
-      to: email,
-      from: {
-        email: process.env.EMAIL_FROM || 'noreply@yourjobportal.com',
-        name: 'Job Portal Alerts'
+      to: [{ email: email }],
+      sender: { 
+        email: process.env.EMAIL_FROM || 'noreply@yoursite.com',
+        name: 'Job Portal Test'
       },
-      subject: '✅ Test Email - Job Alert System',
-      html: `
+      subject: '✅ Brevo Test Email',
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #dc2626;">Test Email Successful! ✅</h2>
-          <p>If you're reading this, your SendGrid configuration is working correctly.</p>
+          <h2 style="color: #dc2626;">Brevo Setup Successful! ✅</h2>
+          <p>Your Brevo configuration is working correctly.</p>
           <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-          <hr>
-          <p style="font-size: 12px; color: #666;">
-            This is a test email from your job alert system.
-          </p>
         </div>
       `
     };
     
-    const response = await sgMail.send(testMsg);
-    console.log('✅ Test email sent successfully:', response[0].statusCode);
+    await apiInstance.sendTransacEmail(testMsg);
+    console.log('✅ Test email sent successfully');
     return true;
     
   } catch (error) {
-    console.error('❌ Test email failed:', error.response?.body || error.message);
+    console.error('❌ Test email failed:', error.response?.text || error.message);
     return false;
   }
 };
 
-// Verify SendGrid configuration
-export const verifySendGridConfig = () => {
+/**
+ * Verify Brevo configuration
+ */
+export const verifyBrevoConfig = () => {
   const issues = [];
   
-  if (!process.env.SENDGRID_API_KEY) {
-    issues.push('SENDGRID_API_KEY environment variable is missing');
-  } else if (!process.env.SENDGRID_API_KEY.startsWith('SG.')) {
-    issues.push('SENDGRID_API_KEY should start with "SG."');
+  if (!process.env.BREVO_API_KEY) {
+    issues.push('BREVO_API_KEY environment variable is missing');
   }
   
   if (!process.env.EMAIL_FROM) {
@@ -267,10 +280,10 @@ export const verifySendGridConfig = () => {
   }
   
   if (issues.length > 0) {
-    console.error('❌ SendGrid configuration issues:', issues);
+    console.error('❌ Brevo configuration issues:', issues);
     return false;
   }
   
-  console.log('✅ SendGrid configuration looks good');
+  console.log('✅ Brevo configuration verified');
   return true;
 };

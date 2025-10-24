@@ -2,7 +2,7 @@
   "dependencies": {
     "@aws-sdk/client-ses": "^3.899.0",
     "@clerk/express": "^1.7.30",
-    "@sendgrid/mail": "^8.1.5",
+    "@getbrevo/brevo": "^3.0.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",

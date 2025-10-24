@@ -2,7 +2,7 @@
 import JobAlert from '../models/JobAlert.js';
 import Job from '../models/Job.js'; // Import your actual Job model
 import cron from 'node-cron';
-import { sendJobEmail } from './emailService.js';
+import { sendJobMatchEmail } from './emailService.js';
 
 // Enhanced job matching function with real database queries
 const findMatchingJobs = async (alert) => {
@@ -102,8 +102,8 @@ export const processJobAlerts = async () => {
           if (jobs.length > 0) {
             console.log(`📧 Sending ${jobs.length} jobs to ${alert.email}`);
             
-            // Send email using your SendGrid service
-            await sendJobEmail(alert, jobs);
+           
+          await sendJobMatchEmail(alert, jobs);
             
             // Update last notification time
             await JobAlert.findByIdAndUpdate(alert._id, {
@@ -143,7 +143,7 @@ export const testJobAlert = async (email) => {
     const jobs = await findMatchingJobs(alert);
     
     if (jobs.length > 0) {
-      await sendJobEmail(alert, jobs);
+   await sendJobMatchEmail(alert, jobs);
       return { success: true, jobCount: jobs.length };
     } else {
       return { success: true, jobCount: 0, message: 'No matching jobs found' };

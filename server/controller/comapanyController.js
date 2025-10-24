@@ -4,7 +4,8 @@ import jwt from "jsonwebtoken";
 import generateToken from "../utils/generateToken.js";
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
-import { notifyJobAlerts } from '../services/jobNotificationService.js';
+// ✅ FIXED: Import the correct function name
+import { recordJobMatch } from '../services/jobNotificationService.js';
 import EmployerProfile from '../models/EmployerProfile.js';
 import crypto from 'crypto';
 import { Resend } from 'resend';
@@ -12,7 +13,6 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -563,21 +563,25 @@ export const postJob = async (req, res) => {
     });
 
     const savedJob = await newJob.save();
-    const notificationCount = await notifyJobAlerts(savedJob);
-    console.log(`Sent notifications to ${notificationCount} users`);
+    
+    // ✅ FIXED: Use recordJobMatch instead of notifyJobAlerts
+    // This adds the job to matching job alerts' pendingJobs arrays
+    // Users will receive batch digest emails (daily/weekly) via cron job
+    const matchedAlerts = await recordJobMatch(savedJob);
+    
+    console.log(`📬 Job added to ${matchedAlerts} job alert queues for batch processing`);
 
     res.status(201).json({
       success: true,
-      message: `Job created successfully! ${notificationCount} users notified.`,
+      message: 'Job created successfully!',
       data: savedJob,
-      notificationsSent: notificationCount
+      alertsQueued: matchedAlerts // How many alerts will include this in their next digest
     });
 
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
-
 // Get Company Job Applicants
 export const getCompanyJobApplicants = async (req, res) => {
   try {

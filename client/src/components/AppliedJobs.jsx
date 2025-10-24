@@ -283,12 +283,22 @@ const AppliedJobs = () => {
                           <div className="relative flex items-center justify-between p-4 bg-gray-50/50 border border-gray-200 rounded-lg hover:bg-white/80 hover:border-gray-300 transition-all duration-300 shadow-sm hover:shadow-md">
                             <div className="flex items-center space-x-4 flex-1 min-w-0">
                               <div className="flex-shrink-0">
-                                <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
-                                  <img
-                                    className="w-full h-full object-cover"
-                                    src={job.companyId?.image || assets.default_company_icon}
-                                    alt={`${job.companyId?.name || "Company"} Logo`}
-                                  />
+                                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center overflow-hidden border border-gray-200">
+                                  {job.companyId?.image ? (
+                                    <img
+                                      className="w-full h-full object-cover bg-white"
+                                      src={job.companyId.image}
+                                      alt={`${job.companyId?.name || "Company"} Logo`}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.innerHTML = `<span class="text-white text-lg font-bold">${(job.companyId?.name || "C").charAt(0).toUpperCase()}</span>`;
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-white text-lg font-bold">
+                                      {(job.companyId?.name || "C").charAt(0).toUpperCase()}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               

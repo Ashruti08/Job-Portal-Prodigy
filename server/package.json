@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "server": "nodemon server.js"
+    "server": "nodemon server.js",
+     "test-email": "node scripts/testEmail.js",
+    "send-daily-digest": "node scripts/sendDailyDigest.js",
+    "send-weekly-digest": "node scripts/sendWeeklyDigest.js"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +18,7 @@
     "@aws-sdk/client-ses": "^3.899.0",
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/express": "^1.7.30",
-    "@sendgrid/mail": "^8.1.5",
+    "@getbrevo/brevo": "^2.2.0",
     "@sentry/node": "^8.50.0",
     "@sentry/profiling-node": "^8.50.0",
     "bcrypt": "^5.1.1",

@@ -1,25 +1,35 @@
-// controllers/jobAlertController.js
+// controllers/jobAlertController.js - NO WELCOME EMAIL, ONLY JOB MATCHES
 import JobAlert from '../models/JobAlert.js';
-import sgMail from '@sendgrid/mail'; // Add this import
-
-// Initialize SendGrid
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
+import { recordJobMatch } from '../services/jobNotificationService.js';
 // Get API info
 export const getJobAlertInfo = async (req, res) => {
   try {
     const totalAlerts = await JobAlert.countDocuments();
     const activeAlerts = await JobAlert.countDocuments({ isActive: true });
     
+    // Get pending jobs count
+    const alertsWithPending = await JobAlert.find({ 
+      isActive: true,
+      'pendingJobs.0': { $exists: true }
+    });
+    
+    const totalPendingJobs = alertsWithPending.reduce(
+      (sum, alert) => sum + (alert.pendingJobs?.length || 0), 
+      0
+    );
+    
     res.status(200).json({
       success: true,
-      message: 'Job Alert API is working',
+      message: 'Job Alert API with Brevo + Batch Digest Strategy',
       data: {
         totalAlerts,
         activeAlerts,
+        totalPendingJobs,
+        strategy: 'Batch Digest (Daily/Weekly emails only)',
+        emailProvider: 'Brevo (9,000 emails/month free)',
         endpoints: {
-          'POST /': 'Create job alert',
-          'GET /user': 'Get user job alerts (requires email query param)',
+          'POST /': 'Create job alert (NO welcome email)',
+          'GET /user': 'Get user job alerts',
           'GET /all': 'Get all job alerts',
           'PUT /:id': 'Update job alert',
           'DELETE /:id': 'Delete job alert'
@@ -35,55 +45,10 @@ export const getJobAlertInfo = async (req, res) => {
   }
 };
 
-// Function to send welcome email
-const sendWelcomeEmail = async (email, alertData) => {
-  const msg = {
-    to: email,
-    from: process.env.EMAIL_FROM,
-    subject: '✅ Job Alert Created Successfully',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">Job Alert Created Successfully! 🎉</h2>
-        
-        <p>Hi there,</p>
-        
-        <p>Your job alert has been created successfully. You will receive notifications when new jobs match your criteria:</p>
-        
-        <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #dc2626; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #dc2626;">Your Job Alert Preferences:</h3>
-          ${alertData.category ? `<p><strong>Category:</strong> ${alertData.category}</p>` : ''}
-          ${alertData.location ? `<p><strong>Location:</strong> ${alertData.location}</p>` : ''}
-          ${alertData.level ? `<p><strong>Experience:</strong> ${alertData.level}</p>` : ''}
-          ${alertData.designation ? `<p><strong>Designation:</strong> ${alertData.designation}</p>` : ''}
-          <p><strong>Frequency:</strong> ${alertData.frequency || 'Daily'}</p>
-        </div>
-        
-        <p>We'll send you job notifications based on your selected frequency.</p>
-        
-        <p>Best regards,<br>Your Job Portal Team</p>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        <p style="font-size: 12px; color: #666;">
-          This is an automated email. If you didn't create this job alert, please ignore this email.
-        </p>
-      </div>
-    `
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log('✅ Welcome email sent successfully to:', email);
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to send welcome email:', error);
-    return false;
-  }
-};
-
-// Create a new job alert
+// Create a new job alert - NO WELCOME EMAIL
 export const createJobAlert = async (req, res) => {
   try {
-    console.log('📧 Creating job alert for:', req.body.email); // Debug log
+    console.log('📧 Creating job alert for:', req.body.email);
 
     const {
       email,
@@ -103,9 +68,7 @@ export const createJobAlert = async (req, res) => {
       });
     }
 
-   
-
-    // Check if job alert already exists for this email with same criteria
+    // Check if similar alert already exists
     const existingAlert = await JobAlert.findOne({
       email,
       category,
@@ -117,11 +80,11 @@ export const createJobAlert = async (req, res) => {
     if (existingAlert) {
       return res.status(400).json({
         success: false,
-        message: 'Job alert with similar criteria already exists'
+        message: 'You already have a similar job alert active'
       });
     }
 
-    // Create new job alert
+    // Create new job alert with pendingJobs array for batch processing
     const jobAlert = new JobAlert({
       email,
       phone,
@@ -129,30 +92,29 @@ export const createJobAlert = async (req, res) => {
       location,
       level,
       designation,
-      frequency: frequency || 'daily'
+      frequency: frequency || 'daily',
+      pendingJobs: [], // For batch digest strategy
+      isActive: true
     });
 
     const savedJobAlert = await jobAlert.save();
-    console.log('✅ Job alert saved to database:', savedJobAlert._id);
+    console.log('✅ Job alert created:', savedJobAlert._id);
 
-    // Send welcome email
-    console.log('📧 Sending welcome email...');
-    const emailSent = await sendWelcomeEmail(email, {
-      category,
-      location,
-      level,
-      designation,
-      frequency: frequency || 'daily'
-    });
-
-    // Return response regardless of email status
+    // NO WELCOME EMAIL - User will only get emails when jobs match
     res.status(201).json({
       success: true,
-      message: emailSent 
-        ? 'Job alert created successfully and confirmation email sent!' 
-        : 'Job alert created successfully (email notification failed)',
-      data: savedJobAlert,
-      emailSent
+      message: `Job alert created! You'll receive ${frequency || 'daily'} emails when matching jobs are posted.`,
+      data: {
+        id: savedJobAlert._id,
+        email: savedJobAlert.email,
+        frequency: savedJobAlert.frequency,
+        criteria: {
+          category: savedJobAlert.category,
+          location: savedJobAlert.location,
+          level: savedJobAlert.level,
+          designation: savedJobAlert.designation
+        }
+      }
     });
 
   } catch (error) {
@@ -180,10 +142,13 @@ export const getUserJobAlerts = async (req, res) => {
     const jobAlerts = await JobAlert.find({ 
       email, 
       isActive: true 
-    }).sort({ createdAt: -1 });
+    })
+    .select('-pendingJobs') // Don't expose pending jobs to user
+    .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
+      count: jobAlerts.length,
       data: jobAlerts
     });
 
@@ -203,11 +168,14 @@ export const updateJobAlert = async (req, res) => {
     const { id } = req.params;
     const updateData = req.body;
 
+    // Don't allow updating pendingJobs directly
+    delete updateData.pendingJobs;
+
     const jobAlert = await JobAlert.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
-    );
+    ).select('-pendingJobs');
 
     if (!jobAlert) {
       return res.status(404).json({
@@ -239,7 +207,10 @@ export const deleteJobAlert = async (req, res) => {
 
     const jobAlert = await JobAlert.findByIdAndUpdate(
       id,
-      { isActive: false },
+      { 
+        isActive: false,
+        pendingJobs: [] // Clear pending jobs
+      },
       { new: true }
     );
 
@@ -276,6 +247,7 @@ export const getAllJobAlerts = async (req, res) => {
     }
 
     const jobAlerts = await JobAlert.find(query)
+      .select('-pendingJobs') // Don't expose pending jobs
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -286,7 +258,7 @@ export const getAllJobAlerts = async (req, res) => {
       success: true,
       data: jobAlerts,
       pagination: {
-        current: page,
+        current: parseInt(page),
         total: Math.ceil(total / limit),
         count: jobAlerts.length,
         totalRecords: total
