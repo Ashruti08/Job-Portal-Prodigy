@@ -2,17 +2,79 @@ import React, { useContext, useEffect, useState } from "react";
 import { useClerk, UserButton, useUser } from "@clerk/clerk-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
-import { Zap, Briefcase, Menu, X, User } from "lucide-react";
+import { Zap, Briefcase, Menu, X, User, AlertCircle } from "lucide-react";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
+import { motion, AnimatePresence } from "framer-motion";
 
 const Navbar = () => {
   const { openSignIn } = useClerk();
   const { user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const { setShowRecruiterLogin, companyToken } = useContext(AppContext);
+  const { setShowRecruiterLogin, companyToken, userData } = useContext(AppContext);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
+
+  // Calculate if profile is incomplete
+  const calculateCompletion = () => {
+    if (!userData) return { isComplete: true };
+    
+    const personalFields = [
+      userData.firstName,
+      userData.surname,
+      userData.mobileNo,
+      userData.emailId,
+      userData.city,
+      userData.state,
+      userData.languages,
+      userData.maritalStatus,
+      userData.instagramId,
+      userData.facebookId
+    ];
+    
+    const professionalFields = [
+      userData.currentDesignation,
+      userData.currentDepartment,
+      userData.currentCTC,
+      userData.expectedCTC,
+      userData.noticePeriod,
+      userData.totalExperience,
+      userData.jobChangeStatus,
+      userData.sector === 'Other' ? userData.otherSector : userData.sector,
+      userData.category === 'Other' ? userData.otherCategory : userData.category
+    ];
+    
+    const hasResume = userData.resume && 
+                     typeof userData.resume === 'string' && 
+                     userData.resume.trim() !== '' && 
+                     userData.resume !== 'undefined' &&
+                     userData.resume !== 'null';
+    
+    const personalFilled = personalFields.filter(f => f && f.trim() !== '').length;
+    const professionalFilled = professionalFields.filter(f => f && f.toString().trim() !== '').length;
+    
+    const personalComplete = (personalFilled / personalFields.length) * 100 === 100;
+    const professionalComplete = (professionalFilled / professionalFields.length) * 100 === 100;
+    
+    return {
+      isComplete: personalComplete && professionalComplete && hasResume
+    };
+  };
+
+  const { isComplete: isProfileComplete } = calculateCompletion();
+
+  // Show popup when user logs in and profile is incomplete
+  useEffect(() => {
+    if (user && userData && !isProfileComplete) {
+      setShowProfilePopup(true);
+      const timer = setTimeout(() => {
+        setShowProfilePopup(false);
+      }, 17000); // Auto-hide after 17 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, userData, isProfileComplete]);
 
   // Handle scroll event
   useEffect(() => {
@@ -132,34 +194,83 @@ const Navbar = () => {
           {/* Desktop Right Section - Hidden on mobile/tablet */}
           <div className="hidden lg:flex items-center gap-2 xl:gap-4 flex-shrink-0">
             {user ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 relative">
                 <span className="hidden xl:block text-sm text-gray-600">
                   Hi, {user.firstName}
                 </span>
-                <UserButton
-                  appearance={{
-                    elements: {
-                      userButtonAvatarBox: "h-10 w-10 border-2 shadow-md",
-                      userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
-                      userButtonTrigger: "focus:ring-2",
-                      userButtonPopoverActionButton: "hover:bg-red-50",
-                      userButtonPopoverActionButtonIcon: "text-gray-600",
-                      userButtonPopoverActionButtonText: "text-gray-700 font-medium"
-                    },
-                    variables: {
-                      borderRadius: "0.75rem",
-                    },
-                  }}
-                >
-                  <UserButton.MenuItems>
-                    <UserButton.Action
-                      label="Your Profile"
-                      labelIcon={<User size={16} />}
-                      onClick={() => navigate('/applications')}
-                    />
-                    <UserButton.Action label="manageAccount" />
-                  </UserButton.MenuItems>
-                </UserButton>
+                
+                {/* Profile Completion Popup */}
+                <div className="relative">
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: "h-10 w-10 border-2 shadow-md",
+                        userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
+                        userButtonTrigger: "focus:ring-2",
+                        userButtonPopoverActionButton: "hover:bg-red-50",
+                        userButtonPopoverActionButtonIcon: "text-gray-600",
+                        userButtonPopoverActionButtonText: "text-gray-700 font-medium"
+                      },
+                      variables: {
+                        borderRadius: "0.75rem",
+                      },
+                    }}
+                  >
+                    <UserButton.MenuItems>
+                      <UserButton.Action
+                        label="Your Profile"
+                        labelIcon={<User size={16} />}
+                        onClick={() => navigate('/applications')}
+                      />
+                      <UserButton.Action label="manageAccount" />
+                    </UserButton.MenuItems>
+                  </UserButton>
+                  
+                  {/* Animated Popup - DESKTOP */}
+                  <AnimatePresence>
+                    {showProfilePopup && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute top-full right-0 mt-3 w-80 z-50"
+                        onClick={() => {
+                          navigate('/applications');
+                          setShowProfilePopup(false);
+                        }}
+                      >
+                        <div className="bg-white rounded-2xl p-5 shadow-2xl cursor-pointer hover:shadow-3xl transition-all duration-300 hover:scale-[1.02] relative">
+                          <div className="flex items-start gap-4">
+                            {/* Cute hand wave emoji - no background */}
+                            <span className="text-5xl flex-shrink-0 animate-wave">👋</span>
+                            
+                            <div className="flex-1 pt-2">
+                              <p className="text-lg font-bold text-gray-900 leading-snug mb-1.5">
+                                Hey there!
+                              </p>
+                              <p className="text-sm font-medium text-gray-700 leading-relaxed">
+                                Complete your profile to shine bright and get noticed by recruiters! ✨
+                              </p>
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowProfilePopup(false);
+                              }}
+                              className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 hover:rotate-90 duration-300"
+                            >
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Arrow */}
+                        <div className="absolute -top-2 right-8 w-4 h-4 bg-white border-l-2 border-t-2 border-gray-200 transform rotate-45 shadow-sm"></div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             ) : (
               <>
@@ -187,26 +298,73 @@ const Navbar = () => {
           {/* Mobile/Tablet Hamburger Menu - Visible below 1024px */}
           <div className="flex lg:hidden items-center gap-2">
             {user && (
-              <UserButton
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "h-9 w-9 border-2 shadow-md",
-                    userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
-                    userButtonPopoverActionButton: "hover:bg-red-50",
-                    userButtonPopoverActionButtonIcon: "text-gray-600",
-                    userButtonPopoverActionButtonText: "text-gray-700 font-medium"
-                  },
-                }}
-              >
-                <UserButton.MenuItems>
-                  <UserButton.Action
-                    label="Your Profile"
-                    labelIcon={<User size={16} />}
-                    onClick={() => navigate('/applications')}
-                  />
-                  <UserButton.Action label="manageAccount" />
-                </UserButton.MenuItems>
-              </UserButton>
+              <div className="relative">
+                <UserButton
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: "h-9 w-9 border-2 shadow-md",
+                      userButtonPopoverCard: "shadow-2xl rounded-xl border border-gray-100",
+                      userButtonPopoverActionButton: "hover:bg-red-50",
+                      userButtonPopoverActionButtonIcon: "text-gray-600",
+                      userButtonPopoverActionButtonText: "text-gray-700 font-medium"
+                    },
+                  }}
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Your Profile"
+                      labelIcon={<User size={16} />}
+                      onClick={() => navigate('/applications')}
+                    />
+                    <UserButton.Action label="manageAccount" />
+                  </UserButton.MenuItems>
+                </UserButton>
+                
+                {/* Mobile Popup */}
+                <AnimatePresence>
+                  {showProfilePopup && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full right-0 mt-3 w-72 z-50"
+                      onClick={() => {
+                        navigate('/applications');
+                        setShowProfilePopup(false);
+                      }}
+                    >
+                      <div className="bg-white rounded-2xl p-4 shadow-2xl cursor-pointer hover:shadow-3xl transition-all duration-300 relative">
+                        <div className="flex items-start gap-3">
+                          {/* Cute hand wave emoji - no background */}
+                          <span className="text-4xl flex-shrink-0 animate-wave">👋</span>
+                          
+                          <div className="flex-1 pt-1">
+                            <p className="text-sm font-bold text-gray-900 leading-snug mb-1">
+                              Hey there!
+                            </p>
+                            <p className="text-xs font-medium text-gray-700 leading-relaxed">
+                              Complete your profile to get noticed by recruiters! ✨
+                            </p>
+                          </div>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowProfilePopup(false);
+                            }}
+                            className="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 hover:rotate-90 duration-300"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Arrow */}
+                      <div className="absolute -top-2 right-6 w-4 h-4 bg-white border-l-2 border-t-2 border-gray-200 transform rotate-45 shadow-sm"></div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -357,6 +515,16 @@ const Navbar = () => {
         }
         .animate-slideDown {
           animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes wave {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(20deg); }
+          75% { transform: rotate(-20deg); }
+        }
+        .animate-wave {
+          animation: wave 1s ease-in-out infinite;
+          display: inline-block;
         }
       `}</style>
     </>
