@@ -64,9 +64,15 @@ const Navbar = () => {
 
   const { isComplete: isProfileComplete } = calculateCompletion();
 
-  // Show popup when user logs in and profile is incomplete
+  // Show popup ONLY ONCE per session when user logs in and profile is incomplete
   useEffect(() => {
-    if (user && userData && !isProfileComplete) {
+    // Check if popup has already been shown in this session
+    const hasShownPopup = sessionStorage.getItem('profilePopupShown');
+    
+    if (user && userData && !isProfileComplete && !hasShownPopup) {
+      // Mark as shown in sessionStorage (clears when browser tab closes)
+      sessionStorage.setItem('profilePopupShown', 'true');
+      
       setShowProfilePopup(true);
       const timer = setTimeout(() => {
         setShowProfilePopup(false);
@@ -75,6 +81,13 @@ const Navbar = () => {
       return () => clearTimeout(timer);
     }
   }, [user, userData, isProfileComplete]);
+
+  // Clear the popup flag when user completes profile
+  useEffect(() => {
+    if (isProfileComplete) {
+      sessionStorage.removeItem('profilePopupShown');
+    }
+  }, [isProfileComplete]);
 
   // Handle scroll event
   useEffect(() => {

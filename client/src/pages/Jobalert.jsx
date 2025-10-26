@@ -172,9 +172,40 @@ const JobAlert = () => {
       return;
     }
 
+    // Validate required fields
     if (!formData.email) {
       setMessage('Email is required');
       showToastNotification('Email is required', 'error');
+      return;
+    }
+
+    if (!formData.category) {
+      setMessage('Job category is required');
+      showToastNotification('Job category is required', 'error');
+      return;
+    }
+
+    if (!formData.location) {
+      setMessage('Preferred location is required');
+      showToastNotification('Preferred location is required', 'error');
+      return;
+    }
+
+    if (!formData.level) {
+      setMessage('Experience level is required');
+      showToastNotification('Experience level is required', 'error');
+      return;
+    }
+
+    if (!formData.designation) {
+      setMessage('Job designation is required');
+      showToastNotification('Job designation is required', 'error');
+      return;
+    }
+
+    if (!formData.frequency) {
+      setMessage('Notification frequency is required');
+      showToastNotification('Notification frequency is required', 'error');
       return;
     }
 
@@ -326,11 +357,12 @@ const JobAlert = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="category" className="block text-sm font-semibold text-gray-700 mb-3">
-                      Job Category
+                      Job Category <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="category"
                       id="category"
+                      required
                       value={formData.category}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
@@ -347,11 +379,12 @@ const JobAlert = () => {
 
                   <div>
                     <label htmlFor="location" className="block text-sm font-semibold text-gray-700 mb-3">
-                      Preferred Location
+                      Preferred Location <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="location"
                       id="location"
+                      required
                       value={formData.location}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
@@ -368,11 +401,12 @@ const JobAlert = () => {
 
                   <div>
                     <label htmlFor="level" className="block text-sm font-semibold text-gray-700 mb-3">
-                      Experience Level
+                      Experience Level <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="level"
                       id="level"
+                      required
                       value={formData.level}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
@@ -389,11 +423,12 @@ const JobAlert = () => {
 
                   <div>
                     <label htmlFor="designation" className="block text-sm font-semibold text-gray-700 mb-3">
-                      Job Designation
+                      Job Designation <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="designation"
                       id="designation"
+                      required
                       value={formData.designation}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
@@ -417,11 +452,12 @@ const JobAlert = () => {
                 </h3>
                 <div className="max-w-md">
                   <label htmlFor="frequency" className="block text-sm font-semibold text-gray-700 mb-3">
-                    Notification Frequency
+                    Notification Frequency <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="frequency"
                     id="frequency"
+                    required
                     value={formData.frequency}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-50 focus:bg-white hover:border-gray-400 transition-colors duration-200"
@@ -458,7 +494,7 @@ const JobAlert = () => {
                 </button>
                 <p className="text-sm text-gray-500 mt-4">
                   {isLoggedIn 
-                    ? "You'll receive email notifications for new job opportunities matching your preferences."
+                    ? "All fields marked with * are required. You'll receive email notifications for new job opportunities matching your preferences."
                     : "Please login to create job alerts and receive notifications."
                   }
                 </p>
