@@ -33,10 +33,7 @@ const WhatsAppContact = ({
           rotate: 5
         }}
         whileTap={{ scale: 0.9 }}
-        className="group relative overflow-hidden"
-        style={{
-          filter: 'drop-shadow(0 10px 20px rgba(37, 211, 102, 0.3))'
-        }}
+        className="group relative"
       >
         {/* Animated background glow */}
         <motion.div 
@@ -57,7 +54,12 @@ const WhatsAppContact = ({
         ></motion.div>
         
         {/* Main button */}
-        <div className="relative w-16 h-16 bg-gradient-to-br from-green-500 via-green-600 to-green-700 rounded-full flex items-center justify-center shadow-2xl">
+        <div 
+          className="relative w-16 h-16 bg-gradient-to-br from-green-500 via-green-600 to-green-700 rounded-full flex items-center justify-center" 
+          style={{
+            filter: 'drop-shadow(0 10px 20px rgba(37, 211, 102, 0.3))'
+          }}
+        >
           {/* Inner pulse ring */}
           <div className="absolute inset-2 rounded-full bg-green-400/20 animate-ping"></div>
           
@@ -96,42 +98,7 @@ const WhatsAppContact = ({
           </motion.div>
         </div>
         
-        {/* Hover tooltip */}
-        <motion.div
-          initial={{ opacity: 0, x: 20, scale: 0.8 }}
-          whileHover={{ opacity: 1, x: 0, scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="absolute right-full top-1/2 transform -translate-y-1/2 mr-4 pointer-events-none"
-        >
-          <div className="bg-gray-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap shadow-xl border border-gray-700">
-            💬 Chat with us on WhatsApp
-            <div className="absolute left-full top-1/2 transform -translate-y-1/2 w-0 h-0 border-l-6 border-l-gray-900/90 border-y-6 border-y-transparent"></div>
-          </div>
-        </motion.div>
-        
-        {/* Floating particles effect */}
-        {[...Array(3)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-green-300 rounded-full opacity-60"
-            style={{
-              top: `${20 + i * 15}%`,
-              right: `${20 + i * 10}%`,
-            }}
-            animate={{
-              y: [-20, -40, -20],
-              x: [0, 10, 0],
-              opacity: [0, 1, 0],
-              scale: [0, 1, 0]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              delay: i * 0.5,
-              ease: "easeInOut"
-            }}
-          />
-        ))}
+      
       </motion.button>
     </motion.div>
   );
