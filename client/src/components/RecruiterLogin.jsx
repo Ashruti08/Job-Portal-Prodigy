@@ -588,7 +588,7 @@ const RecruiterLogin = () => {
               {showGooglePhoneInput ? "Enter Your Phone Number" :
                showGoogleLogoUpload ? "Add Your Company Logo" :
                state === "Login" ? "Welcome Back" : 
-               isTextDataSubmited ? "Add Your Brand" : "Join As Recruiter"}
+               isTextDataSubmited ? "Add Your Brand" : "Join as a Recruiter"}
             </h1>
             <p className="text-sm text-center text-gray-500">
               {showGoogleLogoUpload ? "(Optional - Max 200KB)" : ""}
