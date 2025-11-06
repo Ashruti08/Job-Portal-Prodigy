@@ -166,7 +166,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
       alert('Error generating Excel file. Please try again.');
     }
   };
-
+  
   const fetchExistingAssessment = async (candidateEmail) => {
     if (!candidateEmail) return null;
     try {

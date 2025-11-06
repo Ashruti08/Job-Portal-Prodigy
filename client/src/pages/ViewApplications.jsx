@@ -3,10 +3,10 @@ import { assets } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
 import Loading from "../components/Loading";
-import CandidateDetails from "./CandidateDetails"; // Import the new component
+import CandidateDetails from "./CandidateDetails";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, FileText, ChevronDown, User, MapPin, Briefcase, MoreHorizontal, Search, Eye } from "lucide-react";
+import { Check, X, FileText,Mail,Phone, UserCircle,Globe,TrendingUp,Tag,Building2,ChevronDown,Languages,Heart,Calendar,Clock,DollarSign, User, MapPin, Briefcase, MoreHorizontal, Search, Eye, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import defaultAvatar from "../assets/default-avatar.png";
 
@@ -19,7 +19,10 @@ const ViewApplications = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [assessmentModalOpen, setAssessmentModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const [resumeApplicantName, setResumeApplicantName] = useState("");
   const dropdownRef = useRef(null);
 
   if (!companyToken) {
@@ -27,7 +30,6 @@ const ViewApplications = () => {
       <div className="flex items-center justify-center h-[70vh] bg-white rounded-xl shadow-md">
         <div className="text-center">
           <p className="text-xl sm:text-2xl text-gray-600 mb-4">Please login as a company first</p>
-       
         </div>
       </div>
     );
@@ -71,7 +73,7 @@ const ViewApplications = () => {
           )
         );
         toast.success(`Application ${status.toLowerCase()} successfully`);
-        setActiveDropdown(null); // Close dropdown after status change
+        setActiveDropdown(null);
       } else {
         console.error("Status change failed:", data.message);
         toast.error(data.message);
@@ -84,7 +86,8 @@ const ViewApplications = () => {
 
   const handleViewResume = (resumeUrl, applicantName) => {
     if (!resumeUrl) {
-      toast.error("Resume not available for this applicant");
+      setResumeApplicantName(applicantName || 'Unknown');
+      setResumeModalOpen(true);
       return;
     }
 
@@ -130,7 +133,18 @@ const ViewApplications = () => {
     setProfileModalOpen(true);
   };
 
-  // Fixed click outside handler
+  const handleViewAssessment = (userId, userData) => {
+    console.log("Viewing assessment for user:", userId, userData);
+    
+    if (!userId) {
+      toast.error("User data not available");
+      return;
+    }
+    
+    setSelectedProfile(userData);
+    setAssessmentModalOpen(true);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -401,22 +415,28 @@ const ViewApplications = () => {
                         {applicant.jobId?.location || 'Remote'}
                       </td>
                       <td className="py-4 px-5">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleViewResume(applicant.userId?.resume, applicant.userId?.name)}
                             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-90"
                             style={{ backgroundColor: '#FF0000' }}
-                            disabled={!applicant.userId?.resume}
                           >
                             <FileText size={14} />
                             Resume
                           </button>
                           <button
                             onClick={() => handleViewProfile(applicant.userId?._id, applicant.userId)}
-                            className="inline-flex items-center gap-2 bg-purple-50 text-purple-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
+                            className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
                           >
                             <Eye size={14} />
                             Profile
+                          </button>
+                          <button
+                            onClick={() => handleViewAssessment(applicant.userId?._id, applicant.userId)}
+                            className="inline-flex items-center gap-2 bg-purple-50 text-purple-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
+                          >
+                            <ClipboardList size={14} />
+                            Assessment
                           </button>
                         </div>
                       </td>
@@ -489,16 +509,466 @@ const ViewApplications = () => {
           </div>
         </motion.div>
         
-
-        {/* Replace the old ProfileModal with the new CandidateDetails */}
-        <CandidateDetails 
+        {/* Profile Modal */}
+        <CandidateProfileModal 
           isOpen={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
           profile={selectedProfile}
+          backendUrl={backendUrl}
         />
+
+        {/* Assessment Modal */}
+        <CandidateDetails 
+          isOpen={assessmentModalOpen}
+          onClose={() => setAssessmentModalOpen(false)}
+          profile={selectedProfile}
+        />
+
+        {/* Resume Not Available Modal */}
+        <AnimatePresence>
+          {resumeModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-5 z-50"
+              onClick={() => setResumeModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white rounded-xl shadow-lg p-10 text-center max-w-md w-full relative"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setResumeModalOpen(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Close"
+                >
+                  <X size={20} />
+                </button>
+                
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
+                  <FileText size={32} className="text-red-500" />
+                </div>
+                
+                <h1 className="text-xl font-semibold mb-3" style={{ color: '#020330' }}>
+                  Resume Not Available
+                </h1>
+                
+                <p className="text-gray-600 text-sm mb-2">
+                  The candidate <span className="text-red-500 font-semibold">{resumeApplicantName}</span> has not uploaded their resume yet.
+                </p>
+                
+                <p className="text-gray-600 text-sm mb-6">
+                  Please contact them directly to request their resume.
+                </p>
+                
+                <button
+                  onClick={() => setResumeModalOpen(false)}
+                  className="bg-red-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                >
+                  Close
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 };
+
+// New Candidate Profile Modal Component
+const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
+  if (!isOpen || !profile) return null;
+
+  // Helper function to get initials from name
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
+  };
+
+  // Helper function to display field value or "Not Provided"
+  const displayValue = (value, fallback = 'Not Provided') => {
+    if (!value || value.toString().trim() === '') {
+      return <span className="text-gray-400 italic">{fallback}</span>;
+    }
+    return value;
+  };
+
+  // Check if valid image exists
+  const hasValidImage = () => {
+    const imagePath = profile.image;
+    return imagePath && 
+           imagePath !== '/default-avatar.png' && 
+           imagePath !== 'default-avatar.png' &&
+           imagePath.trim() !== '';
+  };
+
+  const getImageUrl = (imagePath) => {
+    if (!imagePath || imagePath === '/default-avatar.png' || imagePath === 'default-avatar.png') {
+      return null;
+    }
+    
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    return imagePath.startsWith('/') 
+      ? `${backendUrl}${imagePath}` 
+      : `${backendUrl}/${imagePath}`;
+  };
+
+  const fullName = `${profile.firstName || ''} ${profile.middleName || ''} ${profile.surname || ''}`.trim() || profile.name || 'Unknown';
+  const imageUrl = getImageUrl(profile.image);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
+            <h2 className="text-2xl font-bold" style={{ color: '#020330' }}>
+              Candidate Profile
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* Profile Content */}
+          <div className="p-6 space-y-6">
+            {/* Profile Header */}
+            <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
+              <div className="relative flex-shrink-0">
+                {/* Profile Picture or Initials */}
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={fullName}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
+                    onError={(e) => {
+                      // If image fails to load, hide it and show initials
+                      e.target.style.display = 'none';
+                      const initialsDiv = e.target.nextElementSibling;
+                      if (initialsDiv) {
+                        initialsDiv.style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                {/* Initials - shown only if no image */}
+                <div 
+                  className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-gray-100"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                    display: imageUrl ? 'none' : 'flex'
+                  }}
+                >
+                  {getInitials(fullName)}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                  {displayValue(fullName, 'Name Not Provided')}
+                </h3>
+                <p className="text-gray-600 mt-1 flex items-center gap-2">
+                  <Briefcase size={16} className="flex-shrink-0" />
+                  <span className="truncate">{displayValue(profile.currentDesignation, 'No designation provided')}</span>
+                </p>
+                {profile.currentDepartment && (
+                  <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
+                    <Building2 size={14} className="flex-shrink-0" />
+                    <span className="truncate">{profile.currentDepartment}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Personal Details Section */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <UserCircle size={20} />
+                Personal Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">First Name</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.firstName)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Middle Name</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.middleName)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Surname</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.surname)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Mail size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="text-gray-900 truncate break-all">{displayValue(profile.emailId || profile.email)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Phone size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Mobile Number</p>
+                    <p className="text-gray-900">{displayValue(profile.mobileNo)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <MapPin size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">City</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.city)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <MapPin size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">State</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.state)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Languages size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Languages</p>
+                    <p className="text-gray-900">{displayValue(profile.languages)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Heart size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Marital Status</p>
+                    <p className="text-gray-900">{displayValue(profile.maritalStatus)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Professional Details Section */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <Briefcase size={20} />
+                Professional Details
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Briefcase size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Current Designation</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.currentDesignation)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Building2 size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Current Department</p>
+                    <p className="text-gray-900 truncate">{displayValue(profile.currentDepartment)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Calendar size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Total Experience</p>
+                    <p className="text-gray-900">{displayValue(profile.totalExperience)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <DollarSign size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Current CTC</p>
+                    <p className="text-gray-900">{displayValue(profile.currentCTC)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <DollarSign size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Expected CTC</p>
+                    <p className="text-gray-900">{displayValue(profile.expectedCTC)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Clock size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Notice Period</p>
+                    <p className="text-gray-900">{displayValue(profile.noticePeriod)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Briefcase size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Role Type</p>
+                    <p className="text-gray-900">{displayValue(profile.roleType)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <TrendingUp size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Job Change Status</p>
+                    <p className="text-gray-900">{displayValue(profile.jobChangeStatus)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Building2 size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Sector</p>
+                    <p className="text-gray-900 truncate">
+                      {profile.sector === 'Other' 
+                        ? displayValue(profile.otherSector, 'Other (Not Specified)')
+                        : displayValue(profile.sector)
+                      }
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-2">
+                  <Tag size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Category</p>
+                    <p className="text-gray-900 truncate">
+                      {profile.category === 'Other' 
+                        ? displayValue(profile.otherCategory, 'Other (Not Specified)')
+                        : displayValue(profile.category)
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Links Section */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <Globe size={20} />
+                Social Profiles
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">LinkedIn</p>
+                    {profile.linkedinId ? (
+                      <a
+                        href={profile.linkedinId}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-sm truncate block"
+                      >
+                        View Profile →
+                      </a>
+                    ) : (
+                      <p className="text-gray-400 italic">Not Provided</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Instagram</p>
+                    {profile.instagramId ? (
+                      <a
+                        href={profile.instagramId}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-pink-600 hover:underline text-sm truncate block"
+                      >
+                        View Profile →
+                      </a>
+                    ) : (
+                      <p className="text-gray-400 italic">Not Provided</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500">Facebook</p>
+                    {profile.facebookId ? (
+                      <a
+                        href={profile.facebookId}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-700 hover:underline text-sm truncate block"
+                      >
+                        View Profile →
+                      </a>
+                    ) : (
+                      <p className="text-gray-400 italic">Not Provided</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+
 
 export default ViewApplications;
