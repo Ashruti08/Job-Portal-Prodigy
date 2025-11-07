@@ -85,7 +85,14 @@ const ViewApplications = () => {
   };
 
   const handleViewResume = (resumeUrl, applicantName) => {
-    if (!resumeUrl) {
+    // Check if resume URL is empty, undefined, or invalid
+    if (!resumeUrl || 
+        resumeUrl.trim() === '' || 
+        resumeUrl === 'undefined' || 
+        resumeUrl === 'null' ||
+        resumeUrl === '/undefined' ||
+        resumeUrl.endsWith('/null') ||
+        resumeUrl.endsWith('/undefined')) {
       setResumeApplicantName(applicantName || 'Unknown');
       setResumeModalOpen(true);
       return;
@@ -99,12 +106,24 @@ const ViewApplications = () => {
 
     console.log("Opening resume URL:", fullUrl);
 
-    try {
-      window.open(fullUrl, '_blank', 'noopener,noreferrer');
-    } catch (error) {
-      console.error('Error opening resume:', error);
-      toast.error("Could not open resume. Please try again.");
-    }
+    // Verify the URL before opening
+    fetch(fullUrl, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          window.open(fullUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          // File doesn't exist on server
+          console.error('Resume file not found on server');
+          setResumeApplicantName(applicantName || 'Unknown');
+          setResumeModalOpen(true);
+        }
+      })
+      .catch(error => {
+        console.error('Error checking resume:', error);
+        // Show the modal instead of an error toast
+        setResumeApplicantName(applicantName || 'Unknown');
+        setResumeModalOpen(true);
+      });
   };
 
   const getImageUrl = (imagePath) => {
