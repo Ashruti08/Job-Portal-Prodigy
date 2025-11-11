@@ -274,9 +274,13 @@ const MyProfile = () => {
     
     setResume(file);
   };
-
-  const updateResume = async () => {
+const updateResume = async () => {
     try {
+      if (!user) {
+        toast.error("Please login to upload resume.");
+        return;
+      }
+
       if (!resume) {
         toast.error("Please select a resume file.");
         return;
@@ -286,6 +290,11 @@ const MyProfile = () => {
       formData.append("resume", resume);
 
       const token = await getToken();
+      
+      if (!token) {
+        toast.error("Authentication failed. Please login again.");
+        return;
+      }
 
       const response = await fetch(`${backendUrl}/api/users/update-resume`, {
         method: 'POST',
