@@ -132,7 +132,7 @@ router.post('/upload-resumes', verifyCompanyToken, (req, res) => {
     // Enhanced error logging
     console.log('=== Resume Upload Request ===');
     console.log('Files received:', req.files?.length || 0);
-    console.log('Body:', req.body);
+   
     
     if (err instanceof multer.MulterError) {
       console.error('Multer error:', err);
@@ -284,7 +284,7 @@ router.post('/upload-csv', verifyCompanyToken, (req, res) => {
     // Enhanced error logging
     console.log('=== CSV/Excel Upload Request ===');
     console.log('Files received:', req.files?.length || 0);
-    console.log('Body:', req.body);
+    
     
     if (err instanceof multer.MulterError) {
       console.error('Multer error:', err);

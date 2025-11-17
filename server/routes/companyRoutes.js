@@ -226,7 +226,7 @@ router.post("/create-subuser", companyAuthMiddleware, blockSubUsers, async (req,
 router.get("/subusers", companyAuthMiddleware, blockSubUsers, async (req, res) => {
   try {
     console.log('=== FETCHING SUB-USERS ===');
-    console.log('Company ID:', req.companyId);
+ 
     
     const subUsers = await SubUser.find({ 
       parentCompanyId: req.companyId 

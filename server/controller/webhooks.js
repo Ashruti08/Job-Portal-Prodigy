@@ -5,7 +5,7 @@ export const clerkWebhooks = async (req, res) => {
   try {
     console.log("=== Webhook received ===");
     console.log("Headers:", req.headers);
-    console.log("Body:", req.body);
+   
 
     const webhook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
     const reqBody = req.body;

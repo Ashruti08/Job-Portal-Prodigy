@@ -815,7 +815,7 @@ export const googleAuth = async (req, res, next) => {
   try {
     console.log("\n=== GOOGLE AUTH REQUEST START ===");
     console.log("📋 Content-Type:", req.headers['content-type']);
-    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+   
     console.log("📁 File:", req.file ? req.file.originalname : 'No file');
     console.log("================================\n");
     
@@ -863,7 +863,7 @@ export const googleAuth = async (req, res, next) => {
     
     console.log("📧 Google Email:", email);
     console.log("👤 Google Name:", googleName);
-    console.log("🆔 Google ID:", googleId);
+   
     
     // ✅ Check if user exists (by email OR googleId)
     let company = await Company.findOne({ 
