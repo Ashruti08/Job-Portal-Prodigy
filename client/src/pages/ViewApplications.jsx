@@ -6,12 +6,12 @@ import Loading from "../components/Loading";
 import CandidateDetails from "./CandidateDetails";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, FileText,Mail,Phone, UserCircle,Globe,TrendingUp,Tag,Building2,ChevronDown,Languages,Heart,Calendar,Clock,DollarSign, User, MapPin, Briefcase, MoreHorizontal, Search, Eye, ClipboardList } from "lucide-react";
+import { Check, X, FileText, Mail, Phone, UserCircle, Globe, TrendingUp, Tag, Building2, ChevronDown, Languages, Heart, Calendar, Clock, DollarSign, User, MapPin, Briefcase, MoreHorizontal, Search, Eye, ClipboardList, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import defaultAvatar from "../assets/default-avatar.png";
 
 const ViewApplications = () => {
-  const { backendUrl, companyToken } = useContext(AppContext);
+  const { backendUrl, companyToken, companyData } = useContext(AppContext);
   const navigate = useNavigate();
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,10 @@ const ViewApplications = () => {
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
   const [resumeApplicantName, setResumeApplicantName] = useState("");
   const dropdownRef = useRef(null);
+
+  // ✅ Check if user is sub-user (HR/Consultancy/Management)
+  const isSubUser = companyData?.isSubUser || false;
+  const subUserRole = companyData?.roleType || '';
 
   if (!companyToken) {
     return (
@@ -57,6 +61,12 @@ const ViewApplications = () => {
   };
 
   const changeJobApplicationStatus = async (id, status) => {
+    // ✅ Prevent sub-users from accepting/rejecting
+    if (isSubUser) {
+      toast.error(`${subUserRole.toUpperCase()} users cannot accept/reject applications. Only view and assess.`);
+      return;
+    }
+
     try {
       console.log("Changing status for application:", id, "to:", status);
       
@@ -85,7 +95,6 @@ const ViewApplications = () => {
   };
 
   const handleViewResume = (resumeUrl, applicantName) => {
-    // Check if resume URL is empty, undefined, or invalid
     if (!resumeUrl || 
         resumeUrl.trim() === '' || 
         resumeUrl === 'undefined' || 
@@ -106,13 +115,11 @@ const ViewApplications = () => {
 
     console.log("Opening resume URL:", fullUrl);
 
-    // Verify the URL before opening
     fetch(fullUrl, { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
           window.open(fullUrl, '_blank', 'noopener,noreferrer');
         } else {
-          // File doesn't exist on server
           console.error('Resume file not found on server');
           setResumeApplicantName(applicantName || 'Unknown');
           setResumeModalOpen(true);
@@ -120,7 +127,6 @@ const ViewApplications = () => {
       })
       .catch(error => {
         console.error('Error checking resume:', error);
-        // Show the modal instead of an error toast
         setResumeApplicantName(applicantName || 'Unknown');
         setResumeModalOpen(true);
       });
@@ -243,13 +249,30 @@ const ViewApplications = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 
-            className="text-2xl md:text-3xl font-bold mb-2"
-            style={{ color: '#020330' }}
-          >
-            Application Management
-          </h1>
-          <p className="text-gray-500">Review and manage candidate applications</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 
+                className="text-2xl md:text-3xl font-bold mb-2"
+                style={{ color: '#020330' }}
+              >
+                Application Management
+              </h1>
+              <p className="text-gray-500">
+                {isSubUser 
+                  ? `View and assess candidate applications as ${subUserRole.toUpperCase()}`
+                  : 'Review and manage candidate applications'
+                }
+              </p>
+            </div>
+            
+            {/* ✅ Show role badge for sub-users */}
+            {isSubUser && (
+              <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg">
+                <Shield size={18} />
+                <span className="font-semibold uppercase">{subUserRole}</span>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         <motion.div
@@ -350,14 +373,14 @@ const ViewApplications = () => {
                     </div>
                   </th>
                   <th className="py-4 px-5 text-left text-sm font-semibold">Actions</th>
-                  <th className="py-4 px-5 text-left text-sm font-semibold">Status</th>
+                  {!isSubUser && <th className="py-4 px-5 text-left text-sm font-semibold">Status</th>}
                 </tr>
               </thead>
               
               <tbody>
                 {filteredApplicants.length === 0 ? (
                   <tr>
-                    <td colSpan="6">
+                    <td colSpan={isSubUser ? "5" : "6"}>
                       <div className="flex flex-col items-center justify-center py-16">
                         <img 
                           src={assets.default_company_icon || "/empty-state.svg"} 
@@ -408,7 +431,6 @@ const ViewApplications = () => {
                               src={getImageUrl(applicant.userId?.image)}
                               alt={`${applicant.userId?.name || 'Applicant'}'s avatar`}
                               onError={(e) => {
-                                console.log("Image load error for:", applicant.userId?.image);
                                 e.target.onerror = null;
                                 e.target.src = defaultAvatar;
                               }}
@@ -453,73 +475,72 @@ const ViewApplications = () => {
                           <button
                             onClick={() => handleViewAssessment(applicant.userId?._id, applicant.userId)}
                             className="inline-flex items-center gap-2 bg-purple-50 text-purple-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
+                            title={isSubUser ? `Fill ${subUserRole.toUpperCase()} assessment` : 'View assessment'}
                           >
                             <ClipboardList size={14} />
-                            Assessment
+                            {isSubUser ? 'FillAssessment' : 'Assessment'}
                           </button>
                         </div>
                       </td>
-                      <td className="py-4 px-5 relative">
-                        {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
-                          <div className="relative" ref={dropdownRef}>
-                            <button 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log("Clicking pending button for index:", index);
-                                setActiveDropdown(activeDropdown === index ? null : index);
-                              }}
-                              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90"
-                              style={{ backgroundColor: '#FF0000' }}
-                            >
-                              <span>Pending</span>
-                              <MoreHorizontal size={16} />
-                            </button>
-                            
-                            <AnimatePresence>
-                              {activeDropdown === index && (
-                                <motion.div 
-                                  initial={{ opacity: 0, y: -10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -10 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="absolute right-0 bottom-full mb-1 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
-                                  style={{ 
-                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' 
-                                  }}
-                                >
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      console.log("Accepting application:", applicant._id);
-                                      changeJobApplicationStatus(applicant._id, "Accepted");
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
+                      
+                      {/* ✅ Only show status column for main recruiters */}
+                      {!isSubUser && (
+                        <td className="py-4 px-5 relative">
+                          {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
+                            <div className="relative" ref={dropdownRef}>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setActiveDropdown(activeDropdown === index ? null : index);
+                                }}
+                                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90"
+                                style={{ backgroundColor: '#FF0000' }}
+                              >
+                                <span>Pending</span>
+                                <MoreHorizontal size={16} />
+                              </button>
+                              
+                              <AnimatePresence>
+                                {activeDropdown === index && (
+                                  <motion.div 
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="absolute right-0 bottom-full mb-1 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
                                   >
-                                    <Check size={16} />
-                                    Accept
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      console.log("Rejecting application:", applicant._id);
-                                      changeJobApplicationStatus(applicant._id, "Rejected");
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                                  >
-                                    <X size={16} />
-                                    Reject
-                                  </button>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        ) : (
-                          getStatusBadge(applicant.status)
-                        )}
-                      </td>
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        changeJobApplicationStatus(applicant._id, "Accepted");
+                                      }}
+                                      className="w-full px-4 py-3 text-left text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
+                                    >
+                                      <Check size={16} />
+                                      Accept
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        changeJobApplicationStatus(applicant._id, "Rejected");
+                                      }}
+                                      className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                    >
+                                      <X size={16} />
+                                      Reject
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          ) : (
+                            getStatusBadge(applicant.status)
+                          )}
+                        </td>
+                      )}
                     </motion.tr>
                   ))
                 )}
@@ -564,7 +585,6 @@ const ViewApplications = () => {
                 <button
                   onClick={() => setResumeModalOpen(false)}
                   className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label="Close"
                 >
                   <X size={20} />
                 </button>
@@ -600,11 +620,10 @@ const ViewApplications = () => {
   );
 };
 
-// New Candidate Profile Modal Component
+// Candidate Profile Modal Component (unchanged)
 const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
   if (!isOpen || !profile) return null;
 
-  // Helper function to get initials from name
   const getInitials = (name) => {
     if (!name) return 'U';
     const parts = name.trim().split(' ');
@@ -614,21 +633,11 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
     return name[0].toUpperCase();
   };
 
-  // Helper function to display field value or "Not Provided"
   const displayValue = (value, fallback = 'Not Provided') => {
     if (!value || value.toString().trim() === '') {
       return <span className="text-gray-400 italic">{fallback}</span>;
     }
     return value;
-  };
-
-  // Check if valid image exists
-  const hasValidImage = () => {
-    const imagePath = profile.image;
-    return imagePath && 
-           imagePath !== '/default-avatar.png' && 
-           imagePath !== 'default-avatar.png' &&
-           imagePath.trim() !== '';
   };
 
   const getImageUrl = (imagePath) => {
@@ -664,7 +673,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
           className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
             <h2 className="text-2xl font-bold" style={{ color: '#020330' }}>
               Candidate Profile
@@ -677,19 +685,15 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
             </button>
           </div>
 
-          {/* Profile Content */}
           <div className="p-6 space-y-6">
-            {/* Profile Header */}
             <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
               <div className="relative flex-shrink-0">
-                {/* Profile Picture or Initials */}
                 {imageUrl ? (
                   <img
                     src={imageUrl}
                     alt={fullName}
                     className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
                     onError={(e) => {
-                      // If image fails to load, hide it and show initials
                       e.target.style.display = 'none';
                       const initialsDiv = e.target.nextElementSibling;
                       if (initialsDiv) {
@@ -698,7 +702,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
                     }}
                   />
                 ) : null}
-                {/* Initials - shown only if no image */}
                 <div 
                   className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-gray-100"
                   style={{ 
@@ -726,7 +729,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
               </div>
             </div>
 
-            {/* Personal Details Section */}
             <div>
               <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
                 <UserCircle size={20} />
@@ -807,7 +809,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
               </div>
             </div>
 
-            {/* Professional Details Section */}
             <div>
               <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
                 <Briefcase size={20} />
@@ -906,7 +907,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
               </div>
             </div>
 
-            {/* Social Links Section */}
             <div>
               <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
                 <Globe size={20} />
@@ -973,7 +973,6 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex justify-end">
             <button
               onClick={onClose}
@@ -987,7 +986,5 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
     </AnimatePresence>
   );
 };
-
-
 
 export default ViewApplications;

@@ -218,14 +218,12 @@ const RecruiterLogin = () => {
     console.log('Credential Response:', credentialResponse);
     
     try {
-      // ✅ Check if credential exists
       if (!credentialResponse || !credentialResponse.credential) {
         console.error('❌ No credential in response');
         toast.error("Google Sign-In failed. Please try again.");
         return;
       }
 
-      // Decode JWT to get user info
       const base64Url = credentialResponse.credential.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
@@ -235,11 +233,9 @@ const RecruiterLogin = () => {
       const userInfo = JSON.parse(jsonPayload);
       console.log('✅ Google User Info:', userInfo);
       
-      // Store credential and user info
       setGoogleCredential(credentialResponse.credential);
       setGoogleUserInfo(userInfo);
       
-      // ✅ Step 1: Try to login first (check if user exists)
       setIsLoading(true);
       
       try {
@@ -253,7 +249,6 @@ const RecruiterLogin = () => {
         console.log('📥 Backend response:', data);
 
         if (data.success) {
-          // ✅ User exists - Login successful
           setCompanyData(data.company);
           setCompanyToken(data.token);
           localStorage.setItem("companyToken", data.token);
@@ -263,7 +258,6 @@ const RecruiterLogin = () => {
             navigate("/dashboard");
           }, 1000);
         } else if (data.requiresPhone) {
-          // ✅ New user - Need phone number for signup
           console.log('📝 New user detected - requesting phone number');
           setIsLoading(false);
           setName(userInfo.name || '');
@@ -272,14 +266,12 @@ const RecruiterLogin = () => {
           setShowGooglePhoneInput(true);
           toast.info("Please enter your phone number to complete registration");
         } else {
-          // Other errors
           setIsLoading(false);
           toast.error(data.message || "Google authentication failed");
         }
       } catch (error) {
         setIsLoading(false);
         console.error('❌ Backend error:', error);
-        console.error('Error response:', error.response?.data);
         toast.error(error.response?.data?.message || "Google authentication failed");
       }
       
@@ -351,18 +343,15 @@ const RecruiterLogin = () => {
     }
 
     try {
-      // ✅ Direct prompt method - more reliable
       window.google.accounts.id.prompt((notification) => {
         console.log('Google prompt notification:', notification);
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
           console.log('Google prompt not shown, trying alternate method');
-          // Fallback to button click method
           triggerGoogleButton();
         }
       });
     } catch (error) {
       console.error('Error with Google prompt:', error);
-      // Fallback to button method
       triggerGoogleButton();
     }
   };
@@ -419,7 +408,6 @@ const RecruiterLogin = () => {
   const handleGoogleSignupSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Validate credential exists
     if (!googleCredential) {
       toast.error("Session expired. Please try signing in with Google again.");
       setShowGoogleLogoUpload(false);
@@ -427,7 +415,6 @@ const RecruiterLogin = () => {
       return;
     }
 
-    // ✅ Validate phone number
     if (phone.length < 10) {
       toast.error("Please enter a valid 10-digit phone number");
       return;
@@ -435,13 +422,7 @@ const RecruiterLogin = () => {
 
     setIsLoading(true);
     try {
-      console.log('📤 Submitting Google signup with:', {
-        hasCredential: !!googleCredential,
-        credentialLength: googleCredential?.length,
-        phone: phone,
-        name: name,
-        hasImage: !!image
-      });
+      console.log('📤 Submitting Google signup');
 
       const formData = new FormData();
       formData.append("credential", googleCredential);
@@ -451,11 +432,6 @@ const RecruiterLogin = () => {
       
       if (image) {
         formData.append("image", image);
-      }
-
-      console.log('📤 FormData entries:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, value instanceof File ? `File(${value.name})` : value);
       }
 
       const { data } = await axios.post(`${backendUrl}/api/company/google-auth`, formData, {
@@ -480,87 +456,141 @@ const RecruiterLogin = () => {
       }
     } catch (error) {
       console.error('❌ Google signup error:', error);
-      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.message || "Registration failed");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onSubmitHandler = async (e) => {
-    e.preventDefault();
-    
-    if (state === "Sign Up" && !isTextDataSubmited) {
-      if (phone.length < 10) {
-        toast.error("Please enter a valid phone number");
-        return;
-      }
-      return setIsTextDataSubmited(true);
+// ✅ UPDATED: Complete onSubmitHandler function
+const onSubmitHandler = async (e) => {
+  e.preventDefault();
+  
+  if (state === "Sign Up" && !isTextDataSubmited) {
+    if (phone.length < 10) {
+      toast.error("Please enter a valid phone number");
+      return;
     }
+    return setIsTextDataSubmited(true);
+  }
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-    try {
-      if (state === "Login") {
-        const { data } = await axios.post(backendUrl + "/api/company/login", {
-          email,
-          password,
-        });
+  try {
+    if (state === "Login") {
+      const { data } = await axios.post(backendUrl + "/api/company/login", {
+        email,
+        password,
+      });
 
-        if (data.success) {
-          setCompanyData(data.company);
-          setCompanyToken(data.token);
-          localStorage.setItem("companyToken", data.token);
-          toast.success("Login successful!");
-          setTimeout(() => {
-            setShowRecruiterLogin(false);
-            navigate("/dashboard");
-          }, 1000);
-        } else {
-          // ✅ Check if user should use Google Sign-In
-          if (data.useGoogleAuth) {
-            toast.error(
-              "This account uses Google Sign-In. Please click 'Continue with Google' button below.",
-              { autoClose: 5000 }
-            );
-          } else {
-            toast.error(data.message || "Login failed");
-          }
-        }
-      } else {
-        const formData = new FormData();
-        formData.append("name", name);
-        formData.append("password", password);
-        formData.append("email", email);
-        formData.append("phone", phone);
-        if (image) {
-          formData.append("image", image);
-        }
+      console.log('=== LOGIN RESPONSE ===');
+      console.log('Success:', data.success);
+      console.log('Company data:', data.company);
 
-        const { data } = await axios.post(
-          backendUrl + "/api/company/register",
-          formData
-        );
+      if (data.success) {
+        // ✅ CRITICAL: Store complete company data from backend response
+        const userData = {
+          _id: data.company._id,
+          name: data.company.name,
+          email: data.company.email,
+          image: data.company.image,
+          phone: data.company.phone,
+          // ✅ THESE ARE THE MOST IMPORTANT FIELDS
+          isSubUser: data.company.isSubUser || false,
+          roleType: data.company.roleType || null
+        };
+
+        console.log('=== STORING USER DATA ===');
+        console.log('isSubUser:', userData.isSubUser);
+        console.log('roleType:', userData.roleType);
+        console.log('Full data:', userData);
+
+        // ✅ Store in context
+        setCompanyData(userData);
         
-        if (data.success) {
-          setCompanyData(data.company);
-          setCompanyToken(data.token);
-          localStorage.setItem("companyToken", data.token);
-          toast.success("Account created successfully!");
-          setTimeout(() => {
-            setShowRecruiterLogin(false);
-            setState("Login");
-          }, 1500);
+        // ✅ Store in localStorage
+        localStorage.setItem('companyData', JSON.stringify(userData));
+        
+        // ✅ Store token
+        setCompanyToken(data.token);
+        localStorage.setItem("companyToken", data.token);
+
+        // Show appropriate welcome message
+        if (userData.isSubUser) {
+          toast.success(`Welcome ${userData.name} (${userData.roleType?.toUpperCase()})`);
         } else {
-          toast.error(data.message || "Registration failed");
+          toast.success("Login successful!");
+        }
+        
+        setTimeout(() => {
+          setShowRecruiterLogin(false);
+          // Redirect based on user type
+          if (userData.isSubUser) {
+            navigate("/dashboard/view-applications");
+          } else {
+            navigate("/dashboard");
+          }
+        }, 1000);
+      } else {
+        if (data.useGoogleAuth) {
+          toast.error(
+            "This account uses Google Sign-In. Please click 'Continue with Google' button below.",
+            { autoClose: 5000 }
+          );
+        } else {
+          toast.error(data.message || "Login failed");
         }
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "An error occurred");
-    } finally {
-      setIsLoading(false);
+    } else {
+      // Registration logic
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("password", password);
+      formData.append("email", email);
+      formData.append("phone", phone);
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const { data } = await axios.post(
+        backendUrl + "/api/company/register",
+        formData
+      );
+      
+      if (data.success) {
+        // ✅ Store registration data (always main company, never sub-user)
+        const userData = {
+          _id: data.company._id,
+          name: data.company.name,
+          email: data.company.email,
+          image: data.company.image,
+          phone: data.company.phone,
+          isSubUser: false,
+          roleType: null
+        };
+
+        setCompanyData(userData);
+        localStorage.setItem('companyData', JSON.stringify(userData));
+        
+        setCompanyToken(data.token);
+        localStorage.setItem("companyToken", data.token);
+        
+        toast.success("Account created successfully!");
+        setTimeout(() => {
+          setShowRecruiterLogin(false);
+          setState("Login");
+        }, 1500);
+      } else {
+        toast.error(data.message || "Registration failed");
+      }
     }
-  };
+  } catch (error) {
+    console.error('❌ Login/Registration error:', error);
+    toast.error(error.response?.data?.message || "An error occurred");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   if (showForgotPassword) {
     return (

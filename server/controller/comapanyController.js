@@ -13,6 +13,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { OAuth2Client } from 'google-auth-library';
+import SubUser from "../models/SubUser.js"; // ✅ ADD THIS at the top
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -186,20 +187,45 @@ export const loginCompany = async (req, res) => {
   }
 };
 
-// Get company data
-export const getCompanyData = async (req, res) => {
-  const company = req.company;
+// Get company data// Update your comapanyController.js - getCompanyData function
 
+// ✅ UPDATED: Return sub-user info when fetching company data
+export const getCompanyData = async (req, res) => {
   try {
-    res.json({ success: true, company });
+    console.log('=== GET COMPANY DATA ===');
+    console.log('isSubUser:', req.isSubUser);
+    console.log('subUserRole:', req.subUserRole);
+    console.log('company:', req.company?.name);
+    
+    // ✅ Build response based on user type
+    const responseData = {
+      _id: req.company._id,
+      name: req.company.name || req.subUserName, // Use sub-user name if sub-user
+      email: req.company.email,
+      image: req.company.image,
+      phone: req.company.phone,
+      // ✅ CRITICAL: Include sub-user flags
+      isSubUser: req.isSubUser || false,
+      roleType: req.subUserRole || null
+    };
+    
+    console.log('=== RESPONSE DATA ===');
+    console.log('isSubUser:', responseData.isSubUser);
+    console.log('roleType:', responseData.roleType);
+    
+    res.json({ 
+      success: true, 
+      company: responseData 
+    });
+    
   } catch (error) {
+    console.error('Get company data error:', error);
     res.json({
       success: false,
       message: error.message,
     });
   }
 };
-
 // Send password reset code via email using Resend
 export const sendResetCode = async (req, res) => {
   const { email } = req.body;
@@ -1018,6 +1044,97 @@ export const googleAuth = async (req, res, next) => {
     res.json({ 
       success: false, 
       message: error.message || "Google authentication failed" 
+    });
+  }
+};
+// Add this single function to companyController.js
+// ✅ CORRECTED: Reset Sub-User Password Function
+export const resetSubUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params; // Sub-user ID from URL
+    const { newPassword } = req.body;
+    const mainCompanyId = req.companyId; // ✅ Use req.companyId (set by middleware)
+
+    console.log('=== RESET SUB-USER PASSWORD ===');
+    console.log('Sub-user ID:', id);
+    console.log('Main Company ID:', mainCompanyId);
+    console.log('New Password Length:', newPassword?.length);
+    console.log('Is Sub-User:', req.isSubUser); // Should be false for main recruiter
+    console.log('Sub-User Role:', req.subUserRole); // Should be null for main recruiter
+
+    // ✅ CRITICAL: Main recruiter should NOT be a sub-user
+    if (req.isSubUser) {
+      return res.json({
+        success: false,
+        message: 'Sub-users cannot reset passwords. Only main recruiters have this permission.'
+      });
+    }
+
+    // Validate password
+    if (!newPassword || newPassword.trim() === '') {
+      return res.json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // ✅ Find the sub-user and verify they belong to this main company
+    const subUser = await SubUser.findOne({
+      _id: id,
+      parentCompanyId: mainCompanyId
+    });
+
+    if (!subUser) {
+      console.log('❌ Sub-user not found or unauthorized');
+      console.log('   Searched for: { _id:', id, ', parentCompanyId:', mainCompanyId, '}');
+      
+      // ✅ Better debugging: Check if sub-user exists at all
+      const existingSubUser = await SubUser.findById(id);
+      if (existingSubUser) {
+        console.log('   Sub-user EXISTS but belongs to company:', existingSubUser.parentCompanyId);
+        console.log('   Your company ID:', mainCompanyId);
+      } else {
+        console.log('   Sub-user does not exist in database');
+      }
+      
+      return res.json({
+        success: false,
+        message: 'Sub-user not found or you do not have permission to reset this password'
+      });
+    }
+
+    console.log('✅ Sub-user found:', subUser.name, subUser.email);
+    console.log('   Parent Company ID:', subUser.parentCompanyId);
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    console.log('✅ Password hashed successfully');
+
+    // Update password
+    subUser.password = hashedPassword;
+    await subUser.save();
+
+    console.log('✅ Password reset successful for:', subUser.email);
+
+    res.json({
+      success: true,
+      message: `Password reset successfully for ${subUser.name}`
+    });
+
+  } catch (error) {
+    console.error('❌ Reset password error:', error);
+    res.json({
+      success: false,
+      message: 'Failed to reset password: ' + error.message
     });
   }
 };

@@ -1,25 +1,55 @@
-// Updated Dashboard with Responsive Design - Always open sidebar on entry
+// Updated Dashboard with Role-Based Access Control
 import React, { useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome,FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers } from "react-icons/fi";
 import { toast } from "react-toastify";
+
+// Helper function to get nav items based on user type and role
+const getNavItems = (isSubUser, subUserRole) => {
+  // ✅ Sub-users (HR/Consultancy/Management) only see Applications
+  if (isSubUser) {
+    return [
+      { path: "view-applications", label: "Applications", icon: <FiMail /> },
+    ];
+  }
+  
+  // ✅ Main recruiters see everything
+  const baseItems = [
+    { path: "profile", label: "Company Profile", icon: <FiUser /> },
+    { path: "manage-job", label: "Manage Jobs", icon: <FiFolder /> },
+    { path: "view-applications", label: "Applications", icon: <FiMail /> },
+    { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
+    { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
+    { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
+    { path: "my-team", label: "My Team", icon: <FiUsers /> },
+  ];
+  
+  return baseItems;
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState("");
   const [showNotification, setShowNotification] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { companyData, setCompanyData, setCompanyToken, companyToken, setShowRecruiterLogin } = useContext(AppContext);
-const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
-  // Check if user is logged in as recruiter
+  const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
+  
+  // Check if user is logged in
   const isLoggedIn = !!companyToken && !!companyData;
+  
+  // ✅ Check if sub-user
+  const isSubUser = companyData?.isSubUser || false;
+  const subUserRole = companyData?.roleType || '';
+  
+  // Get nav items based on user type and role
+  const navItems = getNavItems(isSubUser, subUserRole);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -31,43 +61,50 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
     setActiveTab(path);
   }, [location]);
 
-  // Updated redirect logic - redirect to manage-job for both logged in and demo users
+  // ✅ Updated redirect logic - sub-users always go to applications
   useEffect(() => {
     if (location.pathname === '/dashboard') {
-      navigate("/dashboard/manage-job");
-    }
-  }, [location.pathname, navigate]);
-
-  // Responsive handling - Always open sidebar on mobile when entering dashboard
- useEffect(() => {
-  const handleResize = () => {
-    const mobile = window.innerWidth < 1024;
-    setIsMobile(mobile);
-    
-    // Only auto-open sidebar on initial load, not on every resize
-    if (!hasInitiallyOpened) {
-      if (mobile) {
-        // Show sidebar initially on mobile so users see all features
-        setIsSidebarOpen(true);
+      if (isSubUser) {
+        navigate("/dashboard/view-applications");
       } else {
-        // Always open on desktop
-        setIsSidebarOpen(true);
-      }
-      setHasInitiallyOpened(true);
-    } else {
-      // On subsequent resizes, keep desktop sidebar open
-      if (!mobile) {
-        setIsSidebarOpen(true);
+        navigate("/dashboard/manage-job");
       }
     }
-  };
-  
-  // Initial check
-  handleResize();
-  
-  window.addEventListener("resize", handleResize);
-  return () => window.removeEventListener("resize", handleResize);
-}, [hasInitiallyOpened]); 
+  }, [location.pathname, navigate, isSubUser]);
+
+  // ✅ Block unauthorized routes for sub-users
+  useEffect(() => {
+    if (isSubUser && location.pathname !== '/dashboard' && !location.pathname.includes('view-applications')) {
+      toast.error(`${subUserRole.toUpperCase()} users can only access Applications page`);
+      navigate("/dashboard/view-applications");
+    }
+  }, [location.pathname, isSubUser, subUserRole, navigate]);
+
+  // Responsive handling
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      
+      if (!hasInitiallyOpened) {
+        if (mobile) {
+          setIsSidebarOpen(true);
+        } else {
+          setIsSidebarOpen(true);
+        }
+        setHasInitiallyOpened(true);
+      } else {
+        if (!mobile) {
+          setIsSidebarOpen(true);
+        }
+      }
+    };
+    
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [hasInitiallyOpened]); 
+
   // Close sidebar when clicking outside on mobile
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -80,15 +117,14 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
   }, [isMobile, isSidebarOpen]);
 
   const formatTime = date => date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  
   const getGreeting = () => {
     const hour = currentTime.getHours();
     return hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
   };
 
-  // Updated logout function to open recruiter login when not logged in
   const logout = () => {
     if (!isLoggedIn) {
-      // Open recruiter login modal instead of showing toast
       setShowRecruiterLogin(true);
       return;
     }
@@ -99,6 +135,12 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
   };
 
   const handleProfileClick = () => {
+    // ✅ Sub-users cannot access profile
+    if (isSubUser) {
+      toast.error(`${subUserRole.toUpperCase()} users cannot access Company Profile`);
+      return;
+    }
+    
     if (!isLoggedIn) {
       showLoginNotification();
       return;
@@ -112,34 +154,13 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
     setTimeout(() => setShowNotification(false), 3000);
   };
 
-  const handleProtectedAction = (e, action) => {
-    if (!isLoggedIn) {
-      e.preventDefault();
-      showLoginNotification();
-      return;
-    }
-    // Allow the action to proceed if logged in
-  };
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const navItems = [
-    { path: "profile", label: "Company Profile", icon: <FiUser /> },
-    { path: "manage-job", label: "Manage Jobs", icon: <FiFolder /> },
-    { path: "view-applications", label: "Applications", icon: <FiMail /> },
-    { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
-    { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
-    { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
-
-    
-  ];
-
   return (
     <div className="flex h-screen bg-gradient-to-tr from-[#f5f7fa] via-[#ebedfb] to-[#dce3ff] font-[Poppins] relative">
       {/* Login Notification */}
-      
       <AnimatePresence>
         {showNotification && (
           <motion.div
@@ -194,20 +215,22 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
                 onClick={() => navigate("/")} 
               />
               
-              {/* Home Button - Above Add Job */}
-              <motion.button
-                onClick={() => {
-                  navigate('/');
-                  if (isMobile) setIsSidebarOpen(false);
-                }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full flex items-center px-3 sm:px-4 py-2 sm:py-2.5 gap-3 bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 shadow-lg hover:scale-[1.02]"
-                style={{ marginBottom: "16px" }}
-              >
-                <FiHome className="text-base sm:text-lg flex-shrink-0" />
-                <span className="text-sm sm:text-base">Home</span>
-              </motion.button>
+              {/* Home Button - Only for main recruiters */}
+              {!isSubUser && (
+                <motion.button
+                  onClick={() => {
+                    navigate('/');
+                    if (isMobile) setIsSidebarOpen(false);
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full flex items-center px-3 sm:px-4 py-2 sm:py-2.5 gap-3 bg-gray-200 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-200 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 shadow-lg hover:scale-[1.02]"
+                  style={{ marginBottom: "16px" }}
+                >
+                  <FiHome className="text-base sm:text-lg flex-shrink-0" />
+                  <span className="text-sm sm:text-base">Home</span>
+                </motion.button>
+              )}
 
               <div className="space-y-2 sm:space-y-3">
                 {navItems.map(({ path, label, icon }, i) => (
@@ -215,12 +238,9 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
                     key={i}
                     to={`/dashboard/${path}`}
                     onClick={(e) => {
-                      // Close mobile sidebar when navigating
                       if (isMobile) setIsSidebarOpen(false);
                       
-                      // Don't prevent navigation, just show notification if not logged in
                       if (!isLoggedIn) {
-                        // Let the navigation happen, but show notification after a small delay
                         setTimeout(() => showLoginNotification(), 100);
                       }
                     }}
@@ -247,7 +267,6 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
                 className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:bg-white/20 p-2 rounded-lg transition-all duration-200"
                 onClick={handleProfileClick}
               >
-                {/* Circle with lighter red background */}
                 <div
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white text-sm sm:text-lg font-bold shadow-md flex-shrink-0"
                   style={{ backgroundColor: '#ff6666' }}
@@ -255,19 +274,27 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
                   {isLoggedIn ? (companyData?.name?.[0] || "C") : "D"}
                 </div>
 
-                {/* Text with custom red shades */}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate" style={{ color: '#022030' }}>
-                    {isLoggedIn ? companyData?.name : "Demo Company"}
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold truncate" style={{ color: '#022030' }}>
+                      {isLoggedIn ? companyData?.name : "Demo Company"}
+                    </p>
+                    {/* ✅ Sub-user role badge */}
+                    {isLoggedIn && isSubUser && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold flex-shrink-0 uppercase">
+                        {subUserRole}
+                      </span>
+                    )}
+                  </div>
                    
-                  <p className="text-xs" style={{ color: '#022030' }}>
-                    {isLoggedIn ? "Recruiter Mode" : "Demo Mode"}
+                  <p className="text-xs truncate" style={{ color: '#022030' }}>
+                    {isLoggedIn ? (
+                      isSubUser ? `${subUserRole.toUpperCase()} Access` : "Recruiter Mode"
+                    ) : "Demo Mode"}
                   </p>
                 </div>
               </div>
 
-              {/* Updated logout button to open login modal when not logged in */}
               <button
                 onClick={logout}
                 className="mt-3 sm:mt-4 text-sm text-red-500 hover:underline w-full text-left"
@@ -287,9 +314,7 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
           transition={{ duration: 0.5 }}
           className="bg-white/70 backdrop-blur-md shadow px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex justify-between items-center border-b border-white/20"
         >
-          {/* Left side - Menu button and title */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            {/* Mobile Menu Toggle */}
             <button
               onClick={toggleSidebar}
               className="sidebar-toggle p-2 text-gray-600 hover:text-gray-800 lg:hidden flex-shrink-0"
@@ -307,6 +332,12 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
                     Demo Mode
                   </span>
                 )}
+                {/* ✅ Show sub-user role badge in header */}
+                {isLoggedIn && isSubUser && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex-shrink-0 font-medium uppercase">
+                    {subUserRole}
+                  </span>
+                )}
               </div>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 {currentTime.toLocaleDateString('en-US', { 
@@ -318,7 +349,6 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
             </div>
           </div>
 
-          {/* Right side - Greeting */}
           <div className="text-right flex-shrink-0 hidden sm:block">
             <p className="text-sm text-gray-600 font-semibold">{getGreeting()},</p>
             <p className="text-xs text-gray-500">{isLoggedIn ? companyData?.name : "Demo User"}</p>
@@ -333,10 +363,8 @@ const [hasInitiallyOpened, setHasInitiallyOpened] = useState(false);
             transition={{ duration: 0.5, delay: 0.2 }}
             className="bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 min-h-[500px] relative"
           >
-            {/* Pass isLoggedIn as context to child components */}
-            <Outlet context={{ isLoggedIn, showLoginNotification, setShowRecruiterLogin }} />
+            <Outlet context={{ isLoggedIn, showLoginNotification, setShowRecruiterLogin, isSubUser, subUserRole }} />
             
-            {/* Overlay for demo mode interactions */}
             {!isLoggedIn && (
               <div 
                 className="absolute inset-0 bg-transparent pointer-events-auto cursor-pointer rounded-2xl sm:rounded-3xl"

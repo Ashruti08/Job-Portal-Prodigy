@@ -37,3 +37,30 @@ export const getJobById = async (req, res) => {
         res.status(500).json({success: false, message: error.message}) // ← Added status code
     }
 }
+
+// Delete a job by ID
+export const deleteJob = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Find and delete the job
+        const job = await Job.findByIdAndDelete(id);
+        
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                message: "Job not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Job deleted successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}

@@ -322,7 +322,7 @@ const updateResume = async () => {
     if (!window.confirm("Are you sure you want to delete your resume? This action cannot be undone.")) {
       return;
     }
-
+    
     setIsDeleting(true);
     try {
       const token = await getToken();
@@ -1162,7 +1162,6 @@ const updateResume = async () => {
                     ))}
                   </select>
                 </div>
-
                 {/* Other Sector Input - Shows when "Other" is selected */}
                 {profileData.sector === 'Other' && (
                   <div className="md:col-span-2 lg:col-span-3">

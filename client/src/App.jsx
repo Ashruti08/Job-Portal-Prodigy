@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { toast } from "react-toastify";
 import Home from "./pages/Home";
@@ -15,7 +15,7 @@ import AddJob from "./pages/AddJob";
 import EmployerProfile from "./pages/EmployerProfile";
 import ManageJobs from "./pages/ManageJobs";
 import ViewApplications from "./pages/ViewApplications";
-import ManagePackage from "./pages/ManagePackage";  // NEW IMPORT
+import ManagePackage from "./pages/ManagePackage";
 import MyProfile from "./components/MyProfile";
 import AppliedJobs from "./components/AppliedJobs";
 import BulkUpload from './pages/BulkUpload';
@@ -24,9 +24,22 @@ import "quill/dist/quill.snow.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import PublicCompanyProfile from './pages/PublicCompanyProfile';
+import MyTeam from "./pages/MyTeam";
 
+// ✅ NEW: Route Protection Component for Sub-Users
+const ProtectFromSubUsers = ({ children }) => {
+  const { companyData } = useContext(AppContext);
+  
+  // Check if user is a sub-user
+  if (companyData?.isSubUser) {
+    toast.error(`${companyData.roleType?.toUpperCase() || 'Sub-user'} users can only access Applications page`);
+    return <Navigate to="/dashboard/view-applications" replace />;
+  }
+  
+  return children;
+};
 
-// NEW: Demo-Friendly Protected Route Component
+// Demo-Friendly Protected Route Component
 const DemoFriendlyRecruiterRoute = ({ children, requireAuth = false }) => {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -46,14 +59,12 @@ const DemoFriendlyRecruiterRoute = ({ children, requireAuth = false }) => {
     user.publicMetadata?.lastLoginType === 'recruiter'
   ));
   
-  // If requireAuth is true and user is not authenticated, redirect
   if (requireAuth && !isLoggedInRecruiter) {
     toast.error("Please login to access this feature");
     window.location.href = '/';
     return null;
   }
   
-  // For dashboard access, allow both authenticated and demo users
   return children;
 };
 
@@ -68,20 +79,19 @@ const App = () => {
         {/* Public routes */}
         <Route path="/" element={<Home />} />
         <Route path="/apply-job/:id" element={<ApplyJob />} />
-          <Route path="/job/:id" element={<ApplyJob />} />
+        <Route path="/job/:id" element={<ApplyJob />} />
         <Route path="/JobAlert" element={<JobAlert />} />
         <Route path="/recruiter-login" element={<RecruiterLogin />} />
         <Route path="/applications" element={<Applications />}>
-        <Route path="my-profile" element={<MyProfile />} />
-        
-        <Route path="applied-jobs" element={<AppliedJobs />} />
-        <Route path="job-alerts" element={<JobAlerts />} />
+          <Route path="my-profile" element={<MyProfile />} />
+          <Route path="applied-jobs" element={<AppliedJobs />} />
+          <Route path="job-alerts" element={<JobAlerts />} />
         </Route>
         <Route path="/JobCategories" element={<JobCategories />} />
         <Route path="/JobListing" element={<JobListing />} />
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
 
-        {/* DASHBOARD ROUTES - Allow demo access */}
+        {/* DASHBOARD ROUTES - With Sub-User Protection */}
         <Route 
           path="/dashboard" 
           element={
@@ -90,23 +100,7 @@ const App = () => {
             </DemoFriendlyRecruiterRoute>
           }
         >
-          {/* Always show these routes, Dashboard component handles demo mode */}
-          <Route 
-            path="add-job" 
-            element={
-              <DemoFriendlyRecruiterRoute>
-                <AddJob />
-              </DemoFriendlyRecruiterRoute>
-            } 
-          />
-          <Route 
-            path="manage-job" 
-            element={
-              <DemoFriendlyRecruiterRoute>
-                <ManageJobs />
-              </DemoFriendlyRecruiterRoute>
-            } 
-          />
+          {/* ✅ OPEN TO ALL: Applications (sub-users and main recruiters) */}
           <Route 
             path="view-applications" 
             element={
@@ -115,29 +109,73 @@ const App = () => {
               </DemoFriendlyRecruiterRoute>
             } 
           />
+
+          {/* ✅ MAIN RECRUITER ONLY: All other routes blocked for sub-users */}
+          <Route 
+            path="my-team" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ProtectFromSubUsers>
+                  <MyTeam />
+                </ProtectFromSubUsers>
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+          
+          <Route 
+            path="add-job" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ProtectFromSubUsers>
+                  <AddJob />
+                </ProtectFromSubUsers>
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+          
+          <Route 
+            path="manage-job" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ProtectFromSubUsers>
+                  <ManageJobs />
+                </ProtectFromSubUsers>
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+          
           <Route 
             path="manage-package" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <ManagePackage />
+                <ProtectFromSubUsers>
+                  <ManagePackage />
+                </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
             } 
           />
+          
           <Route 
             path="profile" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <EmployerProfile />
+                <ProtectFromSubUsers>
+                  <EmployerProfile />
+                </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
             } 
           />
+          
           <Route 
             path="bulk-upload" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <BulkUpload />
+                <ProtectFromSubUsers>
+                  <BulkUpload />
+                </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
-            } />
+            } 
+          />
         </Route>
       </Routes>
     </div>

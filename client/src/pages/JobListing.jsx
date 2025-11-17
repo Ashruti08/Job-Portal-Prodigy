@@ -44,6 +44,12 @@ const JobCategories = [
   "Non-Discretionary Advisory"
 ];
 
+// Job Designations (predefined only)
+const JobDesignationsPredefined = [...Jobdesignation];
+
+// Job Locations with Remote
+const JobLocationsWithRemote = [...JobLocations, "Remote"];
+
 const JobListing = () => {
   const { isSearched, searchFilter, setSearchFilter, jobs } = useContext(AppContext);
   const navigate = useNavigate();
@@ -96,39 +102,52 @@ const JobListing = () => {
     }
   };
 
+  // Helper function to check if a value is "Other" (not in predefined list)
+  const isOtherDesignation = (designation) => {
+    return designation && !JobDesignationsPredefined.includes(designation);
+  };
+
+  const isOtherChannel = (channel) => {
+    return channel && !JobChannels.includes(channel);
+  };
+
+  const isOtherCategory = (category) => {
+    return category && !JobCategories.includes(category);
+  };
+
+  // Build filter lists (predefined + "Other")
+  const allDesignations = [...JobDesignationsPredefined, "Other"];
+  const allChannels = [...JobChannels, "Other"];
+  const allCategories = [...JobCategories, "Other"];
+
   // Sorting function
   const sortJobs = (jobs, sortType) => {
     const jobsCopy = [...jobs];
     
     switch (sortType) {
       case 'recent':
-        // Keep most recent first (reverse chronological)
         return jobsCopy.reverse();
         
       case 'salary-high':
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
-            // Check different possible salary field names
             const salaryStr = job.salary || job.salaryRange || job.package || '';
             if (!salaryStr) return 0;
             
-            // Remove currency symbols and extract numbers
             const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
             const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
             if (!numbers || numbers.length === 0) return 0;
             
-            // Convert K/L notation to actual numbers
             let maxSalary = 0;
             numbers.forEach(num => {
               let value = parseFloat(num);
-              // Check if the original string contains K or L after this number
               const numIndex = cleanStr.indexOf(num);
               const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
               
               if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000; // Lakh
+                value = value * 100000;
               } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000; // Thousand
+                value = value * 1000;
               }
               
               maxSalary = Math.max(maxSalary, value);
@@ -143,27 +162,23 @@ const JobListing = () => {
       case 'salary-low':
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
-            // Check different possible salary field names
             const salaryStr = job.salary || job.salaryRange || job.package || '';
             if (!salaryStr) return 0;
             
-            // Remove currency symbols and extract numbers
             const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
             const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
             if (!numbers || numbers.length === 0) return 0;
             
-            // Convert K/L notation to actual numbers
             let minSalary = Infinity;
             numbers.forEach(num => {
               let value = parseFloat(num);
-              // Check if the original string contains K or L after this number
               const numIndex = cleanStr.indexOf(num);
               const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
               
               if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000; // Lakh
+                value = value * 100000;
               } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000; // Thousand
+                value = value * 1000;
               }
               
               minSalary = Math.min(minSalary, value);
@@ -193,17 +208,20 @@ const JobListing = () => {
     if (location.state?.selectedCategory && location.state?.fromCategoryPage) {
       const categoryName = location.state.selectedCategory;
       
-      // Check if it's a job category (matches our JobCategories array)
-      if (JobCategories.includes(categoryName)) {
+      // Check if it's "Other"
+      if (categoryName === "Other") {
+        setSelectedJobCategory(["Other"]);
+      }
+      // Check if it's a job category
+      else if (JobCategories.includes(categoryName)) {
         setSelectedJobCategory([categoryName]);
       }
       // Check if it's a designation
-      else if (Jobdesignation.includes(categoryName)) {
+      else if (JobDesignationsPredefined.includes(categoryName)) {
         setSelectedCategory([categoryName]);
       }
-      // If not found in either, try both (fallback)
       else {
-        // Check in actual jobs data to determine the field
+        // Fallback: check which field in jobs matches
         const hasJobCategory = jobs.some(job => job.jobcategory === categoryName);
         const hasDesignation = jobs.some(job => job.designation === categoryName);
         
@@ -212,13 +230,10 @@ const JobListing = () => {
         } else if (hasDesignation) {
           setSelectedCategory([categoryName]);
         } else {
-          // Try both as fallback
           setSelectedJobCategory([categoryName]);
-          setSelectedCategory([categoryName]);
         }
       }
 
-      // Clear the location state to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
   }, [location.state, jobs]);
@@ -247,17 +262,41 @@ const JobListing = () => {
   useEffect(() => {
     const filterJobs = () => {
       
-      const matchesCategory = (job) =>
-        selectedCategory.length === 0 || selectedCategory.includes(job.designation);
+      const matchesCategory = (job) => {
+        if (selectedCategory.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedCategory.includes("Other")) {
+          return isOtherDesignation(job.designation);
+        }
+        
+        return selectedCategory.includes(job.designation);
+      };
 
       const matchesLocation = (job) =>
         selectedLocation.length === 0 || selectedLocation.includes(job.location);
 
-      const matchesChannel = (job) =>
-        selectedChannel.length === 0 || selectedChannel.includes(job.jobchannel);
+      const matchesChannel = (job) => {
+        if (selectedChannel.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedChannel.includes("Other")) {
+          return isOtherChannel(job.jobchannel);
+        }
+        
+        return selectedChannel.includes(job.jobchannel);
+      };
 
-      const matchesJobCategory = (job) =>
-        selectedJobCategory.length === 0 || selectedJobCategory.includes(job.jobcategory);
+      const matchesJobCategory = (job) => {
+        if (selectedJobCategory.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedJobCategory.includes("Other")) {
+          return isOtherCategory(job.jobcategory);
+        }
+        
+        return selectedJobCategory.includes(job.jobcategory);
+      };
 
       const matchesTitle = (job) =>
         searchFilter.title === "" ||
@@ -279,14 +318,12 @@ const JobListing = () => {
             matchesSearchLocation(job)
         );
 
-      // Apply sorting to filtered jobs
       const sortedJobs = sortJobs(filteredJobs, sortBy);
 
       setFilterJobs(sortedJobs);
       setCurrentPage(1);
     };
 
-    // Check if filters changed (excluding jobs update)
     const filtersChanged =
       prevSelectedCategory.current !== selectedCategory ||
       prevSelectedLocation.current !== selectedLocation ||
@@ -295,61 +332,18 @@ const JobListing = () => {
       JSON.stringify(prevSearchFilter.current) !== JSON.stringify(searchFilter);
 
     if (initialLoad.current) {
-      // Initial load without scroll
       filterJobs();
       initialLoad.current = false;
     } else {
-      // Trigger scroll only if filters changed
       triggerTransition(filterJobs, filtersChanged);
     }
 
-    // Update previous filter refs
     prevSelectedCategory.current = selectedCategory;
     prevSelectedLocation.current = selectedLocation;
     prevSelectedChannel.current = selectedChannel;
     prevSelectedJobCategory.current = selectedJobCategory;
     prevSearchFilter.current = { ...searchFilter };
   }, [jobs, selectedCategory, selectedLocation, selectedChannel, selectedJobCategory, searchFilter, sortBy]);
-
-  const handleCategoryChange = (designation) => {
-    triggerTransition(() => {
-      setSelectedCategory((prev) =>
-        prev.includes(designation)
-          ? prev.filter((c) => c !== designation)
-          : [...prev, designation]
-      );
-    });
-  };
-
-  const handleLocationChange = (location) => {
-    triggerTransition(() => {
-      setSelectedLocation((prev) =>
-        prev.includes(location)
-          ? prev.filter((c) => c !== location)
-          : [...prev, location]
-      );
-    });
-  };
-
-  const handleChannelChange = (channel) => {
-    triggerTransition(() => {
-      setSelectedChannel((prev) =>
-        prev.includes(channel)
-          ? prev.filter((c) => c !== channel)
-          : [...prev, channel]
-      );
-    });
-  };
-
-  const handleJobCategoryChange = (jobCategory) => {
-    triggerTransition(() => {
-      setSelectedJobCategory((prev) =>
-        prev.includes(jobCategory)
-          ? prev.filter((c) => c !== jobCategory)
-          : [...prev, jobCategory]
-      );
-    });
-  };
 
   const handlePageChange = (newPage) => {
     triggerTransition(() => setCurrentPage(newPage));
@@ -460,10 +454,8 @@ const JobListing = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar at the top */}
       <Navbar />
       
-      {/* Header Section - matching JobCategories style */}
       <div className="bg-white py-10 px-8">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-sm font-medium tracking-wider mb-4 text-red-600">
@@ -472,24 +464,11 @@ const JobListing = () => {
           <h1 className="text-4xl md:text-5xl font-bold mb-6" style={{ color: "#022030" }}>
             Latest Jobs
           </h1>
-          {/* <p className="text-gray-600 text-lg">Find your dream job from top companies worldwide</p> */}
         </div>
       </div>
 
-      {/* Main content */}
       <div className="py-8"> 
         <div className="container mx-auto flex flex-col lg:flex-row max-lg:space-y-8 px-4 lg:px-8">
-          
-          {/* Home Button - adjusted z-index to be below navbar */}
-          {/* <motion.button
-            onClick={() => navigate('/')}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="fixed top-24 left-4 z-40 flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 shadow-lg"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Home
-          </motion.button> */}
           
           <motion.div 
             className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"
@@ -505,7 +484,6 @@ const JobListing = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Mobile filter toggle */}
             <button
               onClick={() => setShowFilter(prev => !prev)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg lg:hidden w-full justify-center mb-4"
@@ -527,15 +505,12 @@ const JobListing = () => {
               )}
             </button>
 
-            {/* Spacer to align with job cards section */}
             <div className="hidden lg:block">
-              <div className="h-4"></div> {/* This creates space to match job cards positioning */}
+              <div className="h-4"></div>
             </div>
 
-            {/* Main Filter Container with JobCard styling - aligned with job cards */}
             {showFilter && (
               <div className="bg-white shadow-sm border border-gray-200 p-6">
-                {/* Filter Header */}
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-xl text-gray-800">Filters</h3>
                   <button 
@@ -546,7 +521,6 @@ const JobListing = () => {
                   </button>
                 </div>
 
-                {/* Current Search */}
                 {isSearched && (searchFilter.title !== "" || searchFilter.location !== "") && (
                   <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
                     <div className="flex justify-between items-center mb-3">
@@ -589,7 +563,6 @@ const JobListing = () => {
                   </div>
                 )}
 
-                {/* Selected Category Indicator */}
                 {(selectedJobCategory.length > 0 || selectedCategory.length > 0) && (
                   <div className="mb-6 bg-green-50 border border-green-200 p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
@@ -619,11 +592,10 @@ const JobListing = () => {
                   </div>
                 )}
 
-                {/* Filter Sections */}
                 <FilterSection
                   title="Category"
                   filterType="jobCategory"
-                  options={JobCategories}
+                  options={allCategories}
                   selectedFilters={selectedJobCategory}
                   onChange={(newSelection) => triggerTransition(() => setSelectedJobCategory(newSelection))}
                   showAll={showAllJobCategories}
@@ -633,7 +605,7 @@ const JobListing = () => {
                 <FilterSection
                   title="Designation"
                   filterType="designation"
-                  options={Jobdesignation}
+                  options={allDesignations}
                   selectedFilters={selectedCategory}
                   onChange={(newSelection) => triggerTransition(() => setSelectedCategory(newSelection))}
                   showAll={showAllDesignations}
@@ -643,7 +615,7 @@ const JobListing = () => {
                 <FilterSection
                   title="Channel"
                   filterType="channel"
-                  options={JobChannels}
+                  options={allChannels}
                   selectedFilters={selectedChannel}
                   onChange={(newSelection) => triggerTransition(() => setSelectedChannel(newSelection))}
                   showAll={showAllChannels}
@@ -653,7 +625,7 @@ const JobListing = () => {
                 <FilterSection
                   title="Locations"
                   filterType="location"
-                  options={JobLocations}
+                  options={JobLocationsWithRemote}
                   selectedFilters={selectedLocation}
                   onChange={(newSelection) => triggerTransition(() => setSelectedLocation(newSelection))}
                   showAll={showAllLocations}
@@ -665,7 +637,6 @@ const JobListing = () => {
 
           {/* JOB LISTING SECTION */}
           <section className="w-full lg:w-4/5 pl-0 lg:pl-8">
-            {/* Search bar for mobile */}
             <div className="lg:hidden mb-6">
               <div className="relative">
                 <input
@@ -683,7 +654,6 @@ const JobListing = () => {
               </div>
             </div>
 
-            {/* Job count and sorting */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
               <p className="text-gray-600 mb-2 sm:mb-0">
                 Showing <span className="font-semibold text-gray-900">{filterJobs.length}</span> jobs
@@ -713,7 +683,6 @@ const JobListing = () => {
               </div>
             </div>
 
-            {/* Job listings with animations */}
             <div className="relative min-h-[400px]">
               {filterJobs.length === 0 ? (
                 <motion.div 
@@ -759,7 +728,6 @@ const JobListing = () => {
               )}
             </div>
 
-            {/* Pagination */}
             {filterJobs.length > 0 && (
               <motion.div 
                 className="flex items-center justify-center space-x-2 mt-10"

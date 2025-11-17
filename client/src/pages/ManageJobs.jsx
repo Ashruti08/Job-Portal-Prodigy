@@ -11,56 +11,32 @@ const ManageJobs = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const { backendUrl, companyToken, setShowRecruiterLogin } = useContext(AppContext);
   
-  // Get context from Dashboard component
   const outletContext = useOutletContext();
   const { isLoggedIn, showLoginNotification, setShowRecruiterLogin: setShowRecruiterLoginFromContext } = outletContext || {};
 
-  // Debug logging for token
-  useEffect(() => {
-    console.log("=== ManageJobs Debug ===");
-    console.log("companyToken from context:", companyToken);
-    console.log("companyToken type:", typeof companyToken);
-    console.log("localStorage companyToken:", localStorage.getItem('companyToken'));
-    console.log("backendUrl:", backendUrl);
-    console.log("isLoggedIn:", isLoggedIn);
-    console.log("setShowRecruiterLogin available:", !!setShowRecruiterLogin);
-    console.log("setShowRecruiterLoginFromContext available:", !!setShowRecruiterLoginFromContext);
-    console.log("========================");
-  }, [companyToken, backendUrl, isLoggedIn, setShowRecruiterLogin, setShowRecruiterLoginFromContext]);
-
-  // Function to fetch company Job Applications
   const fetchCompanyJobs = async () => {
-    console.log("=== fetchCompanyJobs Start ===");
-    console.log("companyToken before request:", companyToken);
-    
     setIsLoading(true);
     try {
       if (!companyToken) {
-        console.log("No companyToken available, skipping request");
         setIsLoading(false);
         return;
       }
-
-      console.log("Making request with headers:", { token: companyToken });
       
       const { data } = await axios.get(backendUrl + "/api/company/list-jobs", {
         headers: { token: companyToken },
       });
 
-      console.log("API Response:", data);
-
       if (data.success && Array.isArray(data.jobsData)) {
         setJobs(data.jobsData.reverse());
-        console.log("Jobs set successfully:", data.jobsData.length);
       } else {
         setJobs([]);
         toast.error(data.message || "Failed to fetch jobs");
       }
     } catch (error) {
       console.error("Error in fetchCompanyJobs:", error);
-      console.error("Error response:", error.response?.data);
       setJobs([]);
       
       if (error.response?.status === 401) {
@@ -73,7 +49,6 @@ const ManageJobs = () => {
     }
   };
 
-  // Function to change Job Visibility
   const changeJobVisiblity = async (id) => {
     try {
       if (!companyToken) {
@@ -100,44 +75,46 @@ const ManageJobs = () => {
     }
   };
 
+  const deleteJob = async (id) => {
+    try {
+      if (!companyToken) {
+        toast.error("Please login as a company first");
+        return;
+      }
+
+      const { data } = await axios.delete(
+        backendUrl + `/api/jobs/${id}`,
+        {
+          headers: { token: companyToken },
+        }
+      );
+      
+      if (data.success) {
+        toast.success(data.message);
+        setDeleteConfirm(null);
+        fetchCompanyJobs();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
+
   useEffect(() => {
-    console.log("useEffect triggered, companyToken:", companyToken);
     if (companyToken) {
       fetchCompanyJobs();
     } else {
-      console.log("No companyToken, not fetching jobs");
       setIsLoading(false);
     }
   }, [companyToken]);
 
-  // Updated to use setShowRecruiterLogin instead of navigate
-  const handleLoginClick = () => {
-    console.log("handleLoginClick called");
-    console.log("setShowRecruiterLogin available:", !!setShowRecruiterLogin);
-    console.log("setShowRecruiterLoginFromContext available:", !!setShowRecruiterLoginFromContext);
-    console.log("outletContext:", outletContext);
-    
-    // Try context function first, then fallback to direct context access
-    if (setShowRecruiterLoginFromContext) {
-      console.log("Opening recruiter login modal via context");
-      setShowRecruiterLoginFromContext(true);
-    } else if (setShowRecruiterLogin) {
-      console.log("Opening recruiter login modal via direct context");
-      setShowRecruiterLogin(true);
-    } else {
-      console.log("No setShowRecruiterLogin function available, using fallback");
-      toast.info("Please use the recruiter login option in the navigation");
-      navigate('/');
-    }
-  };
-
-  // Show login message if no token
   if (!companyToken) {
     return (
       <div className="flex items-center justify-center h-[70vh] bg-white rounded-xl shadow-md">
         <div className="text-center">
           <p className="text-xl sm:text-2xl text-gray-600 mb-4">Please login as a company first</p>
-       
         </div>
       </div>
     );
@@ -160,8 +137,51 @@ const ManageJobs = () => {
       transition={{ duration: 0.5 }}
       className="mb-8"
     >
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2" style={{ color: '#020330' }}>
+              Delete Job?
+            </h3>
+            <p className="text-gray-600 text-center mb-2">
+              Are you sure you want to delete this job?
+            </p>
+            <p className="text-center font-medium mb-6" style={{ color: '#020330' }}>
+              "{deleteConfirm.title}"
+            </p>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteJob(deleteConfirm._id)}
+                className="flex-1 px-4 py-2 rounded-lg text-white hover:opacity-90 transition-opacity font-medium"
+                style={{ backgroundColor: '#FF0000' }}
+              >
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       <div className="container p-4 mx-auto">
-        {/* Dashboard Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -179,7 +199,6 @@ const ManageJobs = () => {
           </div>
         </motion.div>
 
-        {/* Stats Overview */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -270,6 +289,12 @@ const ManageJobs = () => {
                   >
                     Visible
                   </th>
+                  <th 
+                    className="py-4 px-6 text-center sm:text-[16px] font-semibold"
+                    style={{ color: '#020330' }}
+                  >
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -332,6 +357,30 @@ const ManageJobs = () => {
                             `}</style>
                           </div>
                         </label>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => setDeleteConfirm(job)}
+                          className="p-2 rounded-lg hover:bg-red-50 transition-colors group"
+                          title="Delete Job"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-gray-400 group-hover:text-red-600 transition-colors"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
                       </div>
                     </td>
                   </tr>

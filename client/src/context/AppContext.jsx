@@ -45,39 +45,60 @@ export const AppContextProvider = (props) => {
       }  
     }
 
-    // Function to fetch Company Data - merge from both company endpoints
+    // ✅ UPDATED: Function to fetch Company Data - preserve isSubUser flag
     const fetchCompanyData = async () => {
         if (!companyToken) return;
         
         try {
-            // Fetch both company basic info and profile info
-            const [companyResponse, profileResponse] = await Promise.all([
-                axios.get(backendUrl + '/api/company/company', {
-                    headers: { token: companyToken }
-                }),
-                axios.get(`${backendUrl}/api/employer/profile`, {
-                    headers: { token: companyToken }
-                }).catch(() => ({ data: { success: false } })) // Don't fail if profile doesn't exist
-            ]);
+            // Fetch basic company info
+            const companyResponse = await axios.get(backendUrl + '/api/company/company', {
+                headers: { token: companyToken }
+            });
 
-            let mergedData = {};
-
-            // Get basic company info
-            if (companyResponse.data.success) {
-                mergedData = { ...companyResponse.data.company };
-            }
-
-            // Merge with profile info (this has the companySize)
-            if (profileResponse.data.success) {
-                mergedData = { ...mergedData, ...profileResponse.data.data };
-            }
-
-            if (Object.keys(mergedData).length > 0) {
-                setCompanyData(mergedData);
-                localStorage.setItem('companyData', JSON.stringify(mergedData));
-            } else {
+            if (!companyResponse.data.success) {
                 toast.error("Failed to fetch company data");
+                return;
             }
+
+            const basicCompanyData = companyResponse.data.company;
+
+            // ✅ CRITICAL: Check if this is a sub-user
+            console.log('=== FETCH COMPANY DATA ===');
+            console.log('Basic data:', basicCompanyData);
+            console.log('isSubUser:', basicCompanyData.isSubUser);
+            console.log('roleType:', basicCompanyData.roleType);
+
+            let mergedData = { ...basicCompanyData };
+
+            // ✅ ONLY fetch profile if NOT a sub-user
+            // Sub-users don't need profile data, they just assess
+            if (!basicCompanyData.isSubUser) {
+                try {
+                    const profileResponse = await axios.get(`${backendUrl}/api/employer/profile`, {
+                        headers: { token: companyToken }
+                    });
+
+                    if (profileResponse.data.success) {
+                        // Merge profile data but preserve isSubUser flags
+                        mergedData = { 
+                            ...mergedData, 
+                            ...profileResponse.data.data,
+                            // ✅ Ensure these are never overwritten
+                            isSubUser: basicCompanyData.isSubUser || false,
+                            roleType: basicCompanyData.roleType || null
+                        };
+                    }
+                } catch (profileError) {
+                    console.log('Profile fetch skipped or failed (ok for sub-users)');
+                }
+            }
+
+            console.log('=== FINAL MERGED DATA ===');
+            console.log('isSubUser:', mergedData.isSubUser);
+            console.log('roleType:', mergedData.roleType);
+
+            setCompanyData(mergedData);
+            localStorage.setItem('companyData', JSON.stringify(mergedData));
 
         } catch (error) {
             if (error.response?.status === 401) {
@@ -87,6 +108,7 @@ export const AppContextProvider = (props) => {
                 localStorage.removeItem('companyData');
                 toast.error('Session expired. Please login again.');
             } else {
+                console.error('Fetch company data error:', error);
                 toast.error("Failed to fetch company data");
             }
         }
@@ -159,13 +181,28 @@ export const AppContextProvider = (props) => {
         }
     }, [backendUrl, getToken, user, userLoaded, authLoaded]);
 
-    // Initial setup
+    // ✅ UPDATED: Initial setup - load from localStorage with sub-user data
     useEffect(() => {
         fetchJobs();
         
         const storedCompanyToken = localStorage.getItem('companyToken');
+        const storedCompanyData = localStorage.getItem('companyData');
+        
         if (storedCompanyToken) {
             setCompanyToken(storedCompanyToken);
+            
+            // ✅ Load stored company data immediately (includes isSubUser)
+            if (storedCompanyData) {
+                try {
+                    const parsed = JSON.parse(storedCompanyData);
+                    console.log('=== LOADED FROM LOCALSTORAGE ===');
+                    console.log('isSubUser:', parsed.isSubUser);
+                    console.log('roleType:', parsed.roleType);
+                    setCompanyData(parsed);
+                } catch (e) {
+                    console.error('Failed to parse stored company data:', e);
+                }
+            }
         }
     }, []);
 
@@ -208,10 +245,16 @@ export const AppContextProvider = (props) => {
 
             const data = response.data;
             if (data.success) {
-                setCompanyData(data.data);
-                localStorage.setItem('companyData', JSON.stringify(data.data));
+                // ✅ Preserve isSubUser when updating profile
+                const updatedData = {
+                    ...data.data,
+                    isSubUser: companyData?.isSubUser || false,
+                    roleType: companyData?.roleType || null
+                };
+                setCompanyData(updatedData);
+                localStorage.setItem('companyData', JSON.stringify(updatedData));
                 toast.success('Profile updated successfully');
-                return { success: true, data: data.data };
+                return { success: true, data: updatedData };
             } else {
                 setError(data.message);
                 toast.error(data.message);
@@ -248,9 +291,15 @@ export const AppContextProvider = (props) => {
 
             const data = response.data;
             if (data.success) {
-                setCompanyData(data.data);
-                localStorage.setItem('companyData', JSON.stringify(data.data));
-                return { success: true, data: data.data };
+                // ✅ Preserve isSubUser when getting profile
+                const profileData = {
+                    ...data.data,
+                    isSubUser: companyData?.isSubUser || false,
+                    roleType: companyData?.roleType || null
+                };
+                setCompanyData(profileData);
+                localStorage.setItem('companyData', JSON.stringify(profileData));
+                return { success: true, data: profileData };
             } else {
                 setError(data.message);
                 toast.error(data.message);

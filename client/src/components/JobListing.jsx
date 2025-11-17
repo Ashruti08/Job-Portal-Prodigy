@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom"; 
 import {ChevronDown, ChevronUp} from "lucide-react";
 
-// Job Channel Options
+// Job Channel Options (without "Other")
 const JobChannels = [
   "Agency Channel",
   "Bancassurance", 
@@ -23,7 +23,7 @@ const JobChannels = [
   "DSA"
 ];
 
-// Job Category Options
+// Job Category Options (without "Other")
 const JobCategories = [
   "Equity Broking",
   "Commodity Broking", 
@@ -42,6 +42,12 @@ const JobCategories = [
   "Discretionary Portfolio Management",
   "Non-Discretionary Advisory"
 ];
+
+// Job Designations (predefined only)
+const JobDesignationsPredefined = [...Jobdesignation];
+
+// Job Locations with Remote
+const JobLocationsWithRemote = [...JobLocations, "Remote"];
 
 const JobListing = () => {
   const { isSearched, searchFilter, setSearchFilter, jobs } = useContext(AppContext);
@@ -71,29 +77,23 @@ const JobListing = () => {
     location: false
   });
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
+  // Helper function to check if a value is "Other" (not in predefined list)
+  const isOtherDesignation = (designation) => {
+    return designation && !JobDesignationsPredefined.includes(designation);
   };
-  
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 15
-      }
-    }
+
+  const isOtherChannel = (channel) => {
+    return channel && !JobChannels.includes(channel);
   };
+
+  const isOtherCategory = (category) => {
+    return category && !JobCategories.includes(category);
+  };
+
+  // Build filter lists (predefined + "Other")
+  const allDesignations = [...JobDesignationsPredefined, "Other"];
+  const allChannels = [...JobChannels, "Other"];
+  const allCategories = [...JobCategories, "Other"];
 
   // Sorting function
   const sortJobs = (jobs, sortType) => {
@@ -101,33 +101,28 @@ const JobListing = () => {
     
     switch (sortType) {
       case 'recent':
-        // Keep most recent first (reverse chronological)
         return jobsCopy.reverse();
         
       case 'salary-high':
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
-            // Check different possible salary field names
             const salaryStr = job.salary || job.salaryRange || job.package || '';
             if (!salaryStr) return 0;
             
-            // Remove currency symbols and extract numbers
             const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
             const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
             if (!numbers || numbers.length === 0) return 0;
             
-            // Convert K/L notation to actual numbers
             let maxSalary = 0;
             numbers.forEach(num => {
               let value = parseFloat(num);
-              // Check if the original string contains K or L after this number
               const numIndex = cleanStr.indexOf(num);
               const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
               
               if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000; // Lakh
+                value = value * 100000;
               } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000; // Thousand
+                value = value * 1000;
               }
               
               maxSalary = Math.max(maxSalary, value);
@@ -142,27 +137,23 @@ const JobListing = () => {
       case 'salary-low':
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
-            // Check different possible salary field names
             const salaryStr = job.salary || job.salaryRange || job.package || '';
             if (!salaryStr) return 0;
             
-            // Remove currency symbols and extract numbers
             const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
             const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
             if (!numbers || numbers.length === 0) return 0;
             
-            // Convert K/L notation to actual numbers
             let minSalary = Infinity;
             numbers.forEach(num => {
               let value = parseFloat(num);
-              // Check if the original string contains K or L after this number
               const numIndex = cleanStr.indexOf(num);
               const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
               
               if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000; // Lakh
+                value = value * 100000;
               } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000; // Thousand
+                value = value * 1000;
               }
               
               minSalary = Math.min(minSalary, value);
@@ -192,17 +183,20 @@ const JobListing = () => {
     if (location.state?.selectedCategory && location.state?.fromCategoryPage) {
       const categoryName = location.state.selectedCategory;
       
-      // Check if it's a job category (matches our JobCategories array)
-      if (JobCategories.includes(categoryName)) {
+      // Check if it's "Other"
+      if (categoryName === "Other") {
+        setSelectedJobCategory(["Other"]);
+      }
+      // Check if it's a job category
+      else if (JobCategories.includes(categoryName)) {
         setSelectedJobCategory([categoryName]);
       }
       // Check if it's a designation
-      else if (Jobdesignation.includes(categoryName)) {
+      else if (JobDesignationsPredefined.includes(categoryName)) {
         setSelectedCategory([categoryName]);
       }
-      // If not found in either, try both (fallback)
       else {
-        // Check in actual jobs data to determine the field
+        // Fallback: check which field in jobs matches
         const hasJobCategory = jobs.some(job => job.jobcategory === categoryName);
         const hasDesignation = jobs.some(job => job.designation === categoryName);
         
@@ -211,13 +205,10 @@ const JobListing = () => {
         } else if (hasDesignation) {
           setSelectedCategory([categoryName]);
         } else {
-          // Try both as fallback
           setSelectedJobCategory([categoryName]);
-          setSelectedCategory([categoryName]);
         }
       }
 
-      // Clear the location state to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
   }, [location.state, jobs]);
@@ -246,17 +237,41 @@ const JobListing = () => {
   useEffect(() => {
     const filterJobs = () => {
       
-      const matchesCategory = (job) =>
-        selectedCategory.length === 0 || selectedCategory.includes(job.designation);
+      const matchesCategory = (job) => {
+        if (selectedCategory.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedCategory.includes("Other")) {
+          return isOtherDesignation(job.designation);
+        }
+        
+        return selectedCategory.includes(job.designation);
+      };
 
       const matchesLocation = (job) =>
         selectedLocation.length === 0 || selectedLocation.includes(job.location);
 
-      const matchesChannel = (job) =>
-        selectedChannel.length === 0 || selectedChannel.includes(job.jobchannel);
+      const matchesChannel = (job) => {
+        if (selectedChannel.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedChannel.includes("Other")) {
+          return isOtherChannel(job.jobchannel);
+        }
+        
+        return selectedChannel.includes(job.jobchannel);
+      };
 
-      const matchesJobCategory = (job) =>
-        selectedJobCategory.length === 0 || selectedJobCategory.includes(job.jobcategory);
+      const matchesJobCategory = (job) => {
+        if (selectedJobCategory.length === 0) return true;
+        
+        // Check if "Other" is selected
+        if (selectedJobCategory.includes("Other")) {
+          return isOtherCategory(job.jobcategory);
+        }
+        
+        return selectedJobCategory.includes(job.jobcategory);
+      };
 
       const matchesTitle = (job) =>
         searchFilter.title === "" ||
@@ -278,14 +293,12 @@ const JobListing = () => {
             matchesSearchLocation(job)
         );
 
-      // Apply sorting to filtered jobs
       const sortedJobs = sortJobs(filteredJobs, sortBy);
 
       setFilterJobs(sortedJobs);
       setCurrentPage(1);
     };
 
-    // Check if filters changed (excluding jobs update)
     const filtersChanged =
       prevSelectedCategory.current !== selectedCategory ||
       prevSelectedLocation.current !== selectedLocation ||
@@ -294,61 +307,18 @@ const JobListing = () => {
       JSON.stringify(prevSearchFilter.current) !== JSON.stringify(searchFilter);
 
     if (initialLoad.current) {
-      // Initial load without scroll
       filterJobs();
       initialLoad.current = false;
     } else {
-      // Trigger scroll only if filters changed
       triggerTransition(filterJobs, filtersChanged);
     }
 
-    // Update previous filter refs
     prevSelectedCategory.current = selectedCategory;
     prevSelectedLocation.current = selectedLocation;
     prevSelectedChannel.current = selectedChannel;
     prevSelectedJobCategory.current = selectedJobCategory;
     prevSearchFilter.current = { ...searchFilter };
   }, [jobs, selectedCategory, selectedLocation, selectedChannel, selectedJobCategory, searchFilter, sortBy]);
-
-  const handleCategoryChange = (designation) => {
-    triggerTransition(() => {
-      setSelectedCategory((prev) =>
-        prev.includes(designation)
-          ? prev.filter((c) => c !== designation)
-          : [...prev, designation]
-      );
-    });
-  };
-
-  const handleLocationChange = (location) => {
-    triggerTransition(() => {
-      setSelectedLocation((prev) =>
-        prev.includes(location)
-          ? prev.filter((c) => c !== location)
-          : [...prev, location]
-      );
-    });
-  };
-
-  const handleChannelChange = (channel) => {
-    triggerTransition(() => {
-      setSelectedChannel((prev) =>
-        prev.includes(channel)
-          ? prev.filter((c) => c !== channel)
-          : [...prev, channel]
-      );
-    });
-  };
-
-  const handleJobCategoryChange = (jobCategory) => {
-    triggerTransition(() => {
-      setSelectedJobCategory((prev) =>
-        prev.includes(jobCategory)
-          ? prev.filter((c) => c !== jobCategory)
-          : [...prev, jobCategory]
-      );
-    });
-  };
 
   const handlePageChange = (newPage) => {
     triggerTransition(() => setCurrentPage(newPage));
@@ -467,7 +437,6 @@ const JobListing = () => {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Mobile filter toggle */}
         <button
           onClick={() => setShowFilter(prev => !prev)}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg lg:hidden w-full justify-center mb-4"
@@ -489,15 +458,12 @@ const JobListing = () => {
           )}
         </button>
 
-        {/* Spacer to align with job cards section */}
-         <div className="hidden lg:block">
+        <div className="hidden lg:block">
           <div className="h-4"></div> 
         </div> 
 
-        {/* Main Filter Container with JobCard styling - aligned with job cards */}
         {showFilter && (
           <div className="bg-white shadow-sm border border-gray-200 p-6">
-            {/* Filter Header */}
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-xl text-gray-800">Filters</h3>
               <button 
@@ -508,7 +474,6 @@ const JobListing = () => {
               </button>
             </div>
 
-            {/* Current Search */}
             {isSearched && (searchFilter.title !== "" || searchFilter.location !== "") && (
               <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
                 <div className="flex justify-between items-center mb-3">
@@ -551,7 +516,6 @@ const JobListing = () => {
               </div>
             )}
 
-            {/* Selected Category Indicator */}
             {(selectedJobCategory.length > 0 || selectedCategory.length > 0) && (
               <div className="mb-6 bg-red-50 border border-red-200 p-4 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
@@ -581,11 +545,10 @@ const JobListing = () => {
               </div>
             )}
 
-            {/* Filter Sections */}
             <FilterSection
               title="Category"
               filterType="jobCategory"
-              options={JobCategories}
+              options={allCategories}
               selectedFilters={selectedJobCategory}
               onChange={(newSelection) => triggerTransition(() => setSelectedJobCategory(newSelection))}
               showAll={showAllJobCategories}
@@ -595,7 +558,7 @@ const JobListing = () => {
             <FilterSection
               title="Designation"
               filterType="designation"
-              options={Jobdesignation}
+              options={allDesignations}
               selectedFilters={selectedCategory}
               onChange={(newSelection) => triggerTransition(() => setSelectedCategory(newSelection))}
               showAll={showAllDesignations}
@@ -605,7 +568,7 @@ const JobListing = () => {
             <FilterSection
               title="Channel"
               filterType="channel"
-              options={JobChannels}
+              options={allChannels}
               selectedFilters={selectedChannel}
               onChange={(newSelection) => triggerTransition(() => setSelectedChannel(newSelection))}
               showAll={showAllChannels}
@@ -615,7 +578,7 @@ const JobListing = () => {
             <FilterSection
               title="Locations"
               filterType="location"
-              options={JobLocations}
+              options={JobLocationsWithRemote}
               selectedFilters={selectedLocation}
               onChange={(newSelection) => triggerTransition(() => setSelectedLocation(newSelection))}
               showAll={showAllLocations}
@@ -634,7 +597,6 @@ const JobListing = () => {
           <p className="text-gray-600">Find your dream job from top companies worldwide</p>
         </div>
 
-        {/* Search bar for mobile */}
         <div className="lg:hidden mb-6">
           <div className="relative">
             <input
@@ -652,7 +614,6 @@ const JobListing = () => {
           </div>
         </div>
 
-        {/* Job count and sorting */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
           <p className="text-gray-600 mb-2 sm:mb-0">
             Showing <span className="font-semibold text-gray-900">{filterJobs.length}</span> jobs
@@ -682,7 +643,6 @@ const JobListing = () => {
           </div>
         </div>
 
-        {/* Job listings with animations */}
         <div className="relative min-h-[400px]">
           {filterJobs.length === 0 ? (
             <motion.div 
@@ -727,52 +687,51 @@ const JobListing = () => {
             </motion.div>
           )}
         </div>
-
-        {/* Pagination */}
         {filterJobs.length > 0 && (
-          <motion.div 
-            className="flex items-center justify-center space-x-2 mt-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <button
-              onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-full ${currentPage === 1 ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </button>
-            
-            {Array.from({ length: Math.ceil(filterJobs.length / 6) }).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => handlePageChange(index + 1)}
-                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
-                  currentPage === index + 1
-                    ? "bg-primary text-white shadow-md"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+              <motion.div 
+                className="flex items-center justify-center space-x-2 mt-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
               >
-                {index + 1}
-              </button>
-            ))}
-            
-            <button
-              onClick={() => handlePageChange(Math.min(currentPage + 1, Math.ceil(filterJobs.length / 6)))}
-              disabled={currentPage === Math.ceil(filterJobs.length / 6)}
-              className={`p-2 rounded-full ${currentPage === Math.ceil(filterJobs.length / 6) ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </motion.div>
-        )}
-      </section>
-    </div>
+                <button
+                  onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-full ${currentPage === 1 ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                
+                {Array.from({ length: Math.ceil(filterJobs.length / 6) }).map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handlePageChange(index + 1)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
+                      currentPage === index + 1
+                        ? "bg-primary text-white shadow-md"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+                
+                <button
+                  onClick={() => handlePageChange(Math.min(currentPage + 1, Math.ceil(filterJobs.length / 6)))}
+                  disabled={currentPage === Math.ceil(filterJobs.length / 6)}
+                  className={`p-2 rounded-full ${currentPage === Math.ceil(filterJobs.length / 6) ? 'text-gray-300' : 'text-primary hover:bg-primary hover:text-white'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </motion.div>
+            )}
+          </section>
+        </div>
+     
   );
 };
 

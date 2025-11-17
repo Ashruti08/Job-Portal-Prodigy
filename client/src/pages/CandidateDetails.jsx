@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AppContext } from "../context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, ChevronRight, ChevronLeft, User, Briefcase, HelpCircle, Check,
@@ -38,6 +39,8 @@ const dropdownOptions = {
 };
 
 const CandidateDetails = ({ isOpen, onClose, profile }) => {
+  const { companyToken } = useContext(AppContext);
+  const [userRole, setUserRole] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState(initialFormData);
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,33 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
       return 'Invalid date';
     }
   };
+
+  // Check user role from token
+  useEffect(() => {
+    const checkUserRole = () => {
+      if (!companyToken) return;
+      
+      try {
+        const tokenParts = companyToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          
+          if (payload.isSubUser && payload.roleType) {
+            setUserRole(payload.roleType);
+            console.log('Sub-user detected, role:', payload.roleType);
+          } else {
+            setUserRole(null);
+            console.log('Main recruiter - full access');
+          }
+        }
+      } catch (error) {
+        console.log('Error decoding token:', error);
+        setUserRole(null);
+      }
+    };
+    
+    checkUserRole();
+  }, [companyToken]);
 
   // Excel conversion function
   const convertToExcel = (data) => {
@@ -220,18 +250,32 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
     }
   }, [isOpen, profile]);
 
-  const steps = [
-    { id: 1, title: "Basic Information", icon: User, description: "Candidate contact details" },
-    { id: 2, title: "Consultancy Assessment", icon: Building, description: "Professional evaluation" },
-    { id: 3, title: "HR Evaluation", icon: Users, description: "Cultural fit and motivation" },
-    { id: 4, title: "Manager Assessment", icon: Target, description: "Technical and business alignment" }
+  // Dynamic steps based on user role with cascading access
+  const allSteps = [
+    { id: 1, title: "Basic Information", icon: User, description: "Candidate contact details", roles: ['all'], editable: ['all'] },
+    { id: 2, title: "Consultancy Assessment", icon: Building, description: "Professional evaluation", roles: ['consultancy', 'hr', 'management', null], editable: ['consultancy', null] },
+    { id: 3, title: "HR Evaluation", icon: Users, description: "Cultural fit and motivation", roles: ['hr', 'management', null], editable: ['hr', null] },
+    { id: 4, title: "Manager Assessment", icon: Target, description: "Technical and business alignment", roles: ['management', null], editable: ['management', null] }
   ];
+
+  const steps = allSteps.filter(step => 
+    step.roles.includes('all') || 
+    step.roles.includes(userRole) || 
+    (userRole === null && step.roles.includes(null))
+  );
+
+  // Check if current user can edit a specific step
+  const canEditStep = (step) => {
+    return step.editable.includes('all') || 
+           step.editable.includes(userRole) || 
+           (userRole === null && step.editable.includes(null));
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const nextStep = () => { if (currentStep < 4) setCurrentStep(currentStep + 1); };
+  const nextStep = () => { if (currentStep < steps.length) setCurrentStep(currentStep + 1); };
   const prevStep = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
 
   const handleSubmit = async (e) => {
@@ -248,7 +292,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
 
     try {
       setLoading(true);
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/candidates/assessment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(filteredData),
@@ -270,7 +314,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
     }
   };
 
-  const renderFormField = (label, field, type = "text", options = null, icon = null, required = false) => {
+  const renderFormField = (label, field, type = "text", options = null, icon = null, required = false, readOnly = false) => {
     const IconComponent = icon;
     return (
       <div className="mb-6">
@@ -278,94 +322,173 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
           <div className="flex items-center gap-2">
             {IconComponent && <IconComponent size={16} className="text-gray-500 flex-shrink-0" />}
             <span className="break-words">{label}</span>
-            {required && <span className="text-red-500 flex-shrink-0">*</span>}
+            {required && !readOnly && <span className="text-red-500 flex-shrink-0">*</span>}
           </div>
         </label>
         {type === "select" && options ? (
-          <select value={formData[field]} onChange={(e) => handleInputChange(field, e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors bg-white text-sm sm:text-base min-h-[44px]" required={required}>
+          <select 
+            value={formData[field]} 
+            onChange={(e) => handleInputChange(field, e.target.value)}
+            disabled={readOnly}
+            className={`w-full px-4 py-3 border rounded-lg transition-colors text-sm sm:text-base min-h-[44px] ${
+              readOnly 
+                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
+                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white'
+            }`} 
+            required={required && !readOnly}>
             <option value="">Select an option</option>
             {options.map((option, index) => (<option key={index} value={option}>{option}</option>))}
           </select>
         ) : type === "textarea" ? (
-          <textarea value={formData[field]} onChange={(e) => handleInputChange(field, e.target.value)} rows="3"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors resize-none text-sm sm:text-base"
-            placeholder={`Enter ${label.toLowerCase()}`} required={required} />
+          <textarea 
+            value={formData[field]} 
+            onChange={(e) => handleInputChange(field, e.target.value)} 
+            rows="3"
+            readOnly={readOnly}
+            className={`w-full px-4 py-3 border rounded-lg resize-none text-sm sm:text-base ${
+              readOnly 
+                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
+                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+            }`}
+            placeholder={readOnly ? '' : `Enter ${label.toLowerCase()}`} 
+            required={required && !readOnly} />
         ) : (
-          <input type={type} value={formData[field]} onChange={(e) => handleInputChange(field, e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors text-sm sm:text-base min-h-[44px]"
-            placeholder={`Enter ${label.toLowerCase()}`} required={required} />
+          <input 
+            type={type} 
+            value={formData[field]} 
+            onChange={(e) => handleInputChange(field, e.target.value)}
+            readOnly={readOnly}
+            className={`w-full px-4 py-3 border rounded-lg text-sm sm:text-base min-h-[44px] ${
+              readOnly 
+                ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' 
+                : 'border-gray-200 focus:ring-2 focus:ring-red-500 focus:border-red-500'
+            }`}
+            placeholder={readOnly ? '' : `Enter ${label.toLowerCase()}`} 
+            required={required && !readOnly} />
         )}
       </div>
     );
   };
 
-  const renderStep1 = () => (
-    <div className="space-y-4">
-      {isExistingAssessment && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-2 text-blue-700 mb-2">
-            <Check size={16} />
-            <span className="text-sm font-medium">Existing Assessment Found</span>
-          </div>
-          <p className="text-blue-600 text-sm mb-2">You can view and edit the previously submitted assessment data.</p>
-          {assessmentData && (
-            <div className="flex items-center gap-2 text-blue-600 text-sm">
-              <Clock size={14} />
-              <span>Last contacted: {formatDate(assessmentData.lastUpdated || assessmentData.submittedAt)}</span>
+  const renderStep1 = () => {
+    const isReadOnly = !canEditStep(steps[currentStep - 1]);
+    
+    return (
+      <div className="space-y-4">
+        {isExistingAssessment && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700 mb-2">
+              <Check size={16} />
+              <span className="text-sm font-medium">Existing Assessment Found</span>
             </div>
-          )}
+            <p className="text-blue-600 text-sm mb-2">You can view and edit the previously submitted assessment data.</p>
+            {assessmentData && (
+              <div className="flex items-center gap-2 text-blue-600 text-sm">
+                <Clock size={14} />
+                <span>Last contacted: {formatDate(assessmentData.lastUpdated || assessmentData.submittedAt)}</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {isReadOnly && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 text-amber-700">
+              <Shield size={16} />
+              <span className="text-sm font-medium">This section is read-only for your role</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderFormField("Full Name", "candidateName", "text", null, User, true, isReadOnly)}
+          {renderFormField("Email Address", "candidateEmail", "email", null, Mail, false, isReadOnly)}
+          {renderFormField("Phone Number", "candidatePhone", "tel", null, Phone, false, isReadOnly)}
         </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {renderFormField("Full Name", "candidateName", "text", null, User, true)}
-        {renderFormField("Email Address", "candidateEmail", "email", null, Mail)}
-        {renderFormField("Phone Number", "candidatePhone", "tel", null, Phone)}
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderStep2 = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {renderFormField("Consultancy", "consultancy", "text", null, Building)}
-        {renderFormField("Financial Status", "financialStatus", "select", dropdownOptions.financialStatus, DollarSign)}
-        {renderFormField("Daily Commute", "dailyCommute", "select", dropdownOptions.dailyCommute, Clock)}
-        {renderFormField("Aspirations", "aspirations", "select", dropdownOptions.aspirations, Target)}
-        {renderFormField("Money Attitude", "moneyAttitude", "select", dropdownOptions.moneyAttitude, DollarSign)}
-        {renderFormField("Loyalty Behavior", "loyaltyBehavior", "select", dropdownOptions.loyaltyBehavior, Heart)}
+  const renderStep2 = () => {
+    const isReadOnly = !canEditStep(steps[currentStep - 1]);
+    
+    return (
+      <div className="space-y-4">
+        {isReadOnly && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 text-amber-700">
+              <Shield size={16} />
+              <span className="text-sm font-medium">Consultancy Section (Read-only) - Filled by Consultancy team</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderFormField("Consultancy", "consultancy", "text", null, Building, false, isReadOnly)}
+          {renderFormField("Financial Status", "financialStatus", "select", dropdownOptions.financialStatus, DollarSign, false, isReadOnly)}
+          {renderFormField("Daily Commute", "dailyCommute", "select", dropdownOptions.dailyCommute, Clock, false, isReadOnly)}
+          {renderFormField("Aspirations", "aspirations", "select", dropdownOptions.aspirations, Target, false, isReadOnly)}
+          {renderFormField("Money Attitude", "moneyAttitude", "select", dropdownOptions.moneyAttitude, DollarSign, false, isReadOnly)}
+          {renderFormField("Loyalty Behavior", "loyaltyBehavior", "select", dropdownOptions.loyaltyBehavior, Heart, false, isReadOnly)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderFormField("Work Style", "workStyle", "select", dropdownOptions.workStyle, Briefcase, false, isReadOnly)}
+          {renderFormField("Pressure Handling", "pressureHandling", "select", dropdownOptions.pressureHandling, Shield, false, isReadOnly)}
+          {renderFormField("Role Clarity Need", "roleClarityNeed", "select", dropdownOptions.roleClarityNeed, HelpCircle, false, isReadOnly)}
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {renderFormField("Work Style", "workStyle", "select", dropdownOptions.workStyle, Briefcase)}
-        {renderFormField("Pressure Handling", "pressureHandling", "select", dropdownOptions.pressureHandling, Shield)}
-        {renderFormField("Role Clarity Need", "roleClarityNeed", "select", dropdownOptions.roleClarityNeed, HelpCircle)}
-      </div>
-    </div>
-  );
+    );
+  };
 
-  const renderStep3 = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-6">
-        {renderFormField("Fear 1 - What concerns you most about this role?", "fear1", "select", dropdownOptions.fear1, Shield)}
-        {renderFormField("Motivation 1 - What drives you professionally?", "motivation1", "select", dropdownOptions.motivation1, Zap)}
-        {renderFormField("Challenge 1 - Describe a significant challenge you overcame", "challenge1", "select", dropdownOptions.challenge1, Target)}
-        {renderFormField("Power Language 1 - How do you communicate authority?", "powerLanguage1", "select", dropdownOptions.powerLanguage1, Users)}
-        {renderFormField("Company Priority 1 - What's most important in a company?", "companyPriority1", "select", dropdownOptions.companyPriority1, Building)}
+  const renderStep3 = () => {
+    const isReadOnly = !canEditStep(steps[currentStep - 1]);
+    
+    return (
+      <div className="space-y-4">
+        {isReadOnly && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 text-amber-700">
+              <Shield size={16} />
+              <span className="text-sm font-medium">HR Section (Read-only) - Filled by HR team</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 gap-6">
+          {renderFormField("Fear 1 - What concerns you most about this role?", "fear1", "select", dropdownOptions.fear1, Shield, false, isReadOnly)}
+          {renderFormField("Motivation 1 - What drives you professionally?", "motivation1", "select", dropdownOptions.motivation1, Zap, false, isReadOnly)}
+          {renderFormField("Challenge 1 - Describe a significant challenge you overcame", "challenge1", "select", dropdownOptions.challenge1, Target, false, isReadOnly)}
+          {renderFormField("Power Language 1 - How do you communicate authority?", "powerLanguage1", "select", dropdownOptions.powerLanguage1, Users, false, isReadOnly)}
+          {renderFormField("Company Priority 1 - What's most important in a company?", "companyPriority1", "select", dropdownOptions.companyPriority1, Building, false, isReadOnly)}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderStep4 = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {renderFormField("Targets - What are your key performance goals?", "targets", "select", dropdownOptions.targets, Target)}
-        {renderFormField("References", "references", "text", null, Users)}
-        {renderFormField("Software Skills", "softwares", "select", dropdownOptions.softwares, Code)}
-        {renderFormField("Product Knowledge", "productKnowledge", "select", dropdownOptions.productKnowledge, Briefcase)}
-        {renderFormField("Source of Revenue - How will you contribute to revenue?", "sourceOfRevenue", "select", dropdownOptions.sourceOfRevenue, TrendingUp)}
+  const renderStep4 = () => {
+    const isReadOnly = !canEditStep(steps[currentStep - 1]);
+    
+    return (
+      <div className="space-y-4">
+        {isReadOnly && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 text-amber-700">
+              <Shield size={16} />
+              <span className="text-sm font-medium">Management Section (Read-only) - Filled by Management team</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderFormField("Targets - What are your key performance goals?", "targets", "select", dropdownOptions.targets, Target, false, isReadOnly)}
+          {renderFormField("References", "references", "text", null, Users, false, isReadOnly)}
+          {renderFormField("Software Skills", "softwares", "select", dropdownOptions.softwares, Code, false, isReadOnly)}
+          {renderFormField("Product Knowledge", "productKnowledge", "select", dropdownOptions.productKnowledge, Briefcase, false, isReadOnly)}
+          {renderFormField("Source of Revenue - How will you contribute to revenue?", "sourceOfRevenue", "select", dropdownOptions.sourceOfRevenue, TrendingUp, false, isReadOnly)}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (!isOpen) return null;
 
@@ -381,6 +504,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">Candidate Assessment</h2>
               <p className="text-sm sm:text-base text-gray-600 mt-1 truncate">
                 {isExistingAssessment ? 'Edit Assessment' : 'Comprehensive Evaluation Process'}
+                {userRole && <span className="ml-2 text-blue-600">({userRole.toUpperCase()} View)</span>}
               </p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-2 ml-2 flex-shrink-0" aria-label="Close modal">
@@ -390,9 +514,9 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
 
           <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
             <div className="flex sm:hidden items-center justify-center gap-2 mb-3">
-              {steps.map((step) => (
+              {steps.map((step, idx) => (
                 <div key={step.id} className={`h-2 rounded-full transition-all ${
-                  currentStep === step.id ? 'w-8 bg-red-500' : currentStep > step.id ? 'w-2 bg-green-500' : 'w-2 bg-gray-300'
+                  currentStep === idx + 1 ? 'w-8 bg-red-500' : currentStep > idx + 1 ? 'w-2 bg-green-500' : 'w-2 bg-gray-300'
                 }`} />
               ))}
             </div>
@@ -404,8 +528,8 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
             <div className="hidden sm:flex items-center justify-between">
               {steps.map((step, index) => {
                 const IconComponent = step.icon;
-                const isActive = currentStep === step.id;
-                const isCompleted = currentStep > step.id;
+                const isActive = currentStep === index + 1;
+                const isCompleted = currentStep > index + 1;
                 return (
                   <div key={step.id} className="flex items-center flex-1">
                     <div className="flex items-center">
@@ -440,9 +564,9 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
                 <motion.div key={currentStep} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   {currentStep === 1 && renderStep1()}
-                  {currentStep === 2 && renderStep2()}
-                  {currentStep === 3 && renderStep3()}
-                  {currentStep === 4 && renderStep4()}
+                  {steps[currentStep - 1]?.id === 2 && renderStep2()}
+                  {steps[currentStep - 1]?.id === 3 && renderStep3()}
+                  {steps[currentStep - 1]?.id === 4 && renderStep4()}
                 </motion.div>
               </AnimatePresence>
             )}

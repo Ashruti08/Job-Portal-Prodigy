@@ -20,7 +20,8 @@ const JobChannels = [
   "Franchisee/Entrepreneurial",
   "Sub Borker",
   "IAF",
-  "DSA"
+  "DSA",
+  "Other"
 ];
 
 // Job Category Options
@@ -40,8 +41,15 @@ const JobCategories = [
   "MFI",
   "Housing Finance Co. (HFC)",
   "Discretionary Portfolio Management",
-  "Non-Discretionary Advisory"
+  "Non-Discretionary Advisory",
+  "Other"
 ];
+
+// Updated Job Designations with Other
+const JobDesignations = [...Jobdesignation, "Other"];
+
+// Updated Job Locations with Remote
+const JobLocationsWithRemote = [...JobLocations, "Remote"];
 
 const AddJob = () => {
   const [title, setTitle] = useState("");
@@ -51,10 +59,18 @@ const AddJob = () => {
   const [jobchannel, setJobChannel] = useState("Agency Channel");
   const [jobcategory, setJobCategory] = useState("Equity Broking");
   const [noticeperiod, setNoticeperiod] = useState("Immediate");
-  const [salary, setSalary] = useState(""); // Changed from 0 to empty string
+  const [salary, setSalary] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formStep, setFormStep] = useState(1);
   const [isFormValid, setIsFormValid] = useState(false);
+
+  // New states for "Other" options
+  const [showOtherDesignation, setShowOtherDesignation] = useState(false);
+  const [otherDesignation, setOtherDesignation] = useState("");
+  const [showOtherChannel, setShowOtherChannel] = useState(false);
+  const [otherChannel, setOtherChannel] = useState("");
+  const [showOtherCategory, setShowOtherCategory] = useState(false);
+  const [otherCategory, setOtherCategory] = useState("");
 
   const editorRef = useRef(null);
   const quillRef = useRef(null);
@@ -70,6 +86,42 @@ const AddJob = () => {
       setIsFormValid(false);
     }
   }, [title, salary]);
+
+  // Handle designation change
+  const handleDesignationChange = (e) => {
+    const value = e.target.value;
+    setCategory(value);
+    if (value === "Other") {
+      setShowOtherDesignation(true);
+    } else {
+      setShowOtherDesignation(false);
+      setOtherDesignation("");
+    }
+  };
+
+  // Handle channel change
+  const handleChannelChange = (e) => {
+    const value = e.target.value;
+    setJobChannel(value);
+    if (value === "Other") {
+      setShowOtherChannel(true);
+    } else {
+      setShowOtherChannel(false);
+      setOtherChannel("");
+    }
+  };
+
+  // Handle category change
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    setJobCategory(value);
+    if (value === "Other") {
+      setShowOtherCategory(true);
+    } else {
+      setShowOtherCategory(false);
+      setOtherCategory("");
+    }
+  };
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
@@ -95,6 +147,25 @@ const AddJob = () => {
         setFormStep(1);
         return;
       }
+
+      // Validate Other fields
+      if (designation === "Other" && !otherDesignation.trim()) {
+        toast.error("Please specify the designation");
+        setFormStep(2);
+        return;
+      }
+
+      if (jobchannel === "Other" && !otherChannel.trim()) {
+        toast.error("Please specify the channel");
+        setFormStep(2);
+        return;
+      }
+
+      if (jobcategory === "Other" && !otherCategory.trim()) {
+        toast.error("Please specify the category");
+        setFormStep(2);
+        return;
+      }
       
       // Check if description has actual content
       const textContent = quillRef.current ? quillRef.current.getText().trim() : '';
@@ -103,15 +174,20 @@ const AddJob = () => {
         setFormStep(2);
         return;
       }
+
+      // Use custom values if "Other" is selected
+      const finalDesignation = designation === "Other" ? otherDesignation.trim() : designation;
+      const finalChannel = jobchannel === "Other" ? otherChannel.trim() : jobchannel;
+      const finalCategory = jobcategory === "Other" ? otherCategory.trim() : jobcategory;
       
       console.log("Posting job with data:", {
         title: title.trim(),
         description,
         location,
-        designation,
+        designation: finalDesignation,
         level,
-        jobchannel,
-        jobcategory,
+        jobchannel: finalChannel,
+        jobcategory: finalCategory,
         noticeperiod,
         salary: salaryNum,
         salaryType: typeof salaryNum
@@ -123,12 +199,12 @@ const AddJob = () => {
           title: title.trim(),
           description: description,
           location,
-          designation,
+          designation: finalDesignation,
           level,
-          jobchannel,
-          jobcategory,
+          jobchannel: finalChannel,
+          jobcategory: finalCategory,
           noticeperiod,
-          salary: salaryNum // Make sure this is a number
+          salary: salaryNum
         },
         { 
           headers: { 
@@ -145,13 +221,19 @@ const AddJob = () => {
         
         // Reset form
         setTitle("");
-        setSalary(""); // Reset to empty string
+        setSalary("");
         setLocation("Bangalore");
         setCategory("Branch Manager");
         setLevel("Beginner Level");
         setJobChannel("Agency Channel");
         setJobCategory("Equity Broking");
         setNoticeperiod("Immediate");
+        setShowOtherDesignation(false);
+        setOtherDesignation("");
+        setShowOtherChannel(false);
+        setOtherChannel("");
+        setShowOtherCategory(false);
+        setOtherCategory("");
         
         // Clear Quill editor
         if (quillRef.current) {
@@ -182,6 +264,22 @@ const AddJob = () => {
     const textContent = quillRef.current.getText().trim();
     if (!textContent || textContent.length === 0) {
       toast.error("Please add a job description before previewing");
+      return;
+    }
+
+    // Validate Other fields before preview
+    if (designation === "Other" && !otherDesignation.trim()) {
+      toast.error("Please specify the designation");
+      return;
+    }
+
+    if (jobchannel === "Other" && !otherChannel.trim()) {
+      toast.error("Please specify the channel");
+      return;
+    }
+
+    if (jobcategory === "Other" && !otherCategory.trim()) {
+      toast.error("Please specify the category");
       return;
     }
     
@@ -220,6 +318,11 @@ const AddJob = () => {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
+
+  // Get display values for preview
+  const getDisplayDesignation = () => designation === "Other" ? otherDesignation : designation;
+  const getDisplayChannel = () => jobchannel === "Other" ? otherChannel : jobchannel;
+  const getDisplayCategory = () => jobcategory === "Other" ? otherCategory : jobcategory;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -294,7 +397,7 @@ const AddJob = () => {
                     min={0}
                     placeholder="e.g. 75000"
                     value={salary}
-                    onChange={(e) => setSalary(e.target.value)} // Don't convert here
+                    onChange={(e) => setSalary(e.target.value)}
                     required
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
                   />
@@ -356,23 +459,34 @@ const AddJob = () => {
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* Designation with Other option */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Designation
                   </label>
                   <select
                     value={designation}
-                    onChange={(e) => setCategory(e.target.value)}
+                    onChange={handleDesignationChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
-                    {Jobdesignation.map((cat, index) => (
+                    {JobDesignations.map((cat, index) => (
                       <option key={index} value={cat}>
                         {cat}
                       </option>
                     ))}
                   </select>
+                  {showOtherDesignation && (
+                    <input
+                      type="text"
+                      placeholder="Specify designation"
+                      value={otherDesignation}
+                      onChange={(e) => setOtherDesignation(e.target.value)}
+                      className="w-full mt-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
+                    />
+                  )}
                 </div>
 
+                {/* Location with Remote option */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Job Location
@@ -382,7 +496,7 @@ const AddJob = () => {
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
-                    {JobLocations.map((loc, index) => (
+                    {JobLocationsWithRemote.map((loc, index) => (
                       <option key={index} value={loc}>
                         {loc}
                       </option>
@@ -405,13 +519,14 @@ const AddJob = () => {
                   </select>
                 </div>
 
+                {/* Channel with Other option */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                     Channel
+                    Channel
                   </label>
                   <select
                     value={jobchannel}
-                    onChange={(e) => setJobChannel(e.target.value)}
+                    onChange={handleChannelChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {JobChannels.map((channel, index) => (
@@ -420,15 +535,25 @@ const AddJob = () => {
                       </option>
                     ))}
                   </select>
+                  {showOtherChannel && (
+                    <input
+                      type="text"
+                      placeholder="Specify channel"
+                      value={otherChannel}
+                      onChange={(e) => setOtherChannel(e.target.value)}
+                      className="w-full mt-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
+                    />
+                  )}
                 </div>
 
+                {/* Category with Other option */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Category
+                    Category
                   </label>
                   <select
                     value={jobcategory}
-                    onChange={(e) => setJobCategory(e.target.value)}
+                    onChange={handleCategoryChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-white transition-all duration-200"
                   >
                     {JobCategories.map((category, index) => (
@@ -437,6 +562,15 @@ const AddJob = () => {
                       </option>
                     ))}
                   </select>
+                  {showOtherCategory && (
+                    <input
+                      type="text"
+                      placeholder="Specify category"
+                      value={otherCategory}
+                      onChange={(e) => setOtherCategory(e.target.value)}
+                      className="w-full mt-2 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all duration-200"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -504,16 +638,16 @@ const AddJob = () => {
                         {location}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        {designation}
+                        {getDisplayDesignation()}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                         {level}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-800">
-                        {jobchannel}
+                        {getDisplayChannel()}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-fuchsia-100 text-fuchsia-800">
-                        {jobcategory}
+                        {getDisplayCategory()}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         {noticeperiod}
