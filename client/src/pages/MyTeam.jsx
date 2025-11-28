@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AppContext } from '../context/AppContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { User, Mail, Trash2, Plus, Shield, Eye, EyeOff, Key, X, CheckCircle, Copy } from 'lucide-react';
+import { User, Mail, Trash2, Plus, Shield, Eye, EyeOff, Key, X, CheckCircle, Copy, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MyTeam = () => {
@@ -12,13 +12,22 @@ const MyTeam = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdMemberData, setCreatedMemberData] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', roleType: 'hr'
+    name: '', 
+    email: '', 
+    password: '', 
+    roleType: 'hr',
+    permissions: {
+      canPostJobs: false,
+      canManageBulkUpload: false,
+      canViewApplications: true
+    }
   });
 
   const fetchSubUsers = async () => {
@@ -61,22 +70,29 @@ const MyTeam = () => {
       );
       
       if (data.success) {
-        // Store member data with password to show in modal
         setCreatedMemberData({
           name: formData.name,
           email: formData.email,
-          password: formData.password, // Plain text password before hashing
-          roleType: formData.roleType
+          password: formData.password,
+          roleType: formData.roleType,
+          permissions: formData.permissions
         });
         
-        // Show success modal with password
         setShowSuccessModal(true);
         
-        // Clear form
-        setFormData({ name: '', email: '', password: '', roleType: 'hr' });
+        setFormData({ 
+          name: '', 
+          email: '', 
+          password: '', 
+          roleType: 'hr',
+          permissions: {
+            canPostJobs: false,
+            canManageBulkUpload: false,
+            canViewApplications: true
+          }
+        });
         setShowAddForm(false);
         
-        // Refresh team list
         fetchSubUsers();
       } else {
         toast.error(data.message || 'Failed to add team member');
@@ -121,15 +137,12 @@ const MyTeam = () => {
 
     try {
       setLoading(true);
-      console.log('Resetting password for:', selectedUser._id);
       
       const { data } = await axios.put(
         `${backendUrl}/api/company/subuser/${selectedUser._id}/reset-password`,
         { newPassword },
         { headers: { token: companyToken } }
       );
-      
-      console.log('Reset response:', data);
       
       if (data.success) {
         toast.success('Password reset successfully');
@@ -148,6 +161,37 @@ const MyTeam = () => {
     }
   };
 
+  const handleUpdatePermissions = async () => {
+    if (!selectedUser || !selectedUser._id) {
+      toast.error('Invalid user selected');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { data } = await axios.put(
+        `${backendUrl}/api/company/subuser/${selectedUser._id}/permissions`,
+        { permissions: selectedUser.permissions },
+        { headers: { token: companyToken } }
+      );
+      
+      if (data.success) {
+        toast.success('Permissions updated successfully');
+        setShowPermissionsModal(false);
+        setSelectedUser(null);
+        fetchSubUsers();
+      } else {
+        toast.error(data.message || 'Failed to update permissions');
+      }
+    } catch (error) {
+      console.error('Update permissions error:', error);
+      toast.error(error.response?.data?.message || 'Failed to update permissions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getRoleBadge = (role) => {
     const colors = {
       hr: 'bg-blue-100 text-blue-700',
@@ -161,6 +205,36 @@ const MyTeam = () => {
     );
   };
 
+  const getPermissionBadges = (permissions) => {
+    const badges = [];
+    
+    if (permissions?.canPostJobs) {
+      badges.push(
+        <span key="jobs" className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+          📝 Post Jobs
+        </span>
+      );
+    }
+    
+    if (permissions?.canManageBulkUpload) {
+      badges.push(
+        <span key="bulk" className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+          📁 Bulk Upload
+        </span>
+      );
+    }
+    
+    if (!badges.length) {
+      return (
+        <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">
+          👁️ View Only
+        </span>
+      );
+    }
+    
+    return badges;
+  };
+
   const copyToClipboard = (text) => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
@@ -169,7 +243,6 @@ const MyTeam = () => {
         toast.error('Failed to copy password');
       });
     } else {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -207,7 +280,8 @@ const MyTeam = () => {
           className="bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200"
         >
           <h3 className="text-lg font-semibold mb-4">Add New Team Member</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <input
               type="text"
               placeholder="Full Name"
@@ -252,7 +326,76 @@ const MyTeam = () => {
               <option value="management">Management</option>
             </select>
           </div>
-          <div className="flex gap-3 mt-4">
+
+          {/* Permissions Section */}
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Settings size={16} />
+              Access Permissions
+            </h4>
+            
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.permissions.canViewApplications}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    permissions: {
+                      ...formData.permissions,
+                      canViewApplications: e.target.checked
+                    }
+                  })}
+                  className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                  disabled
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">View & Assess Applications</p>
+                  <p className="text-xs text-gray-500">Access candidate applications and fill assessments (Always enabled)</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.permissions.canPostJobs}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    permissions: {
+                      ...formData.permissions,
+                      canPostJobs: e.target.checked
+                    }
+                  })}
+                  className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">Post & Manage Jobs</p>
+                  <p className="text-xs text-gray-500">Create, edit, and manage job postings</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.permissions.canManageBulkUpload}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    permissions: {
+                      ...formData.permissions,
+                      canManageBulkUpload: e.target.checked
+                    }
+                  })}
+                  className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">Bulk Upload & Search Resume</p>
+                  <p className="text-xs text-gray-500">Upload resumes/CSV files and search resume database</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={handleSubmit}
@@ -265,7 +408,17 @@ const MyTeam = () => {
               type="button"
               onClick={() => {
                 setShowAddForm(false);
-                setFormData({ name: '', email: '', password: '', roleType: 'hr' });
+                setFormData({ 
+                  name: '', 
+                  email: '', 
+                  password: '', 
+                  roleType: 'hr',
+                  permissions: {
+                    canPostJobs: false,
+                    canManageBulkUpload: false,
+                    canViewApplications: true
+                  }
+                });
               }}
               className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
             >
@@ -282,13 +435,14 @@ const MyTeam = () => {
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Permissions</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {subUsers.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                   <Shield size={48} className="mx-auto mb-3 text-gray-300" />
                   <p className="font-medium">No team members yet</p>
                   <p className="text-sm mt-1">Add your first team member to get started!</p>
@@ -311,10 +465,24 @@ const MyTeam = () => {
                   </td>
                   <td className="px-6 py-4">{getRoleBadge(user.roleType)}</td>
                   <td className="px-6 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {getPermissionBadges(user.permissions)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
-                          console.log('Selected user for reset:', user);
+                          setSelectedUser(user);
+                          setShowPermissionsModal(true);
+                        }}
+                        className="text-purple-500 hover:text-purple-700 transition-colors p-2 hover:bg-purple-50 rounded"
+                        title="Manage permissions"
+                      >
+                        <Settings size={18} />
+                      </button>
+                      <button
+                        onClick={() => {
                           setSelectedUser(user);
                           setShowResetModal(true);
                         }}
@@ -338,6 +506,122 @@ const MyTeam = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Permissions Modal */}
+      <AnimatePresence>
+        {showPermissionsModal && selectedUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowPermissionsModal(false);
+              setSelectedUser(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-xl p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Manage Permissions</h3>
+                <button
+                  onClick={() => {
+                    setShowPermissionsModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  Editing permissions for: <strong>{selectedUser.name}</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">{selectedUser.email}</p>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedUser.permissions?.canViewApplications !== false}
+                    disabled
+                    className="mt-1 w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">View & Assess Applications</p>
+                    <p className="text-xs text-gray-500">Always enabled - core team member function</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedUser.permissions?.canPostJobs || false}
+                    onChange={(e) => setSelectedUser({
+                      ...selectedUser,
+                      permissions: {
+                        ...selectedUser.permissions,
+                        canPostJobs: e.target.checked
+                      }
+                    })}
+                    className="mt-1 w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Post & Manage Jobs</p>
+                    <p className="text-xs text-gray-500">Allow creating and managing job postings</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedUser.permissions?.canManageBulkUpload || false}
+                    onChange={(e) => setSelectedUser({
+                      ...selectedUser,
+                      permissions: {
+                        ...selectedUser.permissions,
+                        canManageBulkUpload: e.target.checked
+                      }
+                    })}
+                    className="mt-1 w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Bulk Upload & Search Resume</p>
+                    <p className="text-xs text-gray-500">Upload resumes/CSV and search database</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleUpdatePermissions}
+                  disabled={loading}
+                  className="flex-1 bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Updating...' : 'Update Permissions'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPermissionsModal(false);
+                    setSelectedUser(null);
+                  }}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reset Password Modal */}
       <AnimatePresence>
@@ -431,7 +715,7 @@ const MyTeam = () => {
         )}
       </AnimatePresence>
 
-      {/* Success Modal - Show Password Once */}
+      {/* Success Modal */}
       <AnimatePresence>
         {showSuccessModal && createdMemberData && (
           <motion.div
@@ -476,6 +760,13 @@ const MyTeam = () => {
                     <label className="text-xs text-gray-500 font-medium">Role</label>
                     <div className="mt-1">
                       {getRoleBadge(createdMemberData.roleType)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-500 font-medium">Permissions</label>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {getPermissionBadges(createdMemberData.permissions)}
                     </div>
                   </div>
                 </div>

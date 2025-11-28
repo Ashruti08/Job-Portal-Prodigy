@@ -9,7 +9,7 @@ import Resume from '../models/Resume.js';
 import CsvData from '../models/CsvData.js';  
 import ResumeProcessor from '../utils/resumeProcessor.js';
 import CSVProcessor from '../utils/csvProcessor.js';
-
+import SubUser from '../models/SubUser.js';
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,7 +103,20 @@ const verifyCompanyToken = async (req, res, next) => {
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Extract and convert companyId to ObjectId
+    // ✅ NEW: Check if it's a sub-user
+    if (decoded.isSubUser) {
+      // This is a sub-user
+      req.companyId = new mongoose.Types.ObjectId(decoded.parentCompanyId);
+      req.companyIdString = decoded.parentCompanyId.toString();
+      req.isSubUser = true;
+      req.subUserId = decoded.id;
+      req.subUserRole = decoded.roleType;
+      
+      console.log('Verified sub-user:', req.subUserRole, 'Parent company ID:', req.companyId);
+      return next();
+    }
+    
+    // ✅ ORIGINAL: Main company login
     const companyIdString = decoded.id || decoded._id;
     if (!companyIdString) {
       return res.status(401).json({ success: false, message: "Invalid token format" });
@@ -112,6 +125,7 @@ const verifyCompanyToken = async (req, res, next) => {
     // Convert to ObjectId and store both formats
     req.companyId = new mongoose.Types.ObjectId(companyIdString);
     req.companyIdString = companyIdString.toString();
+    req.isSubUser = false;
     
     console.log('Verified company ID:', req.companyId);
     next();
@@ -125,9 +139,38 @@ const verifyCompanyToken = async (req, res, next) => {
     res.status(401).json({ success: false, message: "Authentication failed" });
   }
 };
+const requireBulkUploadPermission = async (req, res, next) => {
+  // Main company always has permission
+  if (!req.isSubUser) {
+    return next();
+  }
 
+  // Check sub-user permission
+  try {
+    const subUser = await SubUser.findById(req.subUserId);
+    
+    if (!subUser) {
+      return res.status(403).json({
+        success: false,
+        message: 'Sub-user not found'
+      });
+    }
+
+    if (!subUser.permissions?.canManageBulkUpload) {
+      return res.status(403).json({
+        success: false,
+        message: `${req.subUserRole?.toUpperCase()} users need "Bulk Upload & Search Resume" permission. Contact your admin to grant access.`
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Permission check error:', error);
+    res.status(500).json({ success: false, message: 'Error checking permissions' });
+  }
+};
 // Bulk Resume Upload
-router.post('/upload-resumes', verifyCompanyToken, (req, res) => {
+router.post('/upload-resumes', verifyCompanyToken,requireBulkUploadPermission, (req, res) => {
   upload.array('resumes', 20)(req, res, async (err) => {
     // Enhanced error logging
     console.log('=== Resume Upload Request ===');
@@ -279,7 +322,7 @@ router.post('/upload-resumes', verifyCompanyToken, (req, res) => {
 });
 
 // Bulk CSV/Excel Upload - UPDATED
-router.post('/upload-csv', verifyCompanyToken, (req, res) => {
+router.post('/upload-csv', verifyCompanyToken,requireBulkUploadPermission, (req, res) => {
   upload.array('csvFiles', 10)(req, res, async (err) => {
     // Enhanced error logging
     console.log('=== CSV/Excel Upload Request ===');
@@ -445,7 +488,7 @@ router.post('/upload-csv', verifyCompanyToken, (req, res) => {
 });
 
 // Get uploaded files for a company
-router.get('/files', verifyCompanyToken, async (req, res) => {
+router.get('/files', verifyCompanyToken, requireBulkUploadPermission,async (req, res) => {
   try {
     const { type, page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
@@ -503,7 +546,7 @@ router.get('/files', verifyCompanyToken, async (req, res) => {
 });
 
 // Delete uploaded file
-router.delete('/files/:id', verifyCompanyToken, async (req, res) => {
+router.delete('/files/:id', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
   try {
     const { id } = req.params;
     const { type } = req.query;
@@ -551,7 +594,7 @@ router.delete('/files/:id', verifyCompanyToken, async (req, res) => {
 });
 
 // Download uploaded file
-router.get('/download/:id', verifyCompanyToken, async (req, res) => {
+router.get('/download/:id', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
   try {
     const { id } = req.params;
     let file = null;
@@ -592,7 +635,7 @@ router.get('/download/:id', verifyCompanyToken, async (req, res) => {
 });
 
 // Get file statistics
-router.get('/stats', verifyCompanyToken, async (req, res) => {
+router.get('/stats', verifyCompanyToken,requireBulkUploadPermission, async (req, res) => {
   try {
     console.log('=== Stats Request ===');
     console.log('CompanyId (ObjectId):', req.companyId);

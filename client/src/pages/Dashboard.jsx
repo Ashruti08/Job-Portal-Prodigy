@@ -1,19 +1,31 @@
-// Updated Dashboard with Role-Based Access Control
+// Updated Dashboard with Permission-Based Access Control
 import React, { useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers, FiSearch } from "react-icons/fi";
 import { toast } from "react-toastify";
 
-// Helper function to get nav items based on user type and role
-const getNavItems = (isSubUser, subUserRole) => {
-  // ✅ Sub-users (HR/Consultancy/Management) only see Applications
+// ✅ FIXED: Helper function now accepts permissions parameter
+const getNavItems = (isSubUser, subUserRole, permissions) => {
+  // ✅ Sub-users see menu items based on their permissions
   if (isSubUser) {
-    return [
+    const subUserItems = [
       { path: "view-applications", label: "Applications", icon: <FiMail /> },
     ];
+    
+    // Add permission-based items
+    if (permissions?.canPostJobs) {
+      subUserItems.push({ path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> });
+    }
+    
+    if (permissions?.canManageBulkUpload) {
+      subUserItems.push({ path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> });
+      subUserItems.push({ path: "search-resume", label: "Search Resume", icon: <FiSearch /> });
+    }
+    
+    return subUserItems;
   }
   
   // ✅ Main recruiters see everything
@@ -23,6 +35,7 @@ const getNavItems = (isSubUser, subUserRole) => {
     { path: "view-applications", label: "Applications", icon: <FiMail /> },
     { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
     { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
+    { path: "search-resume", label: "Search Resume", icon: <FiSearch /> },
     { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
     { path: "my-team", label: "My Team", icon: <FiUsers /> },
   ];
@@ -44,12 +57,13 @@ const Dashboard = () => {
   // Check if user is logged in
   const isLoggedIn = !!companyToken && !!companyData;
   
-  // ✅ Check if sub-user
+  // ✅ Check if sub-user and get permissions
   const isSubUser = companyData?.isSubUser || false;
   const subUserRole = companyData?.roleType || '';
+  const permissions = companyData?.permissions || {};
   
-  // Get nav items based on user type and role
-  const navItems = getNavItems(isSubUser, subUserRole);
+  // ✅ FIXED: Pass permissions to getNavItems
+  const navItems = getNavItems(isSubUser, subUserRole, permissions);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -61,10 +75,11 @@ const Dashboard = () => {
     setActiveTab(path);
   }, [location]);
 
-  // ✅ Updated redirect logic - sub-users always go to applications
+  // ✅ Updated redirect logic - check permissions for sub-users
   useEffect(() => {
     if (location.pathname === '/dashboard') {
       if (isSubUser) {
+        // Always go to applications for sub-users
         navigate("/dashboard/view-applications");
       } else {
         navigate("/dashboard/manage-job");
@@ -72,13 +87,20 @@ const Dashboard = () => {
     }
   }, [location.pathname, navigate, isSubUser]);
 
-  // ✅ Block unauthorized routes for sub-users
+  // ✅ FIXED: Block unauthorized routes but allow permitted routes
   useEffect(() => {
-    if (isSubUser && location.pathname !== '/dashboard' && !location.pathname.includes('view-applications')) {
-      toast.error(`${subUserRole.toUpperCase()} users can only access Applications page`);
-      navigate("/dashboard/view-applications");
+    if (isSubUser && location.pathname !== '/dashboard') {
+      const currentPath = location.pathname.split('/').pop();
+      
+      // Check if current path is in their allowed nav items
+      const hasAccess = navItems.some(item => item.path === currentPath);
+      
+      if (!hasAccess) {
+        toast.error(`${subUserRole.toUpperCase()} users don't have permission to access this page`);
+        navigate("/dashboard/view-applications");
+      }
     }
-  }, [location.pathname, isSubUser, subUserRole, navigate]);
+  }, [location.pathname, isSubUser, subUserRole, navigate, navItems]);
 
   // Responsive handling
   useEffect(() => {
@@ -112,7 +134,7 @@ const Dashboard = () => {
         setIsSidebarOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobile, isSidebarOpen]);
 
@@ -157,7 +179,7 @@ const Dashboard = () => {
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
+  
   return (
     <div className="flex h-screen bg-gradient-to-tr from-[#f5f7fa] via-[#ebedfb] to-[#dce3ff] font-[Poppins] relative">
       {/* Login Notification */}
@@ -321,7 +343,6 @@ const Dashboard = () => {
             >
               <FiMenu size={20} />
             </button>
-            
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
@@ -345,17 +366,17 @@ const Dashboard = () => {
                   month: 'long', 
                   day: 'numeric' 
                 })}
+                
               </p>
             </div>
-          </div>
-
+        </div>
           <div className="text-right flex-shrink-0 hidden sm:block">
             <p className="text-sm text-gray-600 font-semibold">{getGreeting()},</p>
             <p className="text-xs text-gray-500">{isLoggedIn ? companyData?.name : "Demo User"}</p>
             <p className="text-sm text-gray-400">{formatTime(currentTime)}</p>
           </div>
         </motion.header>
-
+          
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -363,15 +384,16 @@ const Dashboard = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 min-h-[500px] relative"
           >
-            <Outlet context={{ isLoggedIn, showLoginNotification, setShowRecruiterLogin, isSubUser, subUserRole }} />
-            
+            <Outlet context={{ isLoggedIn, showLoginNotification, setShowRecruiterLogin, isSubUser, subUserRole }} />  
+       
             {!isLoggedIn && (
               <div 
                 className="absolute inset-0 bg-transparent pointer-events-auto cursor-pointer rounded-2xl sm:rounded-3xl"
                 onClick={showLoginNotification}
-                style={{ zIndex: 1 }}
+                style={{zIndex: 1}}
               />
-            )}
+            )}     
+ 
           </motion.div>
         </main>
       </div>
