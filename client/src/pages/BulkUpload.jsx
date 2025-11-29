@@ -482,7 +482,7 @@ const BulkUpload = () => {
             style={{ backgroundColor: activeTab === "csv" ? "#FF0000" : "transparent" }}
           >
             <FiDatabase />
-            <span>CSV/Excel Upload</span>
+            <span> </span>
           </button>
         </div>
 

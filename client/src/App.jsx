@@ -19,6 +19,7 @@ import ManagePackage from "./pages/ManagePackage";
 import MyProfile from "./components/MyProfile";
 import AppliedJobs from "./components/AppliedJobs";
 import BulkUpload from './pages/BulkUpload';
+import SearchResume from './pages/SearchResume';
 import JobAlerts from "./components/JobAlerts";
 import "quill/dist/quill.snow.css";
 import { ToastContainer } from "react-toastify";
@@ -117,6 +118,18 @@ const App = () => {
               <DemoFriendlyRecruiterRoute>
                 <ProtectFromSubUsers>
                   <MyTeam />
+                </ProtectFromSubUsers>
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+
+          {/* ✅ NEW: Search Resume - Main recruiter only */}
+          <Route 
+            path="search-resume" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ProtectFromSubUsers>
+                  <SearchResume />
                 </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
             } 

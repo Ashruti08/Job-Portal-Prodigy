@@ -4,7 +4,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import DEEmploymintIcon from "../assets/DEEmploymintIcon.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers } from "react-icons/fi";
+import { FiPlusCircle, FiFolder, FiMail, FiUser, FiHome, FiUpload, FiAlertCircle, FiPackage, FiMenu, FiX, FiUsers, FiSearch } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 // Helper function to get nav items based on user type and role
@@ -23,6 +23,7 @@ const getNavItems = (isSubUser, subUserRole) => {
     { path: "view-applications", label: "Applications", icon: <FiMail /> },
     { path: "add-job", label: "Post New Job", icon: <FiPlusCircle /> },
     { path: "bulk-upload", label: "Bulk Upload", icon: <FiUpload /> },
+    { path: "search-resume", label: "Search Resume", icon: <FiSearch /> },
     { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
     { path: "my-team", label: "My Team", icon: <FiUsers /> },
   ];

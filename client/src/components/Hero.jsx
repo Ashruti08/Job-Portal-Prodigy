@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import JobListing from "../pages/JobListing";
 import { FiSearch, FiMapPin, FiArrowRight } from "react-icons/fi";
 import { FiBriefcase, FiUsers, FiTrendingUp } from "react-icons/fi";
-
+import backgroundImage from '../assets/backgroundimage.jpg';
 // Import company logos directly
 import companyLogo1 from "../assets/facebook-1-logo-svgrepo-com.svg";
 import companyLogo2 from "../assets/linkedin-logo-svgrepo-com.svg";
@@ -72,39 +72,29 @@ const Navigate=useNavigate();
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
-      {/* Floating container with margin on all sides */}
-      <section className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl">
-        {/* Background with gradient overlay - removed blue tones */}
-        <div className="absolute inset-0">
+      {/* Floating container with margin on all sides - adjusted height */}
+      <section className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl" style={{ minHeight: '1000px' }}>
+        {/* Background without effects - adjusted to show full image */}
+        <div className="absolute inset-0 bg-gray-100">
           <img
-            src={bgimage}
+            src={backgroundImage}
             alt="Background"
             className="w-full h-full object-cover object-center"
+            style={{ minHeight: '900px' }}
           />
-          <div 
-            className="absolute inset-0 mix-blend-multiply"
-            style={{
-              background: "linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(255, 0, 0, 0.33))"
-            }}
-          ></div>
+          {/* Removed gradient overlay and mix-blend-multiply for cleaner look */}
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 md:py-40">
+        {/* Adjusted padding for better proportions */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
           <div className="text-center">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6"
-            >
-              Turning Resumes Into <span style={{ color: '#ff0000' }}>Realities</span>
-            </motion.h1>
+            {/* Removed duplicate title - image already contains it */}
 
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-xl text-white/90 max-w-2xl mx-auto mb-10"
+              className="text-xl text-white/90 max-w-2xl mx-auto mb-10 mt-32"
             >
               Turning <span style={{ color: '#ff0000' }}>Possibilities</span> into{' '}
       Probabilities and {''}
@@ -112,18 +102,18 @@ const Navigate=useNavigate();
       <span style={{ color: '#ff0000' }}>Success</span>.
             </motion.p>
 
-            {/* Stats bar */}
+            {/* Stats bar - moved higher up */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
               className="flex flex-wrap justify-center gap-8 mb-10"
             >
               {stats.map((stat, index) => (
                 <motion.div
                   key={index}
-                  className="flex items-center space-x-2 text-white/80"
-                  whileHover={{ scale: 1.05, color: "#ffffff" }}
+                  className="flex items-center space-x-2 text-black/80"
+                  whileHover={{ scale: 1.05, color: "#141414ff" }}
                   transition={{ type: "spring", damping: 15 }}
                 >
                   <stat.icon className="text-[#fcde47] text-xl" />
@@ -133,7 +123,7 @@ const Navigate=useNavigate();
               ))}
             </motion.div>
 
-            {/* Enhanced search form - removed blue from glow effect */}
+            {/* Enhanced search form */}
             <motion.form
               onSubmit={onSearch}
               initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -142,17 +132,7 @@ const Navigate=useNavigate();
               className="max-w-4xl mx-auto group"
             >
               <div className="relative">
-                {/* Glow effect - removed blue tones */}
-                <motion.div
-                  className="absolute -inset-1 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-opacity duration-500"
-                  style={{
-                    background:" linear-gradient(to right, #ff00007a, #000000, #ff00008e)"
-                  }}
-                  animate={{
-                    scale: [1, 1.02, 1],
-                  }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
+                {/* Removed glow effect */}
                 
                 <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/20">
                   <div className="flex flex-col md:flex-row">
@@ -222,7 +202,7 @@ const Navigate=useNavigate();
               </div>
             </motion.form>
 
-            {/* Enhanced popular tags - removed blue from gradient */}
+            {/* Popular tags */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -263,68 +243,6 @@ const Navigate=useNavigate();
           </div>
         </div>
       </section>
-
-      {/* Trusted companies Section */}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="py-7 px-4 max-w-6xl mx-auto bg-white"
-      > */}
-        {/* Simple header */}
-        {/* <div className="text-center mb-12">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-            Trusted By
-          </p>
-          <h3 
-            className="text-base font-normal"
-            style={{ color: "#020330" }}
-          >
-            Innovative companies worldwide
-          </h3>
-        </div> */}
-
-        {/* Clean logo grid */}
-        {/* <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 lg:gap-16">
-          {companyLogos.map((logo, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ 
-                delay: index * 0.1,
-                duration: 0.4
-              }}
-              whileHover={{ 
-                scale: 1.05,
-                transition: { duration: 0.2 }
-              }}
-              className="relative group cursor-pointer flex-shrink-0"
-            >
-              <div className="w-20 h-12 flex items-center justify-center">
-                <img
-                  src={logo}
-                  alt={`Company ${index + 1}`}
-                  className="max-h-full max-w-full object-contain filter grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-90 transition-all duration-300"
-                />
-              </div>
-            </motion.div>
-          ))}
-        </div> */}
-
-        {/* Minimal accent */}
-        {/* <motion.div
-          className="flex justify-center mt-12"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.4 }}
-        >
-          <div 
-            className="w-12 h-px"
-            style={{ backgroundColor: "#FF0000" }}
-          ></div>
-        </motion.div>
-      </motion.div> */}
     </motion.div>
   );
 };
