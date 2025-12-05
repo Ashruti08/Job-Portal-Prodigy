@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 import { sendDailyDigestAt9AM } from './services/jobNotificationService.js'; 
 
 // NEW
-import { initializeCronJobs } from './cronJobs.mjs';
+import { initializeCronJobs } from '../cronJobs.mjs';
 initializeCronJobs();
 // Create uploads directories
 const uploadsDir = path.join(__dirname, 'uploads');

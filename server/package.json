@@ -18,15 +18,18 @@
     "@aws-sdk/client-ses": "^3.899.0",
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/express": "^1.7.30",
-    "@getbrevo/brevo": "^2.2.0",
+    "@getbrevo/brevo": "^3.0.1",
     "@sentry/node": "^8.50.0",
     "@sentry/profiling-node": "^8.50.0",
+    "asynckit": "^0.4.0",
+    "axios": "^1.13.2",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "form-data": "^4.0.5",
     "google-auth-library": "^10.4.0",
     "gridfs-stream": "^1.1.1",
     "jsonwebtoken": "^9.0.2",
@@ -44,5 +47,10 @@
     "svix": "^1.45.1",
     "tesseract.js": "^6.0.1",
     "xlsx": "^0.18.5"
+  },
+  
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
