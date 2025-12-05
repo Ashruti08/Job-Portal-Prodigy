@@ -23,7 +23,7 @@ const BulkUpload = () => {
   const { companyToken, backendUrl } = useContext(AppContext);
   const outletContext = useOutletContext();
   const { isLoggedIn, showLoginNotification } = outletContext || {};
-
+  
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("resumes");
@@ -50,6 +50,37 @@ const BulkUpload = () => {
     }
   }, [companyToken, activeTab]);
 
+  // Enhanced name extraction from resume filename
+  const extractCandidateName = (filename) => {
+    if (!filename) return "";
+    
+    // Remove file extension
+    let name = filename.replace(/\.(pdf|doc|docx)$/i, "");
+    
+    // Replace common separators with space
+    name = name.replace(/[-_]/g, " ");
+    
+    // Remove extra spaces and numbers
+    name = name.replace(/\s+/g, " ")
+                .replace(/\d+/g, "")
+                .trim();
+    
+    // Capitalize each word
+    name = name.split(' ')
+               .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+               .join(' ');
+    
+    return name;
+  };
+
+  // Normalize name for comparison (remove spaces, convert to lowercase)
+  const normalizeName = (name) => {
+    if (!name) return "";
+    return name.toLowerCase()
+               .replace(/\s+/g, "")
+               .replace(/[^a-z]/g, "");
+  };
+
   const fetchUploadedFiles = async () => {
     setIsLoadingFiles(true);
     try {
@@ -58,7 +89,19 @@ const BulkUpload = () => {
       });
 
       if (data.success) {
-        setUploadedFiles(data.data.files || []);
+        const files = data.data.files || [];
+        
+        // If we're viewing resumes, extract candidate names
+        if (activeTab === "resumes") {
+          const processedFiles = files.map(file => ({
+            ...file,
+            candidateName: extractCandidateName(file.originalName),
+            normalizedName: normalizeName(extractCandidateName(file.originalName))
+          }));
+          setUploadedFiles(processedFiles);
+        } else {
+          setUploadedFiles(files);
+        }
       } else {
         toast.error(data.message || "Failed to fetch files");
       }
@@ -97,11 +140,6 @@ const BulkUpload = () => {
   }
 
   const handleFileUpload = async (files, type) => {
-    if (!isLoggedIn) {
-      showLoginNotification();
-      return;
-    }
-
     if (!files || files.length === 0) {
       toast.error("Please select files to upload");
       return;
@@ -223,6 +261,11 @@ const BulkUpload = () => {
         if (failedFiles > 0) {
           toast.warning(`${processedFiles}/${totalFiles} files processed successfully. ${failedFiles} files failed.`);
         }
+        
+        // Show name extraction info for resumes
+        if (type === "resumes") {
+          toast.info("Resume names extracted successfully. Please upload CSV to match candidate data.");
+        }
       } else {
         toast.error(data.message || "Upload failed");
       }
@@ -283,17 +326,14 @@ const BulkUpload = () => {
     const fileName = file.originalName.toLowerCase();
     const fileType = file.fileType?.toLowerCase();
     
-    // PDF files can be viewed
     if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
       return true;
     }
     
-    // CSV files can be previewed
     if (fileName.endsWith('.csv') || fileType === 'csv') {
       return true;
     }
     
-    // Excel files can be previewed
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || 
         fileType === 'xlsx' || fileType === 'xls') {
       return true;
@@ -312,27 +352,28 @@ const BulkUpload = () => {
         responseType: 'blob'
       });
 
-      // Handle PDF files - open in new tab
       if (fileType === 'pdf' || fileName.endsWith('.pdf')) {
         const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         setTimeout(() => window.URL.revokeObjectURL(url), 100);
       }
-      // Handle Word documents - download only (backend will process)
       else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-        toast.info("Word documents are processed on the server. Please download to view the file, or the processed text will be available in the resume database.");
+        toast.info("Word documents are processed on the server. Please download to view the file.");
         downloadFile(file);
       }
-      // Handle CSV files - show preview in modal
       else if (fileName.endsWith('.csv')) {
         try {
           const text = await response.data.text();
-          const rows = text.split('\n').map(row => row.split(','));
+          const rows = text.split('\n').map(row => {
+            // Handle CSV with proper parsing (handles commas in quotes)
+            const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
+            return row.match(regex)?.map(cell => cell.replace(/^"|"$/g, '').trim()) || [];
+          });
           setPreviewModal({
             isOpen: true,
             file: file,
-            data: rows,
+            data: rows.filter(row => row.length > 0), // Filter empty rows
             type: 'csv'
           });
         } catch (error) {
@@ -340,19 +381,18 @@ const BulkUpload = () => {
           toast.error("Failed to preview CSV file. Please download to view.");
         }
       }
-      // Handle Excel files - show preview in modal
       else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
         try {
           const arrayBuffer = await response.data.arrayBuffer();
           const workbook = XLSX.read(arrayBuffer, { type: 'array' });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
           
           setPreviewModal({
             isOpen: true,
             file: file,
-            data: jsonData,
+            data: jsonData.filter(row => row.some(cell => cell !== '')), // Filter empty rows
             type: 'excel'
           });
         } catch (error) {
@@ -458,6 +498,21 @@ const BulkUpload = () => {
           </div>
         </motion.div>
 
+        {/* Important Note */}
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg">
+          <div className="flex items-start">
+            <FiAlertCircle className="text-blue-500 mt-1 mr-3 flex-shrink-0" size={20} />
+            <div>
+              <h3 className="font-semibold text-blue-800 mb-1">How Name Matching Works</h3>
+              <p className="text-sm text-blue-700">
+                1. Upload resumes first (filename should contain candidate name, e.g., "Afroz_Resume.pdf")<br/>
+                2. Upload CSV with candidate details (ensure "Full Name" column matches resume filenames)<br/>
+                3. Go to "Search Resume" to view matched data
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-8">
           <button
@@ -482,7 +537,7 @@ const BulkUpload = () => {
             style={{ backgroundColor: activeTab === "csv" ? "#FF0000" : "transparent" }}
           >
             <FiDatabase />
-            <span> </span>
+            <span>CSV/Excel Upload</span>
           </button>
         </div>
 
@@ -640,6 +695,9 @@ const BulkUpload = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">File</th>
+                    {activeTab === "resumes" && (
+                      <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Extracted Name</th>
+                    )}
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Size</th>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Upload Date</th>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Status</th>
@@ -673,6 +731,13 @@ const BulkUpload = () => {
                           </div>
                         </div>
                       </td>
+                      {activeTab === "resumes" && (
+                        <td className="py-4 px-6">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                            {file.candidateName || "Unknown"}
+                          </span>
+                        </td>
+                      )}
                       <td className="py-4 px-6 text-sm text-gray-600">
                         {formatFileSize(file.fileSize)}
                       </td>
@@ -771,7 +836,6 @@ const BulkUpload = () => {
               {/* Modal Content */}
               <div className="flex-1 overflow-auto p-6">
                 {previewModal.data && previewModal.data.length > 0 ? (
-                  // CSV/Excel Table Preview
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
                       <thead className="bg-gray-50">
