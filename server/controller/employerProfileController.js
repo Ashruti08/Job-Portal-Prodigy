@@ -78,7 +78,7 @@ export const updateEmployerProfile = async (req, res) => {
         ]);
 
         const realStats = { activeJobs, totalApplications, totalHired };
-
+              
         // Update both company and profile in parallel
         const [company, profile] = await Promise.all([
             Company.findByIdAndUpdate(
@@ -132,7 +132,7 @@ export const updateProfileStats = async (req, res) => {
             JobApplication.countDocuments({ companyId }),
             JobApplication.countDocuments({ companyId, status: 'Accepted' })
         ]);
-
+           
         const profile = await EmployerProfile.findOneAndUpdate(
             { companyId },
             {
@@ -142,7 +142,7 @@ export const updateProfileStats = async (req, res) => {
             },
             { new: true, upsert: true }
         );
-
+             
         if (!profile) {
             return res.status(404).json({
                 success: false,
@@ -155,7 +155,7 @@ export const updateProfileStats = async (req, res) => {
             message: 'Stats updated successfully',
             data: profile.stats
         });
-
+        
     } catch (error) {
         console.error('Update stats error:', error);
         res.status(500).json({

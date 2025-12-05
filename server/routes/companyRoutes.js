@@ -13,9 +13,13 @@ import {
   googleAuth,
   getPublicCompanyProfile,
   resetSubUserPassword,
+  updateSubUserPermissions,
+  
+
 } from "../controller/comapanyController.js";
 import jwt from 'jsonwebtoken';
-import { companyAuthMiddleware } from "../middleware/companyAuthMiddleware.js";
+import { companyAuthMiddleware,requirePostJobPermission,
+  requireBulkUploadPermission, } from "../middleware/companyAuthMiddleware.js";
 import { uploadImage } from '../config/multer.js';
 import SubUser from "../models/SubUser.js";
 import bcrypt from "bcrypt";
@@ -82,12 +86,13 @@ router.post("/login", async (req, res) => {
         id: subUser._id, 
         isSubUser: true,
         roleType: subUser.roleType,
-        parentCompanyId: subUser.parentCompanyId
+        parentCompanyId: subUser.parentCompanyId,
+        permissions: subUser.permissions // ✅ ADDED
       }, process.env.JWT_SECRET);
 
       console.log('✅ Sub-user login successful');
 
-      // ✅ CRITICAL: Return complete sub-user info
+      // ✅ CRITICAL: Return complete sub-user info with permissions
       return res.json({ 
         success: true, 
         token,
@@ -95,9 +100,9 @@ router.post("/login", async (req, res) => {
           _id: subUser._id,
           name: subUser.name,
           email: subUser.email,
-          // ✅ THESE ARE CRITICAL FOR FRONTEND
           isSubUser: true,
-          roleType: subUser.roleType
+          roleType: subUser.roleType,
+          permissions: subUser.permissions // ✅ ADDED
         }
       });
     }
@@ -145,7 +150,6 @@ router.post("/login", async (req, res) => {
         email: company.email,
         image: company.image,
         phone: company.phone,
-        // ✅ CRITICAL: Explicitly set to false for main company
         isSubUser: false,
         roleType: null
       }
@@ -175,7 +179,7 @@ router.get("/company", companyAuthMiddleware, getCompanyData);
 router.get("/applicants", companyAuthMiddleware, getCompanyJobApplicants);
 
 // ✅ MAIN RECRUITER ONLY - Block Sub-Users
-router.post("/post-job", companyAuthMiddleware, blockSubUsers, postJob);
+router.post("/post-job", companyAuthMiddleware, requirePostJobPermission, postJob);
 router.get("/list-jobs", companyAuthMiddleware, blockSubUsers, getCompanyPostedJobs);
 router.post("/change-visibility", companyAuthMiddleware, blockSubUsers, changeVisiblity);
 
@@ -185,13 +189,14 @@ router.post("/change-status", companyAuthMiddleware, blockSubUserStatusChange, C
 // ✅ MAIN RECRUITER ONLY - Team Management Routes
 router.post("/create-subuser", companyAuthMiddleware, blockSubUsers, async (req, res) => {
   try {
-    const { email, password, name, roleType } = req.body;
+    const { email, password, name, roleType, permissions } = req.body; // ✅ ADDED permissions
     const companyId = req.companyId;
     
     console.log('=== CREATING SUB-USER ===');
     console.log('Email:', email);
     console.log('Name:', name);
     console.log('Role:', roleType);
+    console.log('Permissions:', permissions); // ✅ ADDED
     console.log('Parent Company ID:', companyId);
     
     // Check if email exists
@@ -208,13 +213,16 @@ router.post("/create-subuser", companyAuthMiddleware, blockSubUsers, async (req,
       email,
       password: hashedPassword,
       name,
-      roleType
+      roleType,
+      permissions: permissions || { // ✅ ADDED with defaults
+        canViewApplications: true,
+        canPostJobs: false,
+        canManageBulkUpload: false
+      }
     });
 
     await subUser.save();
-    console.log('✅ Sub-user created successfully');
-    console.log('   Sub-user ID:', subUser._id);
-    console.log('   Parent Company ID:', subUser.parentCompanyId);
+    console.log('✅ Sub-user created successfully with permissions');
     
     res.json({ success: true, message: "Team member added successfully" });
   } catch (error) {
@@ -243,7 +251,7 @@ router.get("/subusers", companyAuthMiddleware, blockSubUsers, async (req, res) =
 
 // ✅ CRITICAL FIX: Reset password MUST come BEFORE delete route to avoid route conflicts
 router.put('/subuser/:id/reset-password', companyAuthMiddleware, blockSubUsers, resetSubUserPassword);
-
+router.put('/subuser/:id/permissions', companyAuthMiddleware, blockSubUsers, updateSubUserPermissions);
 router.delete("/subuser/:id", companyAuthMiddleware, blockSubUsers, async (req, res) => {
   try {
     console.log('=== DELETING SUB-USER ===');

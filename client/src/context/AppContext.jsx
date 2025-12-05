@@ -46,73 +46,77 @@ export const AppContextProvider = (props) => {
     }
 
     // ✅ UPDATED: Function to fetch Company Data - preserve isSubUser flag
-    const fetchCompanyData = async () => {
-        if (!companyToken) return;
+  // ✅ FIXED: Function to fetch Company Data - now preserves permissions!
+const fetchCompanyData = async () => {
+    if (!companyToken) return;
+    
+    try {
+        // Fetch basic company info
+        const companyResponse = await axios.get(backendUrl + '/api/company/company', {
+            headers: { token: companyToken }
+        });
+
+        if (!companyResponse.data.success) {
+            toast.error("Failed to fetch company data");
+            return;
+        }
+
+        const basicCompanyData = companyResponse.data.company;
+
+        // ✅ CRITICAL: Check if this is a sub-user
+        console.log('=== FETCH COMPANY DATA ===');
+        console.log('Basic data:', basicCompanyData);
+        console.log('isSubUser:', basicCompanyData.isSubUser);
+        console.log('roleType:', basicCompanyData.roleType);
+        console.log('permissions:', basicCompanyData.permissions); // ✅ Added
+      
+        let mergedData = { ...basicCompanyData };
         
-        try {
-            // Fetch basic company info
-            const companyResponse = await axios.get(backendUrl + '/api/company/company', {
-                headers: { token: companyToken }
-            });
+        // ✅ ONLY fetch profile if NOT a sub-user
+        // Sub-users don't need profile data, they just assess
+        if (!basicCompanyData.isSubUser) {
+            try {
+                const profileResponse = await axios.get(`${backendUrl}/api/employer/profile`, {
+                    headers: { token: companyToken }
+                });
 
-            if (!companyResponse.data.success) {
-                toast.error("Failed to fetch company data");
-                return;
-            }
-
-            const basicCompanyData = companyResponse.data.company;
-
-            // ✅ CRITICAL: Check if this is a sub-user
-            console.log('=== FETCH COMPANY DATA ===');
-            console.log('Basic data:', basicCompanyData);
-            console.log('isSubUser:', basicCompanyData.isSubUser);
-            console.log('roleType:', basicCompanyData.roleType);
-
-            let mergedData = { ...basicCompanyData };
-
-            // ✅ ONLY fetch profile if NOT a sub-user
-            // Sub-users don't need profile data, they just assess
-            if (!basicCompanyData.isSubUser) {
-                try {
-                    const profileResponse = await axios.get(`${backendUrl}/api/employer/profile`, {
-                        headers: { token: companyToken }
-                    });
-
-                    if (profileResponse.data.success) {
-                        // Merge profile data but preserve isSubUser flags
-                        mergedData = { 
-                            ...mergedData, 
-                            ...profileResponse.data.data,
-                            // ✅ Ensure these are never overwritten
-                            isSubUser: basicCompanyData.isSubUser || false,
-                            roleType: basicCompanyData.roleType || null
-                        };
-                    }
-                } catch (profileError) {
-                    console.log('Profile fetch skipped or failed (ok for sub-users)');
+                if (profileResponse.data.success) {
+                    // Merge profile data but preserve isSubUser flags and permissions
+                    mergedData = { 
+                        ...mergedData, 
+                        ...profileResponse.data.data,
+                        // ✅ Ensure these are never overwritten
+                        isSubUser: basicCompanyData.isSubUser || false,
+                        roleType: basicCompanyData.roleType || null,
+                        permissions: basicCompanyData.permissions || null // ✅ Added
+                    };
                 }
-            }
-
-            console.log('=== FINAL MERGED DATA ===');
-            console.log('isSubUser:', mergedData.isSubUser);
-            console.log('roleType:', mergedData.roleType);
-
-            setCompanyData(mergedData);
-            localStorage.setItem('companyData', JSON.stringify(mergedData));
-
-        } catch (error) {
-            if (error.response?.status === 401) {
-                setCompanyToken(null);
-                setCompanyData(null);
-                localStorage.removeItem('companyToken');
-                localStorage.removeItem('companyData');
-                toast.error('Session expired. Please login again.');
-            } else {
-                console.error('Fetch company data error:', error);
-                toast.error("Failed to fetch company data");
+            } catch (profileError) {
+                console.log('Profile fetch skipped or failed (ok for sub-users)');
             }
         }
+
+        console.log('=== FINAL MERGED DATA ===');
+        console.log('isSubUser:', mergedData.isSubUser);
+        console.log('roleType:', mergedData.roleType);
+        console.log('permissions:', mergedData.permissions); // ✅ Added
+
+        setCompanyData(mergedData);
+        localStorage.setItem('companyData', JSON.stringify(mergedData));
+
+    } catch (error) {
+        if (error.response?.status === 401) {
+            setCompanyToken(null);
+            setCompanyData(null);
+            localStorage.removeItem('companyToken');
+            localStorage.removeItem('companyData');
+            toast.error('Session expired. Please login again.');
+        } else {
+            console.error('Fetch company data error:', error);
+            toast.error("Failed to fetch company data");
+        }
     }
+}
 
     const fetchUserData = useCallback(async () => {
       try {
@@ -182,29 +186,38 @@ export const AppContextProvider = (props) => {
     }, [backendUrl, getToken, user, userLoaded, authLoaded]);
 
     // ✅ UPDATED: Initial setup - load from localStorage with sub-user data
-    useEffect(() => {
-        fetchJobs();
+ // ✅ UPDATED: Initial setup - load from localStorage with sub-user data and permissions
+useEffect(() => {
+    fetchJobs();
+    
+    const storedCompanyToken = localStorage.getItem('companyToken');
+    const storedCompanyData = localStorage.getItem('companyData');
+    
+    console.log('=== APP CONTEXT INITIALIZATION ===');
+    console.log('Stored token exists:', !!storedCompanyToken);
+    console.log('Stored data exists:', !!storedCompanyData);
+    
+    if (storedCompanyToken) {
+        setCompanyToken(storedCompanyToken);
         
-        const storedCompanyToken = localStorage.getItem('companyToken');
-        const storedCompanyData = localStorage.getItem('companyData');
-        
-        if (storedCompanyToken) {
-            setCompanyToken(storedCompanyToken);
-            
-            // ✅ Load stored company data immediately (includes isSubUser)
-            if (storedCompanyData) {
-                try {
-                    const parsed = JSON.parse(storedCompanyData);
-                    console.log('=== LOADED FROM LOCALSTORAGE ===');
-                    console.log('isSubUser:', parsed.isSubUser);
-                    console.log('roleType:', parsed.roleType);
-                    setCompanyData(parsed);
-                } catch (e) {
-                    console.error('Failed to parse stored company data:', e);
-                }
+        // ✅ Load stored company data immediately (includes isSubUser and permissions)
+        if (storedCompanyData) {
+            try {
+                const parsed = JSON.parse(storedCompanyData);
+                console.log('=== LOADED FROM LOCALSTORAGE ===');
+                console.log('Full parsed data:', parsed);
+                console.log('isSubUser:', parsed.isSubUser);
+                console.log('roleType:', parsed.roleType);
+                console.log('permissions:', parsed.permissions); // ✅ Added
+                
+                setCompanyData(parsed);
+            } catch (e) {
+                console.error('Failed to parse stored company data:', e);
+                localStorage.removeItem('companyData');
             }
         }
-    }, []);
+    }
+}, []);
 
     // Company token management - always fetch fresh data when token is available
     useEffect(() => {
