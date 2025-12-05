@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "server": "nodemon server.js",
-     "test-email": "node scripts/testEmail.js",
+    "test-email": "node scripts/testEmail.js",
     "send-daily-digest": "node scripts/sendDailyDigest.js",
     "send-weekly-digest": "node scripts/sendWeeklyDigest.js"
   },
