@@ -602,7 +602,7 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
                   className="flex items-center justify-center gap-2 bg-red-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]">
                   Next <ChevronRight size={16} />
                 </button>
-              )}
+              )}      
             </div>
           </div>
         </motion.div>

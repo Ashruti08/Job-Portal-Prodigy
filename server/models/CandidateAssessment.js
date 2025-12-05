@@ -217,8 +217,8 @@ const candidateAssessmentSchema = new mongoose.Schema({
   lastContactedDate: {
     type: Date,
     default: Date.now
-  },
-  
+  },  
+   
   submittedAt: {
     type: Date,
     default: Date.now
@@ -236,7 +236,6 @@ candidateAssessmentSchema.index({ candidateEmail: 1 });
 candidateAssessmentSchema.index({ submittedAt: -1 });
 candidateAssessmentSchema.index({ assessmentStatus: 1 });
 candidateAssessmentSchema.index({ lastContactedDate: -1 });
-
 // Pre-save middleware to update lastUpdated and lastContactedDate
 candidateAssessmentSchema.pre('save', function(next) {
   this.lastUpdated = new Date();
@@ -245,5 +244,4 @@ candidateAssessmentSchema.pre('save', function(next) {
 });
 
 const CandidateAssessment = mongoose.model('CandidateAssessment', candidateAssessmentSchema);
-
 export default CandidateAssessment;

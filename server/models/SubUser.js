@@ -26,6 +26,24 @@ const subUserSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ['hr', 'consultancy', 'management']
+  },
+  // ✅ NEW: Permissions system
+  permissions: {
+    canPostJobs: {
+      type: Boolean,
+      default: false,
+      description: "Can create and post new job listings"
+    },
+    canManageBulkUpload: {
+      type: Boolean,
+      default: false,
+      description: "Can upload resumes/CSV files and search resume database"
+    },
+    canViewApplications: {
+      type: Boolean,
+      default: true, // Always true by default
+      description: "Can view and assess candidate applications"
+    }
   }
 }, {
   timestamps: true,

@@ -190,28 +190,32 @@ export const loginCompany = async (req, res) => {
 // Get company data// Update your comapanyController.js - getCompanyData function
 
 // ✅ UPDATED: Return sub-user info when fetching company data
+// ✅ FIXED: getCompanyData function with permissions
 export const getCompanyData = async (req, res) => {
   try {
     console.log('=== GET COMPANY DATA ===');
     console.log('isSubUser:', req.isSubUser);
     console.log('subUserRole:', req.subUserRole);
+    console.log('subUserPermissions:', req.subUserPermissions); // ✅ Added
     console.log('company:', req.company?.name);
     
     // ✅ Build response based on user type
     const responseData = {
       _id: req.company._id,
-      name: req.company.name || req.subUserName, // Use sub-user name if sub-user
+      name: req.company.name || req.subUserName,
       email: req.company.email,
       image: req.company.image,
       phone: req.company.phone,
-      // ✅ CRITICAL: Include sub-user flags
+      // ✅ CRITICAL: Include sub-user flags AND permissions
       isSubUser: req.isSubUser || false,
-      roleType: req.subUserRole || null
+      roleType: req.subUserRole || null,
+      permissions: req.subUserPermissions || null // ✅ ADDED THIS LINE
     };
     
     console.log('=== RESPONSE DATA ===');
     console.log('isSubUser:', responseData.isSubUser);
     console.log('roleType:', responseData.roleType);
+    console.log('permissions:', responseData.permissions); // ✅ Added
     
     res.json({ 
       success: true, 
@@ -1135,6 +1139,72 @@ export const resetSubUserPassword = async (req, res) => {
     res.json({
       success: false,
       message: 'Failed to reset password: ' + error.message
+    });
+  }
+};
+// ✅ ADD THESE NEW FUNCTIONS TO companyController.js
+// ✅ ADD this function to companyController.js (near other sub-user functions)
+
+export const updateSubUserPermissions = async (req, res) => {
+  try {
+    const { id } = req.params; // Sub-user ID
+    const { permissions } = req.body;
+    const mainCompanyId = req.companyId;
+
+    console.log('=== UPDATE SUB-USER PERMISSIONS ===');
+    console.log('Sub-user ID:', id);
+    console.log('Main Company ID:', mainCompanyId);
+    console.log('New Permissions:', permissions);
+
+    // Validate permissions object
+    if (!permissions || typeof permissions !== 'object') {
+      return res.json({
+        success: false,
+        message: 'Invalid permissions data'
+      });
+    }
+
+    // Find the sub-user
+    const subUser = await SubUser.findOne({
+      _id: id,
+      parentCompanyId: mainCompanyId
+    });
+
+    if (!subUser) {
+      return res.json({
+        success: false,
+        message: 'Sub-user not found or unauthorized'
+      });
+    }
+
+    // Update permissions
+    subUser.permissions = {
+      canViewApplications: true, // Always true
+      canPostJobs: permissions.canPostJobs || false,
+      canManageBulkUpload: permissions.canManageBulkUpload || false
+    };
+
+    await subUser.save();
+
+    console.log('✅ Permissions updated for:', subUser.name);
+
+    res.json({
+      success: true,
+      message: 'Permissions updated successfully',
+      subUser: {
+        _id: subUser._id,
+        name: subUser.name,
+        email: subUser.email,
+        roleType: subUser.roleType,
+        permissions: subUser.permissions
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Update permissions error:', error);
+    res.json({
+      success: false,
+      message: 'Failed to update permissions: ' + error.message
     });
   }
 };

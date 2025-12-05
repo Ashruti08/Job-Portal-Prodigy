@@ -462,7 +462,7 @@ const RecruiterLogin = () => {
     }
   };
 
-// ✅ UPDATED: Complete onSubmitHandler function
+// ✅ UPDATED: Complete onSubmitHandler function// ✅ UPDATED: Complete onSubmitHandler function with proper permission handling
 const onSubmitHandler = async (e) => {
   e.preventDefault();
   
@@ -486,9 +486,10 @@ const onSubmitHandler = async (e) => {
       console.log('=== LOGIN RESPONSE ===');
       console.log('Success:', data.success);
       console.log('Company data:', data.company);
+      console.log('Permissions:', data.company?.permissions);
 
       if (data.success) {
-        // ✅ CRITICAL: Store complete company data from backend response
+        // ✅ CRITICAL: Store complete company data including permissions
         const userData = {
           _id: data.company._id,
           name: data.company.name,
@@ -497,12 +498,19 @@ const onSubmitHandler = async (e) => {
           phone: data.company.phone,
           // ✅ THESE ARE THE MOST IMPORTANT FIELDS
           isSubUser: data.company.isSubUser || false,
-          roleType: data.company.roleType || null
+          roleType: data.company.roleType || null,
+          // ✅ ADD PERMISSIONS - This was missing!
+          permissions: data.company.permissions || {
+            canPostJobs: false,
+            canManageBulkUpload: false,
+            canViewApplications: true
+          }
         };
 
         console.log('=== STORING USER DATA ===');
         console.log('isSubUser:', userData.isSubUser);
         console.log('roleType:', userData.roleType);
+        console.log('permissions:', userData.permissions);
         console.log('Full data:', userData);
 
         // ✅ Store in context
@@ -566,7 +574,8 @@ const onSubmitHandler = async (e) => {
           image: data.company.image,
           phone: data.company.phone,
           isSubUser: false,
-          roleType: null
+          roleType: null,
+          permissions: null // Main company doesn't need permissions
         };
 
         setCompanyData(userData);
@@ -591,7 +600,6 @@ const onSubmitHandler = async (e) => {
     setIsLoading(false);
   }
 };
-
   if (showForgotPassword) {
     return (
       <ForgotPassword
@@ -943,4 +951,4 @@ const onSubmitHandler = async (e) => {
   );
 };
 
-export default RecruiterLogin;
+export { RecruiterLogin as default };

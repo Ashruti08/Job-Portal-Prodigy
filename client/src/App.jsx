@@ -39,7 +39,32 @@ const ProtectFromSubUsers = ({ children }) => {
   
   return children;
 };
+// ✅ ADD THIS NEW COMPONENT in App.js (before the App component)
 
+// Permission-Based Route Protection for Sub-Users
+const PermissionProtectedRoute = ({ children, permission }) => {
+  const { companyData } = useContext(AppContext);
+  
+  // Main recruiter always has all permissions
+  if (!companyData?.isSubUser) {
+    return children;
+  }
+  
+  // Check if sub-user has the required permission
+  const hasPermission = companyData?.permissions?.[permission];
+  
+  if (!hasPermission) {
+    const permissionNames = {
+      canPostJobs: 'Post Jobs',
+      canManageBulkUpload: 'Bulk Upload & Search Resume'
+    };
+    
+    toast.error(`${companyData.roleType?.toUpperCase() || 'Sub-user'} users need "${permissionNames[permission]}" permission. Contact your admin.`);
+    return <Navigate to="/dashboard/view-applications" replace />;
+  }
+  
+  return children;
+};
 // Demo-Friendly Protected Route Component
 const DemoFriendlyRecruiterRoute = ({ children, requireAuth = false }) => {
   const { user, isLoaded } = useUser();
@@ -93,23 +118,23 @@ const App = () => {
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
 
         {/* DASHBOARD ROUTES - With Sub-User Protection */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <DemoFriendlyRecruiterRoute>
-              <Dashboard />
-            </DemoFriendlyRecruiterRoute>
-          }
-        >
+     <Route 
+  path="/dashboard" 
+  element={
+    <DemoFriendlyRecruiterRoute>
+      <Dashboard />
+    </DemoFriendlyRecruiterRoute>
+  }
+>
           {/* ✅ OPEN TO ALL: Applications (sub-users and main recruiters) */}
-          <Route 
-            path="view-applications" 
-            element={
-              <DemoFriendlyRecruiterRoute>
-                <ViewApplications />
-              </DemoFriendlyRecruiterRoute>
-            } 
-          />
+         <Route 
+    path="view-applications" 
+    element={
+      <DemoFriendlyRecruiterRoute>
+        <ViewApplications />
+      </DemoFriendlyRecruiterRoute>
+    } 
+  />
 
           {/* ✅ MAIN RECRUITER ONLY: All other routes blocked for sub-users */}
           <Route 
