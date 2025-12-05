@@ -44,7 +44,6 @@ const testimonials = [
 const Testimonial = () => {
   const [index, setIndex] = useState(0);
 
-  // Auto rotate every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % testimonials.length);
@@ -58,31 +57,26 @@ const Testimonial = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
-      {/* Floating container with margin on all sides */}
       <section className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl">
-        {/* Background with gradient overlay - matching Hero section style */}
+
+        {/* Background image (original, no effect) */}
         <div className="absolute inset-0">
           <img
             src={CtaBackground}
             alt="Background"
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover"
           />
-          <div 
-            className="absolute inset-0 mix-blend-multiply"
-            style={{
-              background: "linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(255, 0, 0, 0.33))"
-            }}
-          ></div>
         </div>
 
         {/* Content */}
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="px-8 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20 rounded-3xl backdrop-blur-sm bg-white/5 border border-white/10 shadow-2xl text-center">
+          <div className="px-8 py-12 sm:px-12 sm:py-16 lg:px-16 lg:py-20 rounded-3xl bg-white/80 backdrop-blur-sm border border-gray-200 shadow-2xl text-center">
+
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-4xl font-bold text-white sm:text-5xl mb-8"
+              className="text-4xl font-bold sm:text-5xl mb-8 text-black"
             >
               What People Say <br />
               About DE Employmint
@@ -95,28 +89,28 @@ const Testimonial = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -30 }}
                 transition={{ duration: 0.6 }}
-                className="text-white"
+                className="text-black"
               >
                 <motion.p
-                  className="text-lg italic text-white/90 mb-6 leading-relaxed"
+                  className="text-lg italic mb-6 leading-relaxed text-black"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
                   "{testimonials[index].text}"
                 </motion.p>
+
                 <motion.h4
-                  className="text-xl font-semibold text-white mb-2"
-                  style={{ color: "#020330" }}
+                  className="text-xl font-semibold mb-2 text-black"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
                 >
                   {testimonials[index].name}
                 </motion.h4>
+
                 <motion.p
-                  className="text-sm"
-                  style={{ color: "#022030 " }}
+                  className="text-sm text-black"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
@@ -126,7 +120,7 @@ const Testimonial = () => {
               </motion.div>
             </AnimatePresence>
 
-            {/* Enhanced Dots Navigation */}
+            {/* Dots */}
             <motion.div
               className="flex justify-center mt-8 gap-3"
               initial={{ opacity: 0, y: 20 }}
@@ -138,25 +132,9 @@ const Testimonial = () => {
                   key={i}
                   onClick={() => setIndex(i)}
                   className={`relative w-3 h-3 rounded-full transition-all duration-300 ${
-                    i === index 
-                      ? "bg-white shadow-lg scale-125" 
-                      : "bg-white/40 hover:bg-white/60"
+                    i === index ? "bg-red-600 scale-125" : "bg-black/30 hover:bg-black/60"
                   }`}
-                  whileHover={{ scale: i === index ? 1.25 : 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  style={{
-                    backgroundColor: i === index ? "#FF0000" : "rgba(255, 255, 255, 0.4)"
-                  }}
-                >
-                  {i === index && (
-                    <motion.div
-                      className="absolute inset-0 rounded-full"
-                      style={{ backgroundColor: "#FF0000" }}
-                      layoutId="activeDot"
-                      transition={{ type: "spring", damping: 15 }}
-                    />
-                  )}
-                </motion.button>
+                />
               ))}
             </motion.div>
           </div>

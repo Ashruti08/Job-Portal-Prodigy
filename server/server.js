@@ -66,10 +66,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// app.get('/api/test-digest', async (req, res) => {
-//   const result = await sendDailyDigestAt9AM();
-//   res.json(result);
-// });
+app.get('/api/test-digest', async (req, res) => {
+  const result = await sendDailyDigestAt9AM();
+  res.json(result);
+});
 app.get("/debug-sentry", function mainHandler(req, res) {
   throw new Error("My first Sentry error!");
 });

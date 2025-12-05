@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import HeroImage from "../assets/image-gall.jpg";
+import Dreamjob from "../assets/Dreamjob.jpeg";
 import {
   FiSearch,
   FiDollarSign,
@@ -147,7 +148,7 @@ const AppDownload = () => {
           >
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src={HeroImage}
+                src={Dreamjob}
                 alt="Diverse professionals collaborating in modern office"
                 className="w-full h-auto object-cover"
               />

@@ -1,70 +1,26 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useRef } from "react";
 import { AppContext } from "../context/AppContext";
-import bgimage from "../assets/bg-image-main.jpg";
 import { motion } from "framer-motion";
-import JobListing from "../pages/JobListing";
+import backgroundImage from '../assets/backgroundimage.jpg';
 import { FiSearch, FiMapPin, FiArrowRight } from "react-icons/fi";
-import { FiBriefcase, FiUsers, FiTrendingUp } from "react-icons/fi";
-
-// Import company logos directly
-import companyLogo1 from "../assets/facebook-1-logo-svgrepo-com.svg";
-import companyLogo2 from "../assets/linkedin-logo-svgrepo-com.svg";
-import companyLogo3 from "../assets/slack-logo-svgrepo-com.svg";
-import companyLogo4 from "../assets/instagram-logo-svgrepo-com.svg";
-import companyLogo5 from "../assets/netflix-2-logo-svgrepo-com.svg";
-import companyLogo6 from "../assets/google-1-1-logo-svgrepo-com.svg";
 import { useNavigate } from "react-router-dom";
-
-console.log('VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
-console.log('All env vars:', import.meta.env);
 
 const Hero = () => {
   const { setSearchFilter, setIsSearched } = useContext(AppContext);
   const titleRef = useRef(null);
   const locationRef = useRef(null);
-  const [activeTag, setActiveTag] = useState(null);
-const Navigate=useNavigate();
-  const companyLogos = [
-    'https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg',
-    'https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png',
-    'https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg',
-    'https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg',
-    'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg',
-    'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg'
-  ];
-
-  const popularTags = [
-    "Developer",
-    "Trader",
-    "Marketing",
-    "Senior Research Analyst",
-    "Manager",
-  ];
-
-  const stats = [
-    { icon: FiBriefcase, number: "50K+", label: "Active Jobs" },
-    { icon: FiUsers, number: "1M+", label: "Job Seekers" },
-    { icon: FiTrendingUp, number: "95%", label: "Success Rate" }
-  ];
-
-  const handleTagClick = (tag) => {
-    setActiveTag(tag);
-    titleRef.current.value = tag;
-    // Optional: automatically trigger search
-    // onSearch({ preventDefault: () => {} });
-  };
+  const navigate = useNavigate();
 
   const onSearch = (e) => {
     e.preventDefault();
-    const searchData=({
+    const searchData = {
       title: titleRef.current.value,
       location: locationRef.current.value,
-    });
+    };
     setIsSearched(true);
     setSearchFilter(searchData);
-    Navigate('/Joblisting');
+    navigate('/Joblisting');
   };
-
 
   return (
     <motion.div
@@ -72,259 +28,121 @@ const Navigate=useNavigate();
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
-      {/* Floating container with margin on all sides */}
-      <section className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl">
-        {/* Background with gradient overlay - removed blue tones */}
+      <section 
+        className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl"
+        style={{ minHeight: '1000px' }}
+      >
+        {/* Background */}
         <div className="absolute inset-0">
           <img
-            src={bgimage}
+            src={backgroundImage}
             alt="Background"
             className="w-full h-full object-cover object-center"
           />
-          <div 
-            className="absolute inset-0 mix-blend-multiply"
-            style={{
-              background: "linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(255, 0, 0, 0.33))"
-            }}
-          ></div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 md:py-40">
-          <div className="text-center">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6"
-            >
-              Turning Resumes Into <span style={{ color: '#ff0000' }}>Realities</span>
-            </motion.h1>
-
+        {/* Content */}
+        <div className="relative w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
+          {/* Center Text */}
+          {/* <div className="text-center">
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-xl text-white/90 max-w-2xl mx-auto mb-10"
+              className="text-xl text-black font-semibold max-w-2xl mx-auto mb-10 mt-28"
             >
-              Turning <span style={{ color: '#ff0000' }}>Possibilities</span> into{' '}
-      Probabilities and {''}
-      <span style={{ color: '#ff0000' }}>Probabilities</span> into{' '}
-      <span style={{ color: '#ff0000' }}>Success</span>.
+              Turning <span className="text-red-600">Possibilities</span> into{" "}
+              Probabilities and{" "}
+              <span className="text-red-600">Probabilities</span> into{" "}
+              <span className="text-red-600">Success</span>.
             </motion.p>
+          </div> */}
 
-            {/* Stats bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-              className="flex flex-wrap justify-center gap-8 mb-10"
+          {/* 🔥 Search Bar Position Updated */}
+          <motion.form
+            onSubmit={onSearch}
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.6, duration: 0.8 }}
+            style={{
+              position: "absolute",
+              top: "600px",   // adjust if you want higher/lower
+              right: "570px",     // adjust spacing from left
+              width: "850px",
+              maxWidth: "100%",
+              zIndex: 20,
+            }}
+          >
+            <div
+              style={{
+                background: "white",
+                borderRadius: "16px",
+                border: "1px solid #d1d5db",
+                overflow: "hidden",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+              }}
             >
-              {stats.map((stat, index) => (
-                <motion.div
-                  key={index}
-                  className="flex items-center space-x-2 text-white/80"
-                  whileHover={{ scale: 1.05, color: "#ffffff" }}
-                  transition={{ type: "spring", damping: 15 }}
-                >
-                  <stat.icon className="text-[#fcde47] text-xl" />
-                  <span className="font-bold text-xl">{stat.number}</span>
-                  <span className="text-sm">{stat.label}</span>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            {/* Enhanced search form - removed blue from glow effect */}
-            <motion.form
-              onSubmit={onSearch}
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.6, duration: 0.8, type: "spring", damping: 20 }}
-              className="max-w-4xl mx-auto group"
-            >
-              <div className="relative">
-                {/* Glow effect - removed blue tones */}
-                <motion.div
-                  className="absolute -inset-1 rounded-2xl blur-lg opacity-25 group-hover:opacity-50 transition-opacity duration-500"
-                  style={{
-                    background:" linear-gradient(to right, #ff00007a, #000000, #ff00008e)"
-                  }}
-                  animate={{
-                    scale: [1, 1.02, 1],
-                  }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
+              <div style={{ display: "flex", flexDirection: "row" }}>
                 
-                <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/20">
-                  <div className="flex flex-col md:flex-row">
-                    <motion.div 
-                      className="flex-1 flex items-center px-6 py-5 border-b md:border-b-0 md:border-r border-gray-200/50 group/input"
-                      whileHover={{ backgroundColor: "rgba(255, 255, 255, 1)" }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <FiSearch 
-                        className="text-gray-400 text-xl mr-4 transition-colors duration-200"
-                        style={{ color: "rgb(156 163 175)" }}
-                        onMouseEnter={(e) => e.target.style.color = "#ff0000a1"}
-                        onMouseLeave={(e) => e.target.style.color = "rgb(156 163 175)"}
-                      />
-                      <input
-                        type="text"
-                        ref={titleRef}
-                        placeholder="Job title, keywords, or company"
-                        className="w-full text-lg outline-none placeholder-gray-400 bg-transparent font-medium"
-                        defaultValue={activeTag || ""}
-                      />
-                    </motion.div>
-                    
-                    <motion.div 
-                      className="flex-1 flex items-center px-6 py-5 border-b md:border-b-0 md:border-r border-gray-200/50 group/input"
-                      whileHover={{ backgroundColor: "rgba(255, 255, 255, 1)" }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <FiMapPin 
-                        className="text-gray-400 text-xl mr-4 transition-colors duration-200"
-                        style={{ color: "rgb(156 163 175)" }}
-                        onMouseEnter={(e) => e.target.style.color = "#FF0000"}
-                        onMouseLeave={(e) => e.target.style.color = "rgb(156 163 175)"}
-                      />
-                      <input
-                        type="text"
-                        ref={locationRef}
-                        placeholder="Location or remote"
-                        className="w-full text-lg outline-none placeholder-gray-400 bg-transparent font-medium"
-                      />
-                    </motion.div>
-                    
-                    <motion.button
-                      type="submit"
-                      className="relative text-white px-8 py-5 font-bold text-lg flex items-center justify-center transition-all duration-300 overflow-hidden group/button"
-                      style={{ 
-                        background:" linear-gradient(to right, #FF0000)"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background =" linear-gradient(to right, #CC0000)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = "linear-gradient(to right, #FF0000)";
-                      }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0  transition-opacity duration-300"
-                       
-                      />
-                      <span className="relative z-10">Search Jobs</span>
-                      <FiArrowRight className="ml-3 relative z-10 group-hover/button:translate-x-1 transition-transform duration-200" />
-                    </motion.button>
-                  </div>
+                {/* Job Input */}
+                <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "18px", borderRight: "1px solid #e5e7eb" }}>
+                  <FiSearch style={{ color: "#6b7280", fontSize: "20px", marginRight: "10px" }} />
+                  <input
+                    type="text"
+                    ref={titleRef}
+                    placeholder="Job title, keywords, or company"
+                    style={{
+                      width: "100%",
+                      fontSize: "18px",
+                      border: "none",
+                      outline: "none",
+                      background: "transparent",
+                      color: "#000",
+                    }}
+                  />
                 </div>
-              </div>
-            </motion.form>
 
-            {/* Enhanced popular tags - removed blue from gradient */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.8 }}
-              className="mt-8 text-white/80"
-            >
-              <span className="mr-4 text-lg font-medium">Popular Searches:</span>
-              <div className="flex flex-wrap justify-center gap-3 mt-3">
-                {popularTags.map((tag, i) => (
-                  <motion.button
-                    key={i}
-                    onClick={() => handleTagClick(tag)}
-                    className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 overflow-hidden group/tag ${
-                      activeTag === tag
-                        ? "bg-white/30 text-white shadow-lg"
-                        : "bg-white/10 hover:bg-white/20 backdrop-blur-sm"
-                    }`}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.9 + i * 0.1 }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 opacity-0 group-hover/tag:opacity-100 transition-opacity duration-300"
-                      style={{
-                        background: "linear-gradient(to right, rgba(255, 0, 0, 0.3), rgba(0, 0, 0, 0.3))"
-                      }}
-                      initial={{ scale: 0 }}
-                      whileHover={{ scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <span className="relative z-10">{tag}</span>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
+      {/* Location Input */}
+      <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "18px", borderRight: "1px solid #e5e7eb" }}>
+        <FiMapPin style={{ color: "#6b7280", fontSize: "20px", marginRight: "10px" }} />
+        <input
+          ref={locationRef}
+          placeholder="Location or remote"
+          style={{
+            width: "100%",
+            fontSize: "18px",
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            color: "#000",
+          }}
+        />
+      </div>
+
+      {/* Search Button */}
+      <button
+        type="submit"
+        style={{
+          background: "linear-gradient(to right, #FF0000, #CC0000)",
+          color: "white",
+          fontWeight: "bold",
+          padding: "18px 28px",
+          fontSize: "18px",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        Search Jobs <FiArrowRight />
+      </button>
+    </div>
+  </div>
+</motion.form>
+
         </div>
       </section>
-
-      {/* Trusted companies Section */}
-      {/* <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="py-7 px-4 max-w-6xl mx-auto bg-white"
-      > */}
-        {/* Simple header */}
-        {/* <div className="text-center mb-12">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-            Trusted By
-          </p>
-          <h3 
-            className="text-base font-normal"
-            style={{ color: "#020330" }}
-          >
-            Innovative companies worldwide
-          </h3>
-        </div> */}
-
-        {/* Clean logo grid */}
-        {/* <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 lg:gap-16">
-          {companyLogos.map((logo, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ 
-                delay: index * 0.1,
-                duration: 0.4
-              }}
-              whileHover={{ 
-                scale: 1.05,
-                transition: { duration: 0.2 }
-              }}
-              className="relative group cursor-pointer flex-shrink-0"
-            >
-              <div className="w-20 h-12 flex items-center justify-center">
-                <img
-                  src={logo}
-                  alt={`Company ${index + 1}`}
-                  className="max-h-full max-w-full object-contain filter grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-90 transition-all duration-300"
-                />
-              </div>
-            </motion.div>
-          ))}
-        </div> */}
-
-        {/* Minimal accent */}
-        {/* <motion.div
-          className="flex justify-center mt-12"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.4 }}
-        >
-          <div 
-            className="w-12 h-px"
-            style={{ backgroundColor: "#FF0000" }}
-          ></div>
-        </motion.div>
-      </motion.div> */}
     </motion.div>
   );
 };

@@ -17,7 +17,8 @@ import {
   FiFileText,
   FiCalendar,
   FiBriefcase,
-  FiTrendingUp
+  FiTrendingUp,
+  FiCheckCircle
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 
@@ -34,6 +35,12 @@ const SearchResume = () => {
   const [sortBy, setSortBy] = useState("name");
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [matchingStats, setMatchingStats] = useState({
+    total: 0,
+    matched: 0,
+    unmatched: 0,
+    matchRate: 0
+  });
 
   useEffect(() => {
     if (companyToken) {
@@ -45,41 +52,113 @@ const SearchResume = () => {
     filterAndSortData();
   }, [combinedData, searchQuery, filterStatus, sortBy]);
 
+  // Enhanced name extraction from resume filename
   const extractCandidateName = (text) => {
     if (!text) return "";
-    // Remove file extensions
-    let name = text.replace(/\.[^/.]+$/, "");
+    
+    // Remove file extension
+    let name = text.replace(/\.(pdf|doc|docx)$/i, "");
+    
     // Replace common separators with space
     name = name.replace(/[-_]/g, " ");
-    // Remove extra spaces
-    name = name.replace(/\s+/g, " ").trim();
+    
+    // Remove extra spaces and numbers
+    name = name.replace(/\s+/g, " ")
+                .replace(/\d+/g, "")
+                .trim();
+    
+    // Capitalize each word
+    name = name.split(' ')
+               .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+               .join(' ');
+    
     return name;
   };
 
-  const getCsvDataByName = (candidateName, csvData) => {
-    if (!csvData || !Array.isArray(csvData.data)) return null;
+  // Normalize name for comparison (remove spaces, special chars, convert to lowercase)
+  const normalizeName = (name) => {
+    if (!name) return "";
+    return name.toLowerCase()
+               .replace(/\s+/g, "")  // Remove all spaces
+               .replace(/[^a-z]/g, "");  // Remove all non-alphabetic characters
+  };
+
+  // Check if two names match
+  const namesMatch = (name1, name2) => {
+    const normalized1 = normalizeName(name1);
+    const normalized2 = normalizeName(name2);
     
-    const normalizedSearchName = candidateName.toLowerCase().trim();
+    // Exact match
+    if (normalized1 === normalized2) return true;
     
-    // Search in CSV data (assuming first column is Full Name)
-    const matchingRow = csvData.data.find(row => {
-      if (!row || !row[0]) return false;
-      const csvName = row[0].toLowerCase().trim();
-      return csvName === normalizedSearchName;
+    // Partial match (one name contains the other and length difference < 3)
+    if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
+      const lengthDiff = Math.abs(normalized1.length - normalized2.length);
+      if (lengthDiff <= 3) return true;
+    }
+    
+    return false;
+  };
+
+  // Get CSV data by matching candidate name
+  const getCsvDataByName = (candidateName, csvFile) => {
+    if (!csvFile || !csvFile.data || !Array.isArray(csvFile.data)) return null;
+    
+    console.log('=== CSV DATA STRUCTURE ===');
+    console.log('CSV File:', csvFile.originalName);
+    console.log('First 3 rows:', csvFile.data.slice(0, 3));
+    console.log('Looking for candidate:', candidateName);
+    
+    // Search in CSV data - combining First Name, Middle Name, and Surname
+    const matchingRow = csvFile.data.find((row, index) => {
+      if (!row || row.length < 3) return false;
+      
+      // Skip header row
+      if (index === 0 && row[0]?.toLowerCase().includes('first')) {
+        return false;
+      }
+      
+      // Construct full name from CSV (First Name + Middle Name + Surname)
+      const firstName = row[0] || '';
+      const middleName = row[1] || '';
+      const surname = row[2] || '';
+      const csvFullName = `${firstName} ${middleName} ${surname}`.trim().replace(/\s+/g, ' ');
+      
+      // Also try without middle name
+      const csvFullNameNoMiddle = `${firstName} ${surname}`.trim().replace(/\s+/g, ' ');
+      
+      console.log(`Row ${index}: CSV Name = "${csvFullName}" (or "${csvFullNameNoMiddle}") vs Resume Name = "${candidateName}"`);
+      
+      const isMatch = namesMatch(candidateName, csvFullName) || namesMatch(candidateName, csvFullNameNoMiddle);
+      if (isMatch) {
+        console.log('✓ MATCH FOUND!');
+      }
+      
+      return isMatch;
     });
+    
+    if (matchingRow) {
+      console.log('Matched row data:', matchingRow);
+    } else {
+      console.log('❌ No match found for:', candidateName);
+    }
     
     return matchingRow;
   };
 
-  const parseCsvRow = (row, headers) => {
+  // Parse CSV row into structured data based on your actual headers
+  const parseCsvRow = (row) => {
     if (!row) return {};
     
     const data = {};
+    // Your actual CSV headers
     const csvHeaders = [
-      'Full Name', 'Mobile Number', 'Specialization', 'Minimum Salary', 
-      'Email ID', 'LinkedIn Id', 'Leetcode Id', 'Togoprise',
-      'Important', 'Skills', 'Category', 'Product', 'Cleared', 'Current Registration',
-      'Current Department', 'Comment', 'Comment'
+      'First Name', 'Middle Name', 'Surname', 'Mobile No', 
+      'Email ID', 'Linkedin ID', 'Facebook ID', 'Instagram ID', 'Snapchat',
+      'City', 'State', 'Languages', 'Marital Status',
+      'Sector', 'Category', 'Product', 'Channel', 
+      'Current Designation', 'Current Department', 'Current CTC', 'Expected CTC',
+      'Notice Period', 'Total Experience', 'Broker Roll / Company Roll', 'Status for Job Change'
     ];
     
     row.forEach((value, index) => {
@@ -105,8 +184,72 @@ const SearchResume = () => {
       ]);
 
       if (resumesRes.data.success && csvRes.data.success) {
-        const resumes = resumesRes.data.data.files || [];
-        const csvFiles = csvRes.data.data.files || [];
+        const resumes = resumesRes.data.data?.files || resumesRes.data.files || [];
+        const csvFiles = csvRes.data.data?.files || csvRes.data.files || [];
+
+        console.log('=== API RESPONSE ===');
+        console.log('Resumes response:', resumesRes.data);
+        console.log('CSV response:', csvRes.data);
+        console.log('Resumes found:', resumes.length);
+        console.log('CSV files found:', csvFiles.length);
+        
+        // If CSV files don't have parsed data, fetch and parse them
+        const parsedCsvFiles = await Promise.all(
+          csvFiles.map(async (csvFile) => {
+            // Check if data is already available
+            if (csvFile.data && Array.isArray(csvFile.data) && csvFile.data.length > 0) {
+              console.log('CSV already has data:', csvFile.originalName);
+              return csvFile;
+            }
+            
+            // Otherwise, fetch and parse the CSV
+            console.log('Fetching CSV content for:', csvFile.originalName);
+            try {
+              const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${csvFile._id}`, {
+                headers: { token: companyToken },
+                responseType: 'blob'
+              });
+              
+              const text = await response.data.text();
+              
+              // Detect delimiter (tab or comma)
+              const firstLine = text.split('\n')[0];
+              const delimiter = firstLine.includes('\t') ? '\t' : ',';
+              
+              console.log('Detected delimiter:', delimiter === '\t' ? 'TAB' : 'COMMA');
+              
+              const rows = text.split('\n').map(row => {
+                // Split by detected delimiter
+                if (delimiter === '\t') {
+                  return row.split('\t').map(cell => cell.trim());
+                } else {
+                  // Handle CSV with proper parsing (handles commas in quotes)
+                  const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
+                  return row.match(regex)?.map(cell => cell.replace(/^"|"$/g, '').trim()) || [];
+                }
+              }).filter(row => row.length > 1 && row.some(cell => cell !== ''));
+              
+              console.log('Total rows:', rows.length);
+              console.log('Headers:', rows[0]);
+              console.log('First data row:', rows[1]);
+              
+              return {
+                ...csvFile,
+                data: rows
+              };
+            } catch (error) {
+              console.error('Error fetching/parsing CSV:', csvFile.originalName, error);
+              return csvFile;
+            }
+          })
+        );
+        
+        console.log('=== PARSED CSV FILES ===');
+        parsedCsvFiles.forEach((csvFile, idx) => {
+          console.log(`CSV ${idx + 1}: ${csvFile.originalName}`);
+          console.log('Has data:', !!csvFile.data);
+          console.log('Rows:', csvFile.data?.length || 0);
+        });
 
         // Combine resume data with CSV data
         const combined = resumes.map(resume => {
@@ -114,55 +257,99 @@ const SearchResume = () => {
           const resumeFileName = resume.originalName || "";
           const extractedName = extractCandidateName(resumeFileName);
           
-          // Try to get name from parsed data first
+          console.log('Processing resume:', resumeFileName, '-> Extracted name:', extractedName);
+          
+          // Try to get name from parsed data first, fallback to extracted name
           const candidateName = resume.parsedData?.name || extractedName;
           
-          // Search for matching CSV data
+          // Search for matching CSV data across all CSV files
           let csvMatch = null;
           let csvMatchedData = null;
           
-          for (const csvFile of csvFiles) {
+          for (const csvFile of parsedCsvFiles) {
             csvMatchedData = getCsvDataByName(candidateName, csvFile);
             if (csvMatchedData) {
               csvMatch = csvFile;
+              console.log('✓ Match found for:', candidateName, 'in CSV:', csvFile.originalName);
               break;
             }
           }
 
+          if (!csvMatchedData) {
+            console.log('✗ No match found for:', candidateName);
+          }
+
           // Parse CSV row if found
-          const parsedCsv = csvMatchedData ? parseCsvRow(csvMatchedData, csvMatch?.headers) : null;
+          const parsedCsv = csvMatchedData ? parseCsvRow(csvMatchedData) : null;
 
           return {
             _id: resume._id,
             resumeName: resumeFileName,
             candidateName: candidateName,
             email: parsedCsv?.['Email ID'] || resume.parsedData?.email || "N/A",
-            phone: parsedCsv?.['Mobile Number'] || resume.parsedData?.phone || "N/A",
-            location: resume.parsedData?.location || "N/A",
-            skills: parsedCsv?.['Skills'] || resume.parsedData?.skills || "N/A",
-            experience: resume.parsedData?.experience || "N/A",
+            phone: parsedCsv?.['Mobile No'] || resume.parsedData?.phone || "N/A",
+            location: `${parsedCsv?.['City'] || ''} ${parsedCsv?.['State'] || ''}`.trim() || resume.parsedData?.location || "N/A",
+            skills: parsedCsv?.['Languages'] || resume.parsedData?.skills || "N/A",
+            experience: parsedCsv?.['Total Experience'] || resume.parsedData?.experience || "N/A",
             status: resume.status,
             fileSize: resume.fileSize,
             uploadDate: resume.uploadDate || resume.createdAt,
             resumeFile: resume,
             
-            // CSV specific fields
+            // CSV specific fields based on your headers
             csvData: parsedCsv,
             csvMatched: !!csvMatchedData,
-            specialization: parsedCsv?.['Specialization'] || "N/A",
-            minimumSalary: parsedCsv?.['Minimum Salary'] || "N/A",
-            linkedinId: parsedCsv?.['LinkedIn Id'] || "N/A",
-            leetcodeId: parsedCsv?.['Leetcode Id'] || "N/A",
+            csvFileName: csvMatch?.originalName || "N/A",
+            
+            // Personal Info
+            firstName: parsedCsv?.['First Name'] || "N/A",
+            middleName: parsedCsv?.['Middle Name'] || "N/A",
+            surname: parsedCsv?.['Surname'] || "N/A",
+            city: parsedCsv?.['City'] || "N/A",
+            state: parsedCsv?.['State'] || "N/A",
+            languages: parsedCsv?.['Languages'] || "N/A",
+            maritalStatus: parsedCsv?.['Marital Status'] || "N/A",
+            
+            // Social Media
+            linkedinId: parsedCsv?.['Linkedin ID'] || "N/A",
+            facebookId: parsedCsv?.['Facebook ID'] || "N/A",
+            instagramId: parsedCsv?.['Instagram ID'] || "N/A",
+            snapchat: parsedCsv?.['Snapchat'] || "N/A",
+            
+            // Professional Info
+            sector: parsedCsv?.['Sector'] || "N/A",
             category: parsedCsv?.['Category'] || "N/A",
             product: parsedCsv?.['Product'] || "N/A",
-            cleared: parsedCsv?.['Cleared'] || "N/A",
-            currentRegistration: parsedCsv?.['Current Registration'] || "N/A",
+            channel: parsedCsv?.['Channel'] || "N/A",
+            currentDesignation: parsedCsv?.['Current Designation'] || "N/A",
             currentDepartment: parsedCsv?.['Current Department'] || "N/A",
-            comments: parsedCsv?.['Comment'] || "N/A",
+            
+            // Compensation & Career
+            currentCTC: parsedCsv?.['Current CTC'] || "N/A",
+            expectedCTC: parsedCsv?.['Expected CTC'] || "N/A",
+            noticePeriod: parsedCsv?.['Notice Period'] || "N/A",
+            totalExperience: parsedCsv?.['Total Experience'] || "N/A",
+            brokerRoll: parsedCsv?.['Broker Roll / Company Roll'] || "N/A",
+            jobChangeStatus: parsedCsv?.['Status for Job Change'] || "N/A"
           };
         });
 
+        // Calculate matching statistics
+        const totalResumes = combined.length;
+        const matchedResumes = combined.filter(c => c.csvMatched).length;
+        const unmatchedResumes = totalResumes - matchedResumes;
+        const matchRate = totalResumes > 0 ? Math.round((matchedResumes / totalResumes) * 100) : 0;
+
+        setMatchingStats({
+          total: totalResumes,
+          matched: matchedResumes,
+          unmatched: unmatchedResumes,
+          matchRate: matchRate
+        });
+
         setCombinedData(combined);
+        
+        toast.success(`Loaded ${totalResumes} resumes. ${matchedResumes} matched with CSV data.`);
       }
     } catch (error) {
       console.error("Error fetching combined data:", error);
@@ -178,7 +365,11 @@ const SearchResume = () => {
         item.candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.phone.includes(searchQuery) ||
-        item.specialization.toLowerCase().includes(searchQuery.toLowerCase());
+        item.sector.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.currentDesignation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.languages.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = 
         filterStatus === "all" ||
@@ -294,6 +485,41 @@ const SearchResume = () => {
           </div>
         </motion.div>
 
+        {/* Matching Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium opacity-90">Total Resumes</p>
+              <FiFileText className="text-2xl opacity-75" />
+            </div>
+            <p className="text-3xl font-bold">{matchingStats.total}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium opacity-90">Matched</p>
+              <FiCheckCircle className="text-2xl opacity-75" />
+            </div>
+            <p className="text-3xl font-bold">{matchingStats.matched}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-5 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium opacity-90">Unmatched</p>
+              <FiAlertCircle className="text-2xl opacity-75" />
+            </div>
+            <p className="text-3xl font-bold">{matchingStats.unmatched}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-5 text-white">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium opacity-90">Match Rate</p>
+              <FiTrendingUp className="text-2xl opacity-75" />
+            </div>
+            <p className="text-3xl font-bold">{matchingStats.matchRate}%</p>
+          </div>
+        </div>
+
         {/* Search and Filter Section */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -302,7 +528,7 @@ const SearchResume = () => {
               <FiSearch className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, email, phone, or specialization..."
+                placeholder="Search by name, email, phone, sector, category, city, designation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -360,7 +586,7 @@ const SearchResume = () => {
         {isLoading ? (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">
             <FiRefreshCw className="mx-auto text-4xl text-gray-400 mb-4 animate-spin" />
-            <p className="text-gray-600">Loading resumes...</p>
+            <p className="text-gray-600">Loading and matching resumes with CSV data...</p>
           </div>
         ) : filteredData.length > 0 ? (
           /* Results Table */
@@ -378,7 +604,8 @@ const SearchResume = () => {
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Candidate</th>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Email</th>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Phone</th>
-                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Specialization</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">City</th>
+                    <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Sector</th>
                     <th className="py-3 px-6 text-left text-sm font-medium text-gray-700">Match Status</th>
                     <th className="py-3 px-6 text-center text-sm font-medium text-gray-700">Actions</th>
                   </tr>
@@ -396,7 +623,7 @@ const SearchResume = () => {
                         <div className="flex items-center space-x-3">
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                            style={{ backgroundColor: '#ff6666' }}
+                            style={{ backgroundColor: candidate.csvMatched ? '#00C851' : '#FF6666' }}
                           >
                             {candidate.candidateName.charAt(0).toUpperCase()}
                           </div>
@@ -423,7 +650,10 @@ const SearchResume = () => {
                         </div>
                       </td>
                       <td className="py-4 px-6 text-sm text-gray-600">
-                        {candidate.specialization}
+                        {candidate.city}
+                      </td>
+                      <td className="py-4 px-6 text-sm text-gray-600">
+                        {candidate.sector}
                       </td>
                       <td className="py-4 px-6">
                         <span
@@ -504,7 +734,7 @@ const SearchResume = () => {
                 <div className="flex items-center space-x-3">
                   <div
                     className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                    style={{ backgroundColor: '#ff6666' }}
+                    style={{ backgroundColor: selectedCandidate.csvMatched ? '#00C851' : '#FF6666' }}
                   >
                     {selectedCandidate.candidateName.charAt(0).toUpperCase()}
                   </div>
@@ -559,8 +789,8 @@ const SearchResume = () => {
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
-                      <label className="text-sm text-gray-600 block mb-1">Specialization</label>
-                      <p className="text-gray-900 font-medium">{selectedCandidate.specialization}</p>
+                      <label className="text-sm text-gray-600 block mb-1">Sector</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.sector}</p>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                       <label className="text-sm text-gray-600 block mb-1">Category</label>
@@ -571,29 +801,70 @@ const SearchResume = () => {
                       <p className="text-gray-900 font-medium">{selectedCandidate.product}</p>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                      <label className="text-sm text-gray-600 block mb-1">Channel</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.channel}</p>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                      <label className="text-sm text-gray-600 block mb-1">Current Designation</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.currentDesignation}</p>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                       <label className="text-sm text-gray-600 block mb-1">Current Department</label>
                       <p className="text-gray-900 font-medium">{selectedCandidate.currentDepartment}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Salary & Status */}
+                {/* Personal Information */}
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold mb-4" style={{ color: '#020330' }}>
-                    💰 Salary & Status
+                    👤 Personal Information
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="text-sm text-gray-600 block mb-1">City</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.city}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="text-sm text-gray-600 block mb-1">State</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.state}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <label className="text-sm text-gray-600 block mb-1">Marital Status</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.maritalStatus}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Compensation & Experience */}
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold mb-4" style={{ color: '#020330' }}>
+                    💰 Compensation & Experience
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                      <label className="text-sm text-gray-600 block mb-1">Minimum Salary</label>
-                      <p className="text-gray-900 font-medium">{selectedCandidate.minimumSalary}</p>
+                      <label className="text-sm text-gray-600 block mb-1">Current CTC</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.currentCTC}</p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                      <label className="text-sm text-gray-600 block mb-1">Cleared</label>
-                      <p className="text-gray-900 font-medium">{selectedCandidate.cleared}</p>
+                      <label className="text-sm text-gray-600 block mb-1">Expected CTC</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.expectedCTC}</p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
-                      <label className="text-sm text-gray-600 block mb-1">Current Registration</label>
-                      <p className="text-gray-900 font-medium">{selectedCandidate.currentRegistration}</p>
+                      <label className="text-sm text-gray-600 block mb-1">Total Experience</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.totalExperience}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                      <label className="text-sm text-gray-600 block mb-1">Notice Period</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.noticePeriod}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                      <label className="text-sm text-gray-600 block mb-1">Broker/Company Roll</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.brokerRoll}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                      <label className="text-sm text-gray-600 block mb-1">Job Change Status</label>
+                      <p className="text-gray-900 font-medium">{selectedCandidate.jobChangeStatus}</p>
                     </div>
                   </div>
                 </div>
@@ -601,7 +872,7 @@ const SearchResume = () => {
                 {/* Social & Technical Links */}
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold mb-4" style={{ color: '#020330' }}>
-                    🔗 Links & IDs
+                    🔗 Social Media Links
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
@@ -616,40 +887,29 @@ const SearchResume = () => {
                       </a>
                     </div>
                     <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
-                      <label className="text-sm text-gray-600 block mb-1">LeetCode ID</label>
-                      <a 
-                        href={selectedCandidate.leetcodeId !== "N/A" ? `https://leetcode.com/${selectedCandidate.leetcodeId}` : "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 break-all"
-                      >
-                        {selectedCandidate.leetcodeId}
-                      </a>
+                      <label className="text-sm text-gray-600 block mb-1">Facebook ID</label>
+                      <p className="text-gray-900 font-medium break-all">{selectedCandidate.facebookId}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                      <label className="text-sm text-gray-600 block mb-1">Instagram ID</label>
+                      <p className="text-gray-900 font-medium break-all">{selectedCandidate.instagramId}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                      <label className="text-sm text-gray-600 block mb-1">Snapchat</label>
+                      <p className="text-gray-900 font-medium break-all">{selectedCandidate.snapchat}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Skills */}
+                {/* Languages */}
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold mb-4" style={{ color: '#020330' }}>
-                    🎯 Skills
+                    🗣️ Languages
                   </h4>
                   <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
-                    <p className="text-gray-900">{selectedCandidate.skills}</p>
+                    <p className="text-gray-900">{selectedCandidate.languages}</p>
                   </div>
                 </div>
-
-                {/* Comments */}
-                {selectedCandidate.comments && selectedCandidate.comments !== "N/A" && (
-                  <div className="mb-6">
-                    <h4 className="text-lg font-semibold mb-4" style={{ color: '#020330' }}>
-                      📝 Comments
-                    </h4>
-                    <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-400">
-                      <p className="text-gray-900">{selectedCandidate.comments}</p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Resume Info */}
                 <div className="mb-6 pt-6 border-t border-gray-200">
@@ -691,8 +951,11 @@ const SearchResume = () => {
                     <h4 className="text-lg font-semibold mb-2" style={{ color: '#020330' }}>
                       ✅ CSV Data Matched Successfully
                     </h4>
-                    <p className="text-sm text-gray-600">
-                      This candidate's resume has been matched with CSV data. All details above are automatically populated from the CSV file.
+                    <p className="text-sm text-gray-600 mb-1">
+                      This candidate's resume has been matched with CSV data from: <span className="font-medium">{selectedCandidate.csvFileName}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      All details above are automatically populated from the matched CSV file.
                     </p>
                   </div>
                 ) : (
@@ -700,8 +963,11 @@ const SearchResume = () => {
                     <h4 className="text-lg font-semibold mb-2" style={{ color: '#020330' }}>
                       ⚠️ No CSV Match Found
                     </h4>
-                    <p className="text-sm text-gray-600">
-                      This resume could not be matched with any CSV data. Make sure the candidate name in the resume and CSV file are identical.
+                    <p className="text-sm text-gray-600 mb-1">
+                      This resume could not be matched with any CSV data.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Tip: Ensure the candidate name in the resume filename (extracted as: <span className="font-medium">{selectedCandidate.candidateName}</span>) matches the "First Name", "Middle Name", and "Surname" columns in your CSV file.
                     </p>
                   </div>
                 )}
