@@ -1,9 +1,8 @@
 {
   "name": "job-portal-prodigy",
-  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "cd server && npm start"
+    "start": "npm --prefix server start"
   },
   "engines": {
     "node": ">=18.0.0"
