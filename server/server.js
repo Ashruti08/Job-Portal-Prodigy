@@ -71,8 +71,8 @@ app.get('/api/test-digest', async (req, res) => {
   res.json(result);
 });
 //app.get("/debug-sentry", function mainHandler(req, res) {
-  throw new Error("My first Sentry error!");
-});
+ // throw new Error("My first Sentry error!");
+//});
 
 // Routes
 app.post('/webhooks', clerkWebhooks);
@@ -93,7 +93,7 @@ app.use('*', (req, res) => {
 });
 
 // Sentry error handler (must be after all routes)
-Sentry.setupExpressErrorHandler(app);
+//Sentry.setupExpressErrorHandler(app);
 
 // Global error handler (must be after Sentry)// Global error handler (must be after Sentry)
 app.use((error, req, res, next) => {
