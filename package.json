@@ -3,14 +3,7 @@
   "version": "1.0.0",
   "type": "module",
 
-  "scripts": {
-    "start": "node server/server.js"
-  },
 
- "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
 
   "dependencies": {
     "@aws-sdk/client-ses": "^3.899.0",
