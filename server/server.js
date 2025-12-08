@@ -4,7 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import 'dotenv/config';
 import connectDB from "./config/db.js";
-import * as Sentry from "@sentry/node";
+// import * as Sentry from "@sentry/node";
 import { clerkWebhooks } from './controller/webhooks.js';
 import companyRoutes from './routes/companyRoutes.js';
 import JobRoutes from './routes/jobRoutes.js';
