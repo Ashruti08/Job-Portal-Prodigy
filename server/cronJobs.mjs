@@ -1,6 +1,6 @@
 // cronJobs.js - SIMPLIFIED: Single Daily Digest at 9 AM
 import cron from 'node-cron';
-import { sendDailyDigestAt9AM, getPendingJobStats } from './server/services/jobNotificationService.js';
+import { sendDailyDigestAt9AM, getPendingJobStats } from './services/jobNotificationService.js';
 
 // Main digest job - Runs EVERY day at 9:00 AM
 export const startDailyDigest = () => {
