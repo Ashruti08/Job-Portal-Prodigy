@@ -463,27 +463,26 @@ const SearchResume = () => {
     >
       <div className="container p-4 mx-auto">
         {/* Header */}
-        <motion.div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#020330' }}>
-                Search Resume
-              </h1>
-              <p className="text-gray-600">
-                View combined resume and candidate details from CSV uploads
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                fetchCombinedData();
-              }}
-              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Refresh"
-            >
-              <FiRefreshCw size={20} />
-            </button>
-          </div>
-        </motion.div>
+      {/* Header - Line 91 */}
+<motion.div className="mb-6 sm:mb-8">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2" style={{ color: '#020330' }}>
+        Search Resume
+      </h1>
+      <p className="text-sm sm:text-base text-gray-600">
+        View combined resume and candidate details from CSV uploads
+      </p>
+    </div>
+    <button
+      onClick={() => { fetchCombinedData(); }}
+      className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+      title="Refresh"
+    >
+      <FiRefreshCw size={20} />
+    </button>
+  </div>
+</motion.div>
 
         {/* Matching Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
