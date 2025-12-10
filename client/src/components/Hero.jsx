@@ -29,8 +29,8 @@ const Hero = () => {
       transition={{ duration: 0.8, ease: "easeOut" }}
     >
       <section 
-        className="relative overflow-hidden mx-4 my-6 lg:mx-8 lg:my-10 rounded-3xl shadow-2xl"
-        style={{ minHeight: '1000px' }}
+        className="relative overflow-hidden mx-2 sm:mx-4 my-4 sm:my-6 lg:mx-8 lg:my-10 rounded-2xl sm:rounded-3xl shadow-2xl"
+        style={{ minHeight: '500px' }}
       >
         {/* Background */}
         <div className="absolute inset-0">
@@ -42,105 +42,85 @@ const Hero = () => {
         </div>
 
         {/* Content */}
-        <div className="relative w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-          {/* Center Text */}
-          {/* <div className="text-center">
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-xl text-black font-semibold max-w-2xl mx-auto mb-10 mt-28"
-            >
-              Turning <span className="text-red-600">Possibilities</span> into{" "}
-              Probabilities and{" "}
-              <span className="text-red-600">Probabilities</span> into{" "}
-              <span className="text-red-600">Success</span>.
-            </motion.p>
-          </div> */}
-
-          {/* 🔥 Search Bar Position Updated */}
+        <div className="relative w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24 lg:py-32 flex items-center justify-center">
+          
+          {/* Search Bar - Centered and Responsive */}
           <motion.form
             onSubmit={onSearch}
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: 0.6, duration: 0.8 }}
-            style={{
-              position: "absolute",
-              top: "600px",   // adjust if you want higher/lower
-              right: "570px",     // adjust spacing from left
-              width: "850px",
-              maxWidth: "100%",
-              zIndex: 20,
-            }}
+            className="w-full max-w-4xl"
           >
-            <div
-              style={{
-                background: "white",
-                borderRadius: "16px",
-                border: "1px solid #d1d5db",
-                overflow: "hidden",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row" }}>
-                
+            <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 overflow-hidden shadow-xl">
+              
+              {/* Desktop Layout */}
+              <div className="hidden md:flex flex-row">
                 {/* Job Input */}
-                <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "18px", borderRight: "1px solid #e5e7eb" }}>
-                  <FiSearch style={{ color: "#6b7280", fontSize: "20px", marginRight: "10px" }} />
+                <div className="flex-1 flex items-center px-4 py-4 lg:px-6 lg:py-5 border-r border-gray-200">
+                  <FiSearch className="text-gray-400 text-lg lg:text-xl mr-3 flex-shrink-0" />
                   <input
                     type="text"
                     ref={titleRef}
                     placeholder="Job title, keywords, or company"
-                    style={{
-                      width: "100%",
-                      fontSize: "18px",
-                      border: "none",
-                      outline: "none",
-                      background: "transparent",
-                      color: "#000",
-                    }}
+                    className="w-full text-base lg:text-lg border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
                   />
                 </div>
 
-      {/* Location Input */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "18px", borderRight: "1px solid #e5e7eb" }}>
-        <FiMapPin style={{ color: "#6b7280", fontSize: "20px", marginRight: "10px" }} />
-        <input
-          ref={locationRef}
-          placeholder="Location or remote"
-          style={{
-            width: "100%",
-            fontSize: "18px",
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            color: "#000",
-          }}
-        />
-      </div>
+                {/* Location Input */}
+                <div className="flex-1 flex items-center px-4 py-4 lg:px-6 lg:py-5 border-r border-gray-200">
+                  <FiMapPin className="text-gray-400 text-lg lg:text-xl mr-3 flex-shrink-0" />
+                  <input
+                    type="text"
+                    ref={locationRef}
+                    placeholder="Location or remote"
+                    className="w-full text-base lg:text-lg border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  />
+                </div>
 
-      {/* Search Button */}
-      <button
-        type="submit"
-        style={{
-          background: "linear-gradient(to right, #FF0000, #CC0000)",
-          color: "white",
-          fontWeight: "bold",
-          padding: "18px 28px",
-          fontSize: "18px",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        Search Jobs <FiArrowRight />
-      </button>
-    </div>
-  </div>
-</motion.form>
+                {/* Search Button */}
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 lg:px-8 py-4 lg:py-5 text-base lg:text-lg border-none cursor-pointer flex items-center gap-2 hover:from-red-700 hover:to-red-800 transition-all whitespace-nowrap"
+                >
+                  Search Jobs <FiArrowRight />
+                </button>
+              </div>
 
+              {/* Mobile/Tablet Layout */}
+              <div className="md:hidden flex flex-col">
+                {/* Job Input */}
+                <div className="flex items-center px-4 py-3.5 border-b border-gray-200">
+                  <FiSearch className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                  <input
+                    type="text"
+                    ref={titleRef}
+                    placeholder="Job title, keywords..."
+                    className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Location Input */}
+                <div className="flex items-center px-4 py-3.5 border-b border-gray-200">
+                  <FiMapPin className="text-gray-400 text-lg mr-3 flex-shrink-0" />
+                  <input
+                    type="text"
+                    ref={locationRef}
+                    placeholder="Location or remote"
+                    className="w-full text-base border-none outline-none bg-transparent text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Search Button */}
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold px-6 py-4 text-base border-none cursor-pointer flex items-center justify-center gap-2 hover:from-red-700 hover:to-red-800 transition-all w-full"
+                >
+                  Search Jobs <FiArrowRight />
+                </button>
+              </div>
+            </div>
+          </motion.form>
         </div>
       </section>
     </motion.div>
