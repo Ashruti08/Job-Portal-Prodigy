@@ -302,50 +302,54 @@ const ViewApplications = () => {
             </div>
             
             {/* ✅ RESPONSIVE Filter Buttons */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
-              <button 
-                onClick={() => setFilterStatus("all")}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                  filterStatus === "all" 
-                    ? "text-white" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
-              >
-                <span className="hidden sm:inline">All </span>({applicants.length})
-              </button>
-              <button 
-                onClick={() => setFilterStatus("pending")}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                  filterStatus === "pending" 
-                    ? "text-white" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
-              >
-                <span className="hidden sm:inline">Pending </span>({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
-              </button>
-              <button 
-                onClick={() => setFilterStatus("accepted")}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                  filterStatus === "accepted" 
-                    ? "bg-emerald-100 text-emerald-600" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <span className="hidden sm:inline">Accepted </span>({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
-              </button>
-              <button 
-                onClick={() => setFilterStatus("rejected")}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                  filterStatus === "rejected" 
-                    ? "bg-red-100 text-red-600" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <span className="hidden sm:inline">Rejected </span>({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
-              </button>
-            </div>
+           {/* ✅ FIXED RESPONSIVE Filter Buttons - Shows text on mobile */}
+<div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+  <button 
+    onClick={() => setFilterStatus("all")}
+    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+      filterStatus === "all" 
+        ? "text-white" 
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`}
+    style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
+  >
+    All ({applicants.length})
+  </button>
+  
+  <button 
+    onClick={() => setFilterStatus("pending")}
+    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+      filterStatus === "pending" 
+        ? "text-white" 
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`}
+    style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
+  >
+    Pending ({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
+  </button>
+  
+  <button 
+    onClick={() => setFilterStatus("accepted")}
+    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+      filterStatus === "accepted" 
+        ? "bg-emerald-100 text-emerald-600" 
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`}
+  >
+    Accepted ({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
+  </button>
+  
+  <button 
+    onClick={() => setFilterStatus("rejected")}
+    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+      filterStatus === "rejected" 
+        ? "bg-red-100 text-red-600" 
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`}
+  >
+    Rejected ({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
+  </button>
+</div>
           </div>
 
           {/* ✅ RESPONSIVE Table */}
