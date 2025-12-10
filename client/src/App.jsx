@@ -27,7 +27,7 @@ import "react-toastify/dist/ReactToastify.css";
 import PublicCompanyProfile from './pages/PublicCompanyProfile';
 import MyTeam from "./pages/MyTeam";
 
-// ✅ NEW: Route Protection Component for Sub-Users
+// ✅ FIXED: Route Protection Component for Main Recruiter Only
 const ProtectFromSubUsers = ({ children }) => {
   const { companyData } = useContext(AppContext);
   
@@ -39,9 +39,8 @@ const ProtectFromSubUsers = ({ children }) => {
   
   return children;
 };
-// ✅ ADD THIS NEW COMPONENT in App.js (before the App component)
 
-// Permission-Based Route Protection for Sub-Users
+// ✅ FIXED: Permission-Based Route Protection for Sub-Users
 const PermissionProtectedRoute = ({ children, permission }) => {
   const { companyData } = useContext(AppContext);
   
@@ -65,6 +64,7 @@ const PermissionProtectedRoute = ({ children, permission }) => {
   
   return children;
 };
+
 // Demo-Friendly Protected Route Component
 const DemoFriendlyRecruiterRoute = ({ children, requireAuth = false }) => {
   const { user, isLoaded } = useUser();
@@ -118,25 +118,25 @@ const App = () => {
         <Route path="/company/:id" element={<PublicCompanyProfile />} />
 
         {/* DASHBOARD ROUTES - With Sub-User Protection */}
-     <Route 
-  path="/dashboard" 
-  element={
-    <DemoFriendlyRecruiterRoute>
-      <Dashboard />
-    </DemoFriendlyRecruiterRoute>
-  }
->
+        <Route 
+          path="/dashboard" 
+          element={
+            <DemoFriendlyRecruiterRoute>
+              <Dashboard />
+            </DemoFriendlyRecruiterRoute>
+          }
+        >
           {/* ✅ OPEN TO ALL: Applications (sub-users and main recruiters) */}
-         <Route 
-    path="view-applications" 
-    element={
-      <DemoFriendlyRecruiterRoute>
-        <ViewApplications />
-      </DemoFriendlyRecruiterRoute>
-    } 
-  />
+          <Route 
+            path="view-applications" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ViewApplications />
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
 
-          {/* ✅ MAIN RECRUITER ONLY: All other routes blocked for sub-users */}
+          {/* ✅ MAIN RECRUITER ONLY: My Team */}
           <Route 
             path="my-team" 
             element={
@@ -148,51 +148,55 @@ const App = () => {
             } 
           />
 
-          {/* ✅ NEW: Search Resume - Main recruiter only */}
-          <Route 
-            path="search-resume" 
-            element={
-              <DemoFriendlyRecruiterRoute>
-                <ProtectFromSubUsers>
-                  <SearchResume />
-                </ProtectFromSubUsers>
-              </DemoFriendlyRecruiterRoute>
-            } 
-          />
-          
+          {/* ✅ FIXED: Add Job - Permission-based (canPostJobs) */}
           <Route 
             path="add-job" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <ProtectFromSubUsers>
+                <PermissionProtectedRoute permission="canPostJobs">
                   <AddJob />
-                </ProtectFromSubUsers>
+                </PermissionProtectedRoute>
               </DemoFriendlyRecruiterRoute>
             } 
           />
           
+          {/* ✅ FIXED: Manage Jobs - Permission-based (canPostJobs) */}
           <Route 
             path="manage-job" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <ProtectFromSubUsers>
+                <PermissionProtectedRoute permission="canPostJobs">
                   <ManageJobs />
-                </ProtectFromSubUsers>
+                </PermissionProtectedRoute>
               </DemoFriendlyRecruiterRoute>
             } 
           />
-          
+
+          {/* ✅ FIXED: Bulk Upload - Permission-based (canManageBulkUpload) */}
           <Route 
-            path="manage-package" 
+            path="bulk-upload" 
             element={
               <DemoFriendlyRecruiterRoute>
-                <ProtectFromSubUsers>
-                  <ManagePackage />
-                </ProtectFromSubUsers>
+                <PermissionProtectedRoute permission="canManageBulkUpload">
+                  <BulkUpload />
+                </PermissionProtectedRoute>
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+
+          {/* ✅ FIXED: Search Resume - Permission-based (canManageBulkUpload) */}
+          <Route 
+            path="search-resume" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <PermissionProtectedRoute permission="canManageBulkUpload">
+                  <SearchResume />
+                </PermissionProtectedRoute>
               </DemoFriendlyRecruiterRoute>
             } 
           />
           
+          {/* ✅ MAIN RECRUITER ONLY: Profile */}
           <Route 
             path="profile" 
             element={
@@ -204,12 +208,13 @@ const App = () => {
             } 
           />
           
+          {/* ✅ MAIN RECRUITER ONLY: Manage Package */}
           <Route 
-            path="bulk-upload" 
+            path="manage-package" 
             element={
               <DemoFriendlyRecruiterRoute>
                 <ProtectFromSubUsers>
-                  <BulkUpload />
+                  <ManagePackage />
                 </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
             } 
