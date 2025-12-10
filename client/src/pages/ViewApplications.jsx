@@ -93,7 +93,6 @@ const ViewApplications = () => {
       toast.error(error.response?.data?.message || error.message);
     }
   };
-
   const handleViewResume = (resumeUrl, applicantName) => {
     if (!resumeUrl || 
         resumeUrl.trim() === '' || 
@@ -239,25 +238,24 @@ const ViewApplications = () => {
   if (loading) {
     return <Loading />;
   }
-
   return (
-    <div className="bg-white min-h-screen py-8">
+    <div className="bg-white min-h-screen py-4 sm:py-8">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h1 
-                className="text-2xl md:text-3xl font-bold mb-2"
+                className="text-xl sm:text-2xl md:text-3xl font-bold mb-2"
                 style={{ color: '#020330' }}
               >
                 Application Management
               </h1>
-              <p className="text-gray-500">
+              <p className="text-sm sm:text-base text-gray-500">
                 {isSubUser 
                   ? `View and assess candidate applications as ${subUserRole.toUpperCase()}`
                   : 'Review and manage candidate applications'
@@ -267,8 +265,8 @@ const ViewApplications = () => {
             
             {/* ✅ Show role badge for sub-users */}
             {isSubUser && (
-              <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg">
-                <Shield size={18} />
+              <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base">
+                <Shield size={16} className="sm:w-[18px] sm:h-[18px]" />
                 <span className="font-semibold uppercase">{subUserRole}</span>
               </div>
             )}
@@ -281,16 +279,17 @@ const ViewApplications = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6"
         >
-          {/* Filters and Search */}
-          <div className="p-5 border-b border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-            <div className="relative flex-1 min-w-[250px]">
+          {/* ✅ RESPONSIVE Filters and Search */}
+          <div className="p-4 sm:p-5 border-b border-gray-100">
+            {/* Search Bar - Full Width on Mobile */}
+            <div className="relative mb-4">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
                 <Search size={18} className="text-gray-400" />
               </div>
               <input
                 type="text"
                 placeholder="Search applicants..."
-                className="pl-10 pr-4 py-2.5 w-full rounded-lg border border-gray-200 focus:ring-2 focus:border-red-300 transition-colors"
+                className="pl-10 pr-4 py-2.5 w-full rounded-lg border border-gray-200 focus:ring-2 focus:border-red-300 transition-colors text-sm sm:text-base"
                 style={{ '--tw-ring-color': 'rgba(255, 0, 0, 0.1)' }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -302,105 +301,105 @@ const ViewApplications = () => {
               `}</style>
             </div>
             
-            <div className="flex gap-2">
+            {/* ✅ RESPONSIVE Filter Buttons */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               <button 
                 onClick={() => setFilterStatus("all")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   filterStatus === "all" 
                     ? "text-white" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
                 style={filterStatus === "all" ? { backgroundColor: '#FF0000' } : {}}
               >
-                All ({applicants.length})
+                <span className="hidden sm:inline">All </span>({applicants.length})
               </button>
               <button 
                 onClick={() => setFilterStatus("pending")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   filterStatus === "pending" 
                     ? "text-white" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
                 style={filterStatus === "pending" ? { backgroundColor: '#FF0000' } : {}}
               >
-                Pending ({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
+                <span className="hidden sm:inline">Pending </span>({applicants.filter(a => !a.status || a.status.toLowerCase() === "pending").length})
               </button>
               <button 
                 onClick={() => setFilterStatus("accepted")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   filterStatus === "accepted" 
                     ? "bg-emerald-100 text-emerald-600" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                Accepted ({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
+                <span className="hidden sm:inline">Accepted </span>({applicants.filter(a => a.status && a.status.toLowerCase() === "accepted").length})
               </button>
               <button 
                 onClick={() => setFilterStatus("rejected")}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   filterStatus === "rejected" 
                     ? "bg-red-100 text-red-600" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                Rejected ({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
+                <span className="hidden sm:inline">Rejected </span>({applicants.filter(a => a.status && a.status.toLowerCase() === "rejected").length})
               </button>
             </div>
           </div>
 
-          {/* Table */}
+          {/* ✅ RESPONSIVE Table */}
           <div className="overflow-x-auto w-full">
             <table className="w-full">
               <thead className="bg-gray-50" style={{ color: '#020330' }}>
                 <tr>
-                  <th className="py-4 px-5 text-left text-sm font-semibold">#</th>
-                  <th className="py-4 px-5 text-left text-sm font-semibold">
+                  <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold">#</th>
+                  <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold">
                     <div className="flex items-center gap-2">
-                      <User size={16} />
+                      <User size={14} className="sm:w-4 sm:h-4" />
                       <span>Applicant</span>
                     </div>
                   </th>
-                  <th className="py-4 px-5 text-left text-sm font-semibold max-md:hidden">
+                  <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold max-md:hidden">
                     <div className="flex items-center gap-2">
-                      <Briefcase size={16} />
+                      <Briefcase size={14} className="sm:w-4 sm:h-4" />
                       <span>Job Position</span>
                     </div>
                   </th>
-                  <th className="py-4 px-5 text-left text-sm font-semibold max-md:hidden">
+                  <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold max-lg:hidden">
                     <div className="flex items-center gap-2">
-                      <MapPin size={16} />
+                      <MapPin size={14} className="sm:w-4 sm:h-4" />
                       <span>Location</span>
                     </div>
                   </th>
-                  <th className="py-4 px-5 text-left text-sm font-semibold">Actions</th>
-                  {!isSubUser && <th className="py-4 px-5 text-left text-sm font-semibold">Status</th>}
+                  <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold">Actions</th>
+                  {!isSubUser && <th className="py-3 sm:py-4 px-3 sm:px-5 text-left text-xs sm:text-sm font-semibold">Status</th>}
                 </tr>
               </thead>
-              
               <tbody>
                 {filteredApplicants.length === 0 ? (
                   <tr>
                     <td colSpan={isSubUser ? "5" : "6"}>
-                      <div className="flex flex-col items-center justify-center py-16">
+                      <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4">
                         <img 
                           src={assets.default_company_icon || "/empty-state.svg"} 
                           alt="No applications" 
-                          className="w-20 h-20 mb-4 opacity-30"
+                          className="w-16 h-16 sm:w-20 sm:h-20 mb-4 opacity-30"
                         />
                         <h3 
-                          className="text-lg font-medium mb-1"
+                          className="text-base sm:text-lg font-medium mb-1"
                           style={{ color: '#020330' }}
                         >
                           No applications found
                         </h3>
-                        <p className="text-gray-500 text-center mb-2">No matching applications with the current filters</p>
+                        <p className="text-sm sm:text-base text-gray-500 text-center mb-2">No matching applications with the current filters</p>
                         {(searchTerm || filterStatus !== "all") && (
                           <button 
                             onClick={() => {
                               setSearchTerm("");
                               setFilterStatus("all");
                             }}
-                            className="mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-90"
+                            className="mt-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-white hover:opacity-90"
                             style={{ backgroundColor: '#FF0000' }}
                           >
                             Clear filters
@@ -418,11 +417,11 @@ const ViewApplications = () => {
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                       className="border-b border-gray-100 hover:bg-red-50/30 transition-colors"
                     >
-                      <td className="py-4 px-5 text-sm text-gray-600">{index + 1}</td>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3 sm:py-4 px-3 sm:px-5 text-xs sm:text-sm text-gray-600">{index + 1}</td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-5">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <div 
-                            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 cursor-pointer hover:border-red-300 transition-colors"
+                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 cursor-pointer hover:border-red-300 transition-colors flex-shrink-0"
                             onClick={() => handleViewProfile(applicant.userId?._id, applicant.userId)}
                             title="View profile"
                           >
@@ -436,56 +435,57 @@ const ViewApplications = () => {
                               }}
                             />
                           </div>
-                          <div>
-                            <div className="font-medium text-gray-800">
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-800 text-xs sm:text-sm truncate">
                               {applicant.userId?.name || 'Unknown'}
                             </div>
-                            <div className="text-gray-500 text-sm">
+                            <div className="text-gray-500 text-xs sm:text-sm truncate">
                               {applicant.userId?.email || 'No email'}
                             </div>
-                            <div className="text-gray-500 text-sm md:hidden">
+                            <div className="text-gray-500 text-xs md:hidden truncate">
                               {applicant.jobId?.title || 'N/A'}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-5 text-gray-700 max-md:hidden">
+                      <td className="py-3 sm:py-4 px-3 sm:px-5 text-xs sm:text-sm text-gray-700 max-md:hidden">
                         {applicant.jobId?.title || 'N/A'}
                       </td>
-                      <td className="py-4 px-5 text-gray-700 max-md:hidden">
+                      <td className="py-3 sm:py-4 px-3 sm:px-5 text-xs sm:text-sm text-gray-700 max-lg:hidden">
                         {applicant.jobId?.location || 'Remote'}
                       </td>
-                      <td className="py-4 px-5">
-                        <div className="flex flex-wrap gap-2">
+                      <td className="py-3 sm:py-4 px-3 sm:px-5">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 sm:gap-2">
                           <button
                             onClick={() => handleViewResume(applicant.userId?.resume, applicant.userId?.name)}
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-white hover:opacity-90"
+                            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors text-white hover:opacity-90 whitespace-nowrap"
                             style={{ backgroundColor: '#FF0000' }}
                           >
-                            <FileText size={14} />
-                            Resume
+                            <FileText size={12} className="sm:w-[14px] sm:h-[14px]" />
+                            <span>Resume</span>
                           </button>
                           <button
                             onClick={() => handleViewProfile(applicant.userId?._id, applicant.userId)}
-                            className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-50 text-blue-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-100 transition-colors whitespace-nowrap"
                           >
-                            <Eye size={14} />
-                            Profile
+                            <Eye size={12} className="sm:w-[14px] sm:h-[14px]" />
+                            <span>Profile</span>
                           </button>
                           <button
                             onClick={() => handleViewAssessment(applicant.userId?._id, applicant.userId)}
-                            className="inline-flex items-center gap-2 bg-purple-50 text-purple-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors"
+                            className="inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-purple-50 text-purple-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-purple-100 transition-colors whitespace-nowrap"
                             title={isSubUser ? `Fill ${subUserRole.toUpperCase()} assessment` : 'View assessment'}
                           >
-                            <ClipboardList size={14} />
-                            {isSubUser ? 'FillAssessment' : 'Assessment'}
+                            <ClipboardList size={12} className="sm:w-[14px] sm:h-[14px]" />
+                            <span className="hidden sm:inline">{isSubUser ? 'Assessment' : 'Assessment'}</span>
+                            <span className="sm:hidden">Assess</span>
                           </button>
                         </div>
                       </td>
                       
                       {/* ✅ Only show status column for main recruiters */}
                       {!isSubUser && (
-                        <td className="py-4 px-5 relative">
+                        <td className="py-3 sm:py-4 px-3 sm:px-5 relative">
                           {(!applicant.status || applicant.status.toLowerCase() === "pending") ? (
                             <div className="relative" ref={dropdownRef}>
                               <button 
@@ -494,11 +494,11 @@ const ViewApplications = () => {
                                   e.stopPropagation();
                                   setActiveDropdown(activeDropdown === index ? null : index);
                                 }}
-                                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90"
+                                className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 text-white hover:opacity-90 whitespace-nowrap"
                                 style={{ backgroundColor: '#FF0000' }}
                               >
                                 <span>Pending</span>
-                                <MoreHorizontal size={16} />
+                                <MoreHorizontal size={14} className="sm:w-4 sm:h-4" />
                               </button>
                               
                               <AnimatePresence>
@@ -508,7 +508,7 @@ const ViewApplications = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -10 }}
                                     transition={{ duration: 0.2 }}
-                                    className="absolute right-0 bottom-full mb-1 z-50 w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+                                    className="absolute right-0 bottom-full mb-1 z-50 w-32 sm:w-36 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
                                   >
                                     <button
                                       onClick={(e) => {
@@ -516,9 +516,9 @@ const ViewApplications = () => {
                                         e.stopPropagation();
                                         changeJobApplicationStatus(applicant._id, "Accepted");
                                       }}
-                                      className="w-full px-4 py-3 text-left text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
+                                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors border-b border-gray-100"
                                     >
-                                      <Check size={16} />
+                                      <Check size={14} className="sm:w-4 sm:h-4" />
                                       Accept
                                     </button>
                                     <button
@@ -527,9 +527,9 @@ const ViewApplications = () => {
                                         e.stopPropagation();
                                         changeJobApplicationStatus(applicant._id, "Rejected");
                                       }}
-                                      className="w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
                                     >
-                                      <X size={16} />
+                                      <X size={14} className="sm:w-4 sm:h-4" />
                                       Reject
                                     </button>
                                   </motion.div>
@@ -571,7 +571,7 @@ const ViewApplications = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-5 z-50"
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 sm:p-5 z-50"
               onClick={() => setResumeModalOpen(false)}
             >
               <motion.div
@@ -579,35 +579,35 @@ const ViewApplications = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl shadow-lg p-10 text-center max-w-md w-full relative"
+                className="bg-white rounded-xl shadow-lg p-6 sm:p-10 text-center max-w-md w-full relative"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   onClick={() => setResumeModalOpen(false)}
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <X size={20} />
+                  <X size={18} className="sm:w-5 sm:h-5" />
                 </button>
                 
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-5">
-                  <FileText size={32} className="text-red-500" />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5">
+                  <FileText size={24} className="sm:w-8 sm:h-8 text-red-500" />
                 </div>
                 
-                <h1 className="text-xl font-semibold mb-3" style={{ color: '#020330' }}>
+                <h1 className="text-lg sm:text-xl font-semibold mb-3" style={{ color: '#020330' }}>
                   Resume Not Available
                 </h1>
                 
-                <p className="text-gray-600 text-sm mb-2">
+                <p className="text-sm sm:text-base text-gray-600 mb-2">
                   The candidate <span className="text-red-500 font-semibold">{resumeApplicantName}</span> has not uploaded their resume yet.
                 </p>
                 
-                <p className="text-gray-600 text-sm mb-6">
+                <p className="text-sm sm:text-base text-gray-600 mb-6">
                   Please contact them directly to request their resume.
                 </p>
                 
                 <button
                   onClick={() => setResumeModalOpen(false)}
-                  className="bg-red-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                  className="bg-red-500 text-white px-5 sm:px-6 py-2 sm:py-2.5 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
                 >
                   Close
                 </button>
@@ -620,7 +620,7 @@ const ViewApplications = () => {
   );
 };
 
-// Candidate Profile Modal Component (unchanged)
+// Candidate Profile Modal Component
 const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
   if (!isOpen || !profile) return null;
 
@@ -673,26 +673,26 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
           className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
-            <h2 className="text-2xl font-bold" style={{ color: '#020330' }}>
+          <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between z-10">
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: '#020330' }}>
               Candidate Profile
             </h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
             >
-              <X size={24} />
+              <X size={20} className="sm:w-6 sm:h-6" />
             </button>
           </div>
 
-          <div className="p-6 space-y-6">
-            <div className="flex items-center gap-6 pb-6 border-b border-gray-200">
+          <div className="p-4 sm:p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 pb-6 border-b border-gray-200">
               <div className="relative flex-shrink-0">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
                     alt={fullName}
-                    className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-gray-100"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       const initialsDiv = e.target.nextElementSibling;
@@ -703,7 +703,7 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
                   />
                 ) : null}
                 <div 
-                  className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-gray-100"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold border-4 border-gray-100"
                   style={{ 
                     background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
                     display: imageUrl ? 'none' : 'flex'
@@ -712,17 +712,17 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
                   {getInitials(fullName)}
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-2xl font-bold text-gray-900 truncate">
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                   {displayValue(fullName, 'Name Not Provided')}
                 </h3>
-                <p className="text-gray-600 mt-1 flex items-center gap-2">
-                  <Briefcase size={16} className="flex-shrink-0" />
+                <p className="text-sm sm:text-base text-gray-600 mt-1 flex items-center justify-center sm:justify-start gap-2">
+                  <Briefcase size={14} className="sm:w-4 sm:h-4 flex-shrink-0" />
                   <span className="truncate">{displayValue(profile.currentDesignation, 'No designation provided')}</span>
                 </p>
                 {profile.currentDepartment && (
-                  <p className="text-gray-500 text-sm mt-1 flex items-center gap-2">
-                    <Building2 size={14} className="flex-shrink-0" />
+                  <p className="text-gray-500 text-xs sm:text-sm mt-1 flex items-center justify-center sm:justify-start gap-2">
+                    <Building2 size={12} className="sm:w-[14px] sm:h-[14px] flex-shrink-0" />
                     <span className="truncate">{profile.currentDepartment}</span>
                   </p>
                 )}
@@ -730,160 +730,160 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
             </div>
 
             <div>
-              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
-                <UserCircle size={20} />
+              <h4 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <UserCircle size={18} className="sm:w-5 sm:h-5" />
                 Personal Details
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <User size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">First Name</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.firstName)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">First Name</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.firstName)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <User size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Middle Name</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.middleName)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Middle Name</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.middleName)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <User size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <User size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Surname</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.surname)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Surname</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.surname)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Mail size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Mail size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="text-gray-900 truncate break-all">{displayValue(profile.emailId || profile.email)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Email</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate break-all">{displayValue(profile.emailId || profile.email)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <Phone size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Phone size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Mobile Number</p>
-                    <p className="text-gray-900">{displayValue(profile.mobileNo)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Mobile Number</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.mobileNo)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <MapPin size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <MapPin size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">City</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.city)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">City</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.city)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <MapPin size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <MapPin size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">State</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.state)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">State</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.state)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <Languages size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Languages size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Languages</p>
-                    <p className="text-gray-900">{displayValue(profile.languages)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Languages</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.languages)}</p>
                   </div>
                 </div>
-                
+              
                 <div className="flex items-start gap-2">
-                  <Heart size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Heart size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Marital Status</p>
-                    <p className="text-gray-900">{displayValue(profile.maritalStatus)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Marital Status</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.maritalStatus)}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
-                <Briefcase size={20} />
+              <h4 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <Briefcase size={18} className="sm:w-5 sm:h-5" />
                 Professional Details
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <Briefcase size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Briefcase size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Current Designation</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.currentDesignation)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Current Designation</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.currentDesignation)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Building2 size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Building2 size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Current Department</p>
-                    <p className="text-gray-900 truncate">{displayValue(profile.currentDepartment)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Current Department</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">{displayValue(profile.currentDepartment)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <Calendar size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Calendar size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Total Experience</p>
-                    <p className="text-gray-900">{displayValue(profile.totalExperience)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Total Experience</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.totalExperience)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <DollarSign size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <DollarSign size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Current CTC</p>
-                    <p className="text-gray-900">{displayValue(profile.currentCTC)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Current CTC</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.currentCTC)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <DollarSign size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <DollarSign size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Expected CTC</p>
-                    <p className="text-gray-900">{displayValue(profile.expectedCTC)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Expected CTC</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.expectedCTC)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <Clock size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Clock size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Notice Period</p>
-                    <p className="text-gray-900">{displayValue(profile.noticePeriod)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Notice Period</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.noticePeriod)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Briefcase size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Briefcase size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Role Type</p>
-                    <p className="text-gray-900">{displayValue(profile.roleType)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Role Type</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.roleType)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <TrendingUp size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <TrendingUp size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Job Change Status</p>
-                    <p className="text-gray-900">{displayValue(profile.jobChangeStatus)}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Job Change Status</p>
+                    <p className="text-sm sm:text-base text-gray-900">{displayValue(profile.jobChangeStatus)}</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Building2 size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Building2 size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Sector</p>
-                    <p className="text-gray-900 truncate">
+                    <p className="text-xs sm:text-sm text-gray-500">Sector</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">
                       {profile.sector === 'Other' 
                         ? displayValue(profile.otherSector, 'Other (Not Specified)')
                         : displayValue(profile.sector)
@@ -893,10 +893,10 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
                 </div>
                 
                 <div className="flex items-start gap-2">
-                  <Tag size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Tag size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Category</p>
-                    <p className="text-gray-900 truncate">
+                    <p className="text-xs sm:text-sm text-gray-500">Category</p>
+                    <p className="text-sm sm:text-base text-gray-900 truncate">
                       {profile.category === 'Other' 
                         ? displayValue(profile.otherCategory, 'Other (Not Specified)')
                         : displayValue(profile.category)
@@ -908,64 +908,64 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
             </div>
 
             <div>
-              <h4 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
-                <Globe size={20} />
+              <h4 className="text-base sm:text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: '#020330' }}>
+                <Globe size={18} className="sm:w-5 sm:h-5" />
                 Social Profiles
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Globe size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">LinkedIn</p>
+                    <p className="text-xs sm:text-sm text-gray-500">LinkedIn</p>
                     {profile.linkedinId ? (
                       <a
                         href={profile.linkedinId}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm truncate block"
+                        className="text-blue-600 hover:underline text-xs sm:text-sm truncate block"
                       >
                         View Profile →
                       </a>
                     ) : (
-                      <p className="text-gray-400 italic">Not Provided</p>
+                      <p className="text-gray-400 italic text-xs sm:text-sm">Not Provided</p>
                     )}
                   </div>
                 </div>
-
+     
                 <div className="flex items-start gap-2">
-                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Globe size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Instagram</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Instagram</p>
                     {profile.instagramId ? (
                       <a
                         href={profile.instagramId}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-pink-600 hover:underline text-sm truncate block"
+                        className="text-pink-600 hover:underline text-xs sm:text-sm truncate block"
                       >
-                        View Profile →
+                      View Profile → 
                       </a>
                     ) : (
-                      <p className="text-gray-400 italic">Not Provided</p>
-                    )}
+                      <p className="text-gray-400 italic text-xs sm:text-sm">Not Provided</p>
+                    )}        
                   </div>
                 </div>
-
                 <div className="flex items-start gap-2">
-                  <Globe size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <Globe size={14} className="sm:w-4 sm:h-4 text-gray-400 mt-1 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500">Facebook</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Facebook</p>
                     {profile.facebookId ? (
-                      <a
+                      <a  
                         href={profile.facebookId}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-700 hover:underline text-sm truncate block"
+                        className="text-blue-700 hover:underline text-xs sm:text-sm truncate block"
                       >
                         View Profile →
                       </a>
                     ) : (
-                      <p className="text-gray-400 italic">Not Provided</p>
+                      <p className="text-gray-400 italic text-xs sm:text-sm">Not Provided</p>
+                 
                     )}
                   </div>
                 </div>
@@ -973,10 +973,10 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 flex justify-end">
+          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-4 sm:p-6 flex justify-end">
             <button
               onClick={onClose}
-              className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+              className="px-5 sm:px-6 py-2 sm:py-2.5 bg-gray-200 text-gray-700 rounded-lg text-sm sm:text-base font-medium hover:bg-gray-300 transition-colors"
             >
               Close
             </button>
@@ -986,5 +986,4 @@ const CandidateProfileModal = ({ isOpen, onClose, profile, backendUrl }) => {
     </AnimatePresence>
   );
 };
-
 export default ViewApplications;
