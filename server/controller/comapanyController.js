@@ -709,9 +709,17 @@ export const changeVisiblity = async (req, res) => {
 };
 
 // Get Public Company Profile
+// ✅ FIXED: Get Public Company Profile
 export const getPublicCompanyProfile = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.json({
+                success: false,
+                message: 'Invalid company ID format'
+            });
+        }
 
         const [company, profile] = await Promise.all([
             Company.findById(id).select('-password'),
@@ -719,7 +727,7 @@ export const getPublicCompanyProfile = async (req, res) => {
         ]);
 
         if (!company) {
-            return res.status(404).json({
+            return res.json({
                 success: false,
                 message: 'Company not found'
             });
@@ -747,31 +755,36 @@ export const getPublicCompanyProfile = async (req, res) => {
             createdAt: company.createdAt
         };
 
-        res.status(200).json({
+        res.json({
             success: true,
             message: 'Company profile fetched successfully',
             data: responseData
         });
 
     } catch (error) {
-        console.error('Get public company profile error:', error);
-        res.status(500).json({
+        res.json({
             success: false,
-            message: 'Error fetching company profile',
-            error: error.message
+            message: 'Error fetching company profile: ' + error.message
         });
     }
 };
 
-// Get Public Company Jobs
+// ✅ FIXED: Get Public Company Jobs
 export const getPublicCompanyJobs = async (req, res) => {
     try {
         const { id } = req.params;
         const { page = 1, limit = 10 } = req.query;
 
+        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.json({
+                success: false,
+                message: 'Invalid company ID format'
+            });
+        }
+
         const company = await Company.findById(id);
         if (!company) {
-            return res.status(404).json({
+            return res.json({
                 success: false,
                 message: 'Company not found'
             });
@@ -791,7 +804,7 @@ export const getPublicCompanyJobs = async (req, res) => {
             visible: true 
         });
 
-        res.status(200).json({
+        res.json({
             success: true,
             message: 'Company jobs fetched successfully',
             data: {
@@ -805,11 +818,9 @@ export const getPublicCompanyJobs = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get company jobs error:', error);
-        res.status(500).json({
+        res.json({
             success: false,
-            message: 'Error fetching company jobs',
-            error: error.message
+            message: 'Error fetching company jobs: ' + error.message
         });
     }
 };
