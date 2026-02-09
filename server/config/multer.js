@@ -1,11 +1,29 @@
 import multer from 'multer';
 import path from 'path';
-const storage = multer.diskStorage({
+
+// Separate storage for resumes
+const resumeStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/temp/');
+    cb(null, 'uploads/resumes/');
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}_${file.originalname}`);
+    // Sanitize filename - replace spaces with underscores
+    const sanitizedName = file.originalname.replace(/\s+/g, '_');
+    cb(null, `${Date.now()}_${sanitizedName}`);
+  }
+});
+
+// Separate storage for images (logos, company images)
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/images/');
+  },
+  filename: (req, file, cb) => {
+    // Sanitize filename - replace spaces with underscores and special characters
+    const sanitizedName = file.originalname
+      .replace(/\s+/g, '_')           // Replace spaces with underscores
+      .replace(/[^\w\s.-]/g, '');     // Remove special characters except .-_
+    cb(null, `${Date.now()}_${sanitizedName}`);
   }
 });
 
@@ -16,7 +34,7 @@ const fileFilter = (req, file, cb) => {
     } else {
       cb(new Error('Only PDF files allowed for resume'));
     }
-  } else if (file.fieldname === 'image') {
+  } else if (file.fieldname === 'image' || file.fieldname === 'logo') {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -28,13 +46,13 @@ const fileFilter = (req, file, cb) => {
 };
 
 export const uploadResume = multer({
-  storage,
+  storage: resumeStorage,
   fileFilter,
   limits: { fileSize: 500 * 1024 } // 500KB
 });
 
 export const uploadImage = multer({
-  storage,
+  storage: imageStorage,
   fileFilter,
-  limits: { fileSize: 200 * 1024 } // 200KB
+  limits: { fileSize: 5 * 1024 * 1024 } // Increased to 5MB for company logos
 });

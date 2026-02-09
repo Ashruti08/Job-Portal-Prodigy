@@ -33,6 +33,8 @@ const SearchResume = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortBy, setSortBy] = useState("name");
+  const [selectedCandidates, setSelectedCandidates] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [matchingStats, setMatchingStats] = useState({
@@ -59,8 +61,20 @@ const SearchResume = () => {
     // Remove file extension
     let name = text.replace(/\.(pdf|doc|docx)$/i, "");
     
-    // Replace common separators with space
+    // Replace common separators with space FIRST (before keyword removal)
     name = name.replace(/[-_]/g, " ");
+    
+    // NOW remove common resume keywords (case insensitive)
+    const keywordsToRemove = [
+      'resume', 'cv', 'curriculum', 'vitae', 'qa', 'qe', 'engineer', 
+      'developer', 'manager', 'analyst', 'tester', 'consultant',
+      'updated', 'latest', 'new', 'final', 'v1', 'v2', 'v3'
+    ];
+    
+    keywordsToRemove.forEach(keyword => {
+      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+      name = name.replace(regex, '');
+    });
     
     // Remove extra spaces and numbers
     name = name.replace(/\s+/g, " ")
@@ -69,6 +83,7 @@ const SearchResume = () => {
     
     // Capitalize each word
     name = name.split(' ')
+               .filter(word => word.length > 0)
                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                .join(' ');
     
@@ -88,11 +103,32 @@ const SearchResume = () => {
     const normalized1 = normalizeName(name1);
     const normalized2 = normalizeName(name2);
     
+    // Exact match
     if (normalized1 === normalized2) return true;
     
+    // One name contains the other (with length tolerance)
     if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
       const lengthDiff = Math.abs(normalized1.length - normalized2.length);
       if (lengthDiff <= 3) return true;
+    }
+    
+    // Check if first word matches (first name matching)
+    const words1 = name1.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    const words2 = name2.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    
+    if (words1.length > 0 && words2.length > 0) {
+      const firstWord1 = normalizeName(words1[0]);
+      const firstWord2 = normalizeName(words2[0]);
+      
+      // If first names match
+      if (firstWord1 === firstWord2) return true;
+      
+      // Check for partial first name match (at least 4 characters)
+      if (firstWord1.length >= 4 && firstWord2.length >= 4) {
+        if (firstWord1.startsWith(firstWord2) || firstWord2.startsWith(firstWord1)) {
+          return true;
+        }
+      }
     }
     
     return false;
@@ -102,39 +138,17 @@ const SearchResume = () => {
   const getCsvDataByName = (candidateName, csvFile) => {
     if (!csvFile || !csvFile.data || !Array.isArray(csvFile.data)) return null;
     
-    console.log('=== CSV DATA STRUCTURE ===');
-    console.log('CSV File:', csvFile.originalName);
-    console.log('First 3 rows:', csvFile.data.slice(0, 3));
-    console.log('Looking for candidate:', candidateName);
-    
     const matchingRow = csvFile.data.find((row, index) => {
-      if (!row || row.length < 3) return false;
+      if (!row || row.length < 1) return false;
       
-      if (index === 0 && row[0]?.toLowerCase().includes('first')) {
+      // Skip header row
+      if (index === 0 && row[0]?.toLowerCase().includes('full')) {
         return false;
       }
       
-      const firstName = row[0] || '';
-      const middleName = row[1] || '';
-      const surname = row[2] || '';
-      const csvFullName = `${firstName} ${middleName} ${surname}`.trim().replace(/\s+/g, ' ');
-      const csvFullNameNoMiddle = `${firstName} ${surname}`.trim().replace(/\s+/g, ' ');
-      
-      console.log(`Row ${index}: CSV Name = "${csvFullName}" (or "${csvFullNameNoMiddle}") vs Resume Name = "${candidateName}"`);
-      
-      const isMatch = namesMatch(candidateName, csvFullName) || namesMatch(candidateName, csvFullNameNoMiddle);
-      if (isMatch) {
-        console.log('✓ MATCH FOUND!');
-      }
-      
-      return isMatch;
+      const fullName = row[0] || '';
+      return namesMatch(candidateName, fullName);
     });
-    
-    if (matchingRow) {
-      console.log('Matched row data:', matchingRow);
-    } else {
-      console.log('❌ No match found for:', candidateName);
-    }
     
     return matchingRow;
   };
@@ -145,12 +159,12 @@ const SearchResume = () => {
     
     const data = {};
     const csvHeaders = [
-      'First Name', 'Middle Name', 'Surname', 'Mobile No', 
+      'Full Name', 'Gender', 'DOB', 'Mobile No', 
       'Email ID', 'Linkedin ID', 'Facebook ID', 'Instagram ID', 'Snapchat',
       'City', 'State', 'Languages', 'Marital Status',
       'Sector', 'Category', 'Product', 'Channel', 
       'Current Designation', 'Current Department', 'Current CTC', 'Expected CTC',
-      'Notice Period', 'Total Experience', 'Broker Roll / Company Roll', 'Status for Job Change'
+      'Notice Period', 'Total Experience', 'Status for Job Change'
     ];
     
     row.forEach((value, index) => {
@@ -196,27 +210,51 @@ const SearchResume = () => {
                 responseType: 'blob'
               });
               
-              const text = await response.data.text();
-              const firstLine = text.split('\n')[0];
-              const delimiter = firstLine.includes('\t') ? '\t' : ',';
+              const fileName = csvFile.originalName.toLowerCase();
               
-              console.log('Detected delimiter:', delimiter === '\t' ? 'TAB' : 'COMMA');
+              // Handle Excel files (.xlsx, .xls)
+              if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                console.log('Parsing Excel file:', csvFile.originalName);
+                const arrayBuffer = await response.data.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                
+                console.log('Excel parsed successfully. Rows:', jsonData.length);
+                
+                return {
+                  ...csvFile,
+                  data: jsonData.filter(row => row.some(cell => cell !== ''))
+                };
+              }
+              // Handle CSV files
+              else if (fileName.endsWith('.csv')) {
+                console.log('Parsing CSV file:', csvFile.originalName);
+                const text = await response.data.text();
+                const firstLine = text.split('\n')[0];
+                const delimiter = firstLine.includes('\t') ? '\t' : ',';
+                
+                console.log('Detected delimiter:', delimiter === '\t' ? 'TAB' : 'COMMA');
+                
+                const rows = text.split('\n').map(row => {
+                  if (delimiter === '\t') {
+                    return row.split('\t').map(cell => cell.trim());
+                  } else {
+                    const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
+                    return row.match(regex)?.map(cell => cell.replace(/^"|"$/g, '').trim()) || [];
+                  }
+                }).filter(row => row.length > 1 && row.some(cell => cell !== ''));
+                
+                console.log('CSV parsed successfully. Rows:', rows.length);
+                
+                return {
+                  ...csvFile,
+                  data: rows
+                };
+              }
               
-              const rows = text.split('\n').map(row => {
-                if (delimiter === '\t') {
-                  return row.split('\t').map(cell => cell.trim());
-                } else {
-                  const regex = /(".*?"|[^,]+)(?=\s*,|\s*$)/g;
-                  return row.match(regex)?.map(cell => cell.replace(/^"|"$/g, '').trim()) || [];
-                }
-              }).filter(row => row.length > 1 && row.some(cell => cell !== ''));
-              
-              console.log('Total rows:', rows.length);
-              
-              return {
-                ...csvFile,
-                data: rows
-              };
+              return csvFile;
             } catch (error) {
               console.error('Error fetching/parsing CSV:', csvFile.originalName, error);
               return csvFile;
@@ -268,9 +306,9 @@ const SearchResume = () => {
             csvMatched: !!csvMatchedData,
             csvFileName: csvMatch?.originalName || "N/A",
             
-            firstName: parsedCsv?.['First Name'] || "N/A",
-            middleName: parsedCsv?.['Middle Name'] || "N/A",
-            surname: parsedCsv?.['Surname'] || "N/A",
+            fullName: parsedCsv?.['Full Name'] || candidateName,
+            gender: parsedCsv?.['Gender'] || "N/A",
+            dob: parsedCsv?.['DOB'] || "N/A",
             city: parsedCsv?.['City'] || "N/A",
             state: parsedCsv?.['State'] || "N/A",
             languages: parsedCsv?.['Languages'] || "N/A",
@@ -292,7 +330,6 @@ const SearchResume = () => {
             expectedCTC: parsedCsv?.['Expected CTC'] || "N/A",
             noticePeriod: parsedCsv?.['Notice Period'] || "N/A",
             totalExperience: parsedCsv?.['Total Experience'] || "N/A",
-            brokerRoll: parsedCsv?.['Broker Roll / Company Roll'] || "N/A",
             jobChangeStatus: parsedCsv?.['Status for Job Change'] || "N/A"
           };
         });
@@ -326,11 +363,13 @@ const SearchResume = () => {
       const matchesSearch = 
         item.candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.phone.includes(searchQuery) ||
+        String(item.phone || '').includes(searchQuery) ||
         item.sector.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.currentDesignation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.currentDepartment.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.currentCTC.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.languages.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = 
@@ -355,9 +394,9 @@ const SearchResume = () => {
     setFilteredData(filtered);
   };
 
-  const downloadResume = async (resume) => {
+  const downloadResume = async (resumeFile) => {
     try {
-      const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${resume._id}`, {
+      const response = await axios.get(`${backendUrl}/api/bulk-upload/download/${resumeFile._id}`, {
         headers: { token: companyToken },
         responseType: 'blob'
       });
@@ -365,7 +404,7 @@ const SearchResume = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', resume.resumeName);
+      link.setAttribute('download', resumeFile.resumeName || resumeFile.originalName);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -374,6 +413,181 @@ const SearchResume = () => {
     } catch (error) {
       console.error("Download error:", error);
       toast.error("Failed to download resume");
+    }
+  };
+
+  const downloadCandidateInfo = (candidate) => {
+    try {
+      // Create CSV data with all candidate information
+      const csvData = [
+        ['Field', 'Value'],
+        ['Full Name', candidate.fullName],
+        ['Gender', candidate.gender],
+        ['Date of Birth', candidate.dob],
+        ['Email', candidate.email],
+        ['Phone', candidate.phone],
+        ['City', candidate.city],
+        ['State', candidate.state],
+        ['Marital Status', candidate.maritalStatus],
+        ['Languages', candidate.languages],
+        [''],
+        ['Professional Details', ''],
+        ['Sector', candidate.sector],
+        ['Category', candidate.category],
+        ['Product', candidate.product],
+        ['Channel', candidate.channel],
+        ['Current Designation', candidate.currentDesignation],
+        ['Current Department', candidate.currentDepartment],
+        [''],
+        ['Compensation & Experience', ''],
+        ['Current CTC', candidate.currentCTC],
+        ['Expected CTC', candidate.expectedCTC],
+        ['Total Experience', candidate.totalExperience],
+        ['Notice Period', candidate.noticePeriod],
+        ['Job Change Status', candidate.jobChangeStatus],
+        [''],
+        ['Social Media', ''],
+        ['LinkedIn', candidate.linkedinId],
+        ['Facebook', candidate.facebookId],
+        ['Instagram', candidate.instagramId],
+        ['Snapchat', candidate.snapchat],
+      ];
+
+      // Convert to Excel using XLSX
+      const ws = XLSX.utils.aoa_to_sheet(csvData);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 30 }, // Field column
+        { wch: 50 }  // Value column
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Candidate Information');
+
+      // Generate Excel file and download
+      XLSX.writeFile(wb, `${candidate.candidateName}_Information.xlsx`);
+      
+      toast.success("Candidate information downloaded");
+    } catch (error) {
+      console.error("Download info error:", error);
+      toast.error("Failed to download candidate information");
+    }
+  };
+
+  const handleSelectCandidate = (candidateId) => {
+    setSelectedCandidates(prev => {
+      if (prev.includes(candidateId)) {
+        return prev.filter(id => id !== candidateId);
+      } else {
+        return [...prev, candidateId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedCandidates([]);
+      setSelectAll(false);
+    } else {
+      setSelectedCandidates(filteredData.map(c => c._id));
+      setSelectAll(true);
+    }
+  };
+
+  const downloadSelectedResumes = async () => {
+    if (selectedCandidates.length === 0) {
+      toast.warning("Please select at least one candidate");
+      return;
+    }
+
+    toast.info(`Downloading ${selectedCandidates.length} resume(s)...`);
+    
+    for (const candidateId of selectedCandidates) {
+      const candidate = combinedData.find(c => c._id === candidateId);
+      if (candidate) {
+        try {
+          await downloadResume(candidate.resumeFile);
+          await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between downloads
+        } catch (error) {
+          console.error("Error downloading resume:", error);
+        }
+      }
+    }
+    
+    toast.success(`Downloaded ${selectedCandidates.length} resume(s)`);
+  };
+
+  const downloadSelectedInformation = () => {
+    if (selectedCandidates.length === 0) {
+      toast.warning("Please select at least one candidate");
+      return;
+    }
+
+    try {
+      const selectedData = combinedData.filter(c => selectedCandidates.includes(c._id));
+      
+      // Create Excel with all selected candidates
+      const excelData = [
+        [
+          'Sr. No.', 'Full Name', 'Gender', 'DOB', 'Email', 'Phone', 'City', 'State',
+          'Marital Status', 'Languages', 'Sector', 'Category', 'Product', 'Channel',
+          'Current Designation', 'Current Department', 'Current CTC', 'Expected CTC',
+          'Total Experience', 'Notice Period', 'Job Change Status', 'LinkedIn',
+          'Facebook', 'Instagram', 'Snapchat'
+        ]
+      ];
+
+      selectedData.forEach((candidate, index) => {
+        excelData.push([
+          index + 1,
+          candidate.fullName,
+          candidate.gender,
+          candidate.dob,
+          candidate.email,
+          candidate.phone,
+          candidate.city,
+          candidate.state,
+          candidate.maritalStatus,
+          candidate.languages,
+          candidate.sector,
+          candidate.category,
+          candidate.product,
+          candidate.channel,
+          candidate.currentDesignation,
+          candidate.currentDepartment,
+          candidate.currentCTC,
+          candidate.expectedCTC,
+          candidate.totalExperience,
+          candidate.noticePeriod,
+          candidate.jobChangeStatus,
+          candidate.linkedinId,
+          candidate.facebookId,
+          candidate.instagramId,
+          candidate.snapchat
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      
+      // Auto-size columns
+      const colWidths = excelData[0].map((_, colIndex) => {
+        const maxLength = Math.max(
+          ...excelData.map(row => String(row[colIndex] || '').length)
+        );
+        return { wch: Math.min(maxLength + 2, 50) };
+      });
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Selected Candidates');
+
+      XLSX.writeFile(wb, `Selected_Candidates_Information.xlsx`);
+      
+      toast.success(`Downloaded information for ${selectedCandidates.length} candidate(s)`);
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download candidate information");
     }
   };
 
@@ -445,45 +659,6 @@ const SearchResume = () => {
           </div>
         </motion.div>
 
-        {/* ========== RESPONSIVE STATISTICS CARDS ========== */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-5 text-white">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
-              <p className="text-xs sm:text-sm font-medium opacity-90">Total</p>
-              <FiFileText className="text-xl sm:text-2xl opacity-75" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-bold">{matchingStats.total}</p>
-            <p className="text-xs opacity-75 mt-1 hidden sm:block">Resumes</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-5 text-white">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
-              <p className="text-xs sm:text-sm font-medium opacity-90">Matched</p>
-              <FiCheckCircle className="text-xl sm:text-2xl opacity-75" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-bold">{matchingStats.matched}</p>
-            <p className="text-xs opacity-75 mt-1 hidden sm:block">With CSV</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-5 text-white">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
-              <p className="text-xs sm:text-sm font-medium opacity-90">Unmatched</p>
-              <FiAlertCircle className="text-xl sm:text-2xl opacity-75" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-bold">{matchingStats.unmatched}</p>
-            <p className="text-xs opacity-75 mt-1 hidden sm:block">No match</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-5 text-white col-span-2 lg:col-span-1">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
-              <p className="text-xs sm:text-sm font-medium opacity-90">Match Rate</p>
-              <FiTrendingUp className="text-xl sm:text-2xl opacity-75" />
-            </div>
-            <p className="text-2xl sm:text-3xl font-bold">{matchingStats.matchRate}%</p>
-            <p className="text-xs opacity-75 mt-1 hidden sm:block">Success</p>
-          </div>
-        </div>
-
         {/* ========== RESPONSIVE SEARCH AND FILTER ========== */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 mb-4">
@@ -492,7 +667,7 @@ const SearchResume = () => {
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, email, phone..."
+                placeholder="Search by name, city, designation, department, CTC, phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm sm:text-base"
@@ -500,7 +675,7 @@ const SearchResume = () => {
             </div>
 
             {/* Sort By */}
-            <select
+            {/* <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="w-full lg:flex-1 px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm sm:text-base"
@@ -508,7 +683,7 @@ const SearchResume = () => {
               <option value="name">Sort by Name</option>
               <option value="date">Sort by Date</option>
               <option value="matched">Sort by Match Status</option>
-            </select>
+            </select> */}
           </div>
 
           {/* Status Filter Buttons */}
@@ -544,6 +719,42 @@ const SearchResume = () => {
               Unmatched ({combinedData.filter(d => !d.csvMatched).length})
             </button>
           </div>
+
+          {/* Bulk Action Buttons */}
+          {selectedCandidates.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+                <FiCheckCircle />
+                <span>{selectedCandidates.length} candidate(s) selected</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto">
+                <button
+                  onClick={downloadSelectedResumes}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  <FiDownload />
+                  <span>Download Resumes</span>
+                </button>
+                <button
+                  onClick={downloadSelectedInformation}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  <FiDownload />
+                  <span>Download Information</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedCandidates([]);
+                    setSelectAll(false);
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                >
+                  <FiX />
+                  <span>Clear Selection</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ========== RESPONSIVE TABLE / LOADING / EMPTY STATE ========== */}
@@ -569,15 +780,23 @@ const SearchResume = () => {
 
             {/* Responsive Table */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
+              <table className="w-full min-w-[800px]">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-medium text-gray-700 w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectAll}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                      />
+                    </th>
+                    <th className="py-3 px-3 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 w-16">Sr. No.</th>
                     <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Candidate</th>
                     <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Email</th>
                     <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Phone</th>
                     <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">City</th>
                     <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Sector</th>
-                    <th className="py-3 px-3 sm:px-6 text-left text-xs sm:text-sm font-medium text-gray-700">Status</th>
                     <th className="py-3 px-3 sm:px-6 text-center text-xs sm:text-sm font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
@@ -590,6 +809,17 @@ const SearchResume = () => {
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                       className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                     >
+                      <td className="py-3 sm:py-4 px-3 sm:px-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedCandidates.includes(candidate._id)}
+                          onChange={() => handleSelectCandidate(candidate._id)}
+                          className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                        />
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-4 text-sm font-medium text-gray-700">
+                        {index + 1}
+                      </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-6">
                         <div className="flex items-center space-x-2 sm:space-x-3">
                           <div
@@ -625,17 +855,6 @@ const SearchResume = () => {
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm text-gray-600">
                         <span className="truncate block">{candidate.sector}</span>
-                      </td>
-                      <td className="py-3 sm:py-4 px-3 sm:px-6">
-                        <span
-                          className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
-                            candidate.csvMatched
-                              ? "bg-green-100 text-green-800"
-                              : "bg-orange-100 text-orange-800"
-                          }`}
-                        >
-                          {candidate.csvMatched ? "✓ Matched" : "⚠ No Match"}
-                        </span>
                       </td>
                       <td className="py-3 sm:py-4 px-3 sm:px-6">
                         <div className="flex justify-center space-x-1 sm:space-x-2">
@@ -689,14 +908,14 @@ const SearchResume = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-0 sm:p-4 overflow-y-auto"
             onClick={() => setShowDetailModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full sm:rounded-xl shadow-2xl sm:max-w-4xl sm:my-8 max-h-screen sm:max-h-[90vh] flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header - Responsive */}
@@ -731,6 +950,18 @@ const SearchResume = () => {
                     📋 Contact Information
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Full Name</label>
+                      <p className="text-sm text-gray-900 font-medium">{selectedCandidate.fullName}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Gender</label>
+                      <p className="text-sm text-gray-900 font-medium">{selectedCandidate.gender}</p>
+                    </div>
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Date of Birth</label>
+                      <p className="text-sm text-gray-900 font-medium">{selectedCandidate.dob}</p>
+                    </div>
                     <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                       <label className="text-xs sm:text-sm text-gray-600 block mb-1">Email</label>
                       <div className="flex items-center gap-2 text-gray-900 text-sm">
@@ -828,11 +1059,7 @@ const SearchResume = () => {
                       <label className="text-xs sm:text-sm text-gray-600 block mb-1">Notice Period</label>
                       <p className="text-sm text-gray-900 font-medium">{selectedCandidate.noticePeriod}</p>
                     </div>
-                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Broker/Company Roll</label>
-                      <p className="text-sm text-gray-900 font-medium">{selectedCandidate.brokerRoll}</p>
-                    </div>
-                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500">
+                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500 sm:col-span-2">
                       <label className="text-xs sm:text-sm text-gray-600 block mb-1">Job Change Status</label>
                       <p className="text-sm text-gray-900 font-medium">{selectedCandidate.jobChangeStatus}</p>
                     </div>
@@ -880,71 +1107,17 @@ const SearchResume = () => {
                     <p className="text-sm text-gray-900">{selectedCandidate.languages}</p>
                   </div>
                 </div>
-
-                {/* Resume Info */}
-                <div className="mb-6 pt-6 border-t border-gray-200">
-                  <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4" style={{ color: '#020330' }}>
-                    📄 Resume Information
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">File Size</label>
-                      <p className="text-sm text-gray-900 font-medium">
-                        {formatFileSize(selectedCandidate.fileSize)}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Status</label>
-                      <span
-                        className={`inline-flex px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
-                          selectedCandidate.status === 'processed'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {selectedCandidate.status.charAt(0).toUpperCase() +
-                          selectedCandidate.status.slice(1)}
-                      </span>
-                    </div>
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <label className="text-xs sm:text-sm text-gray-600 block mb-1">Upload Date</label>
-                      <p className="text-sm text-gray-900 font-medium">
-                        {new Date(selectedCandidate.uploadDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CSV Match Status */}
-                {selectedCandidate.csvMatched ? (
-                  <div className="mb-6 bg-green-50 p-3 sm:p-4 rounded-lg border-l-4 border-green-500">
-                    <h4 className="text-base sm:text-lg font-semibold mb-2" style={{ color: '#020330' }}>
-                      ✅ CSV Data Matched Successfully
-                    </h4>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      This candidate's resume has been matched with CSV data from: <span className="font-medium">{selectedCandidate.csvFileName}</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      All details above are automatically populated from the matched CSV file.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-orange-50 p-3 sm:p-4 rounded-lg border-l-4 border-orange-500">
-                    <h4 className="text-base sm:text-lg font-semibold mb-2" style={{ color: '#020330' }}>
-                      ⚠️ No CSV Match Found
-                    </h4>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      This resume could not be matched with any CSV data.
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Tip: Ensure the candidate name in the resume filename (extracted as: <span className="font-medium">{selectedCandidate.candidateName}</span>) matches the "First Name", "Middle Name", and "Surname" columns in your CSV file.
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Modal Footer - Responsive */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => downloadCandidateInfo(selectedCandidate)}
+                  className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                >
+                  <FiDownload />
+                  <span>Download Information</span>
+                </button>
                 <button
                   onClick={() => downloadResume(selectedCandidate.resumeFile)}
                   className="flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"

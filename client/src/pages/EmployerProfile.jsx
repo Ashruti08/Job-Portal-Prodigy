@@ -11,7 +11,9 @@ import {
   FiUsers, 
   FiEdit3,
   FiSave,
-  FiX
+  FiX,
+  FiCamera,
+  FiUpload
 } from 'react-icons/fi';
 
 const EmployerProfile = () => {
@@ -35,8 +37,13 @@ const EmployerProfile = () => {
     location: '',
     website: '',
     companySize: '',
-    description: ''
+    description: '',
+    logo: '' // Add logo field
   });
+  
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
+  const fileInputRef = useRef(null);
   
   // Track if data has been loaded and component is mounted
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -60,6 +67,8 @@ const EmployerProfile = () => {
     console.log('EmployerProfile mounted successfully');
     console.log('backendUrl:', backendUrl);
     console.log('companyData:', companyData);
+    console.log('companyData?.logo:', companyData?.logo);
+    console.log('companyData?.image:', companyData?.image);
     console.log('companyToken exists:', !!companyToken);
     
     // Only initialize if we have companyData and haven't loaded data yet
@@ -71,14 +80,38 @@ const EmployerProfile = () => {
         location: companyData.location || '',
         website: companyData.website || '',
         companySize: companyData.companySize || '',
-        description: companyData.description || ''
+        description: companyData.description || '',
+        logo: companyData.logo || ''
       };
       
       setFormData(newFormData);
+      
+      // Set logo preview with URL encoding for spaces
+      if (companyData.logo) {
+        const logoPath = companyData.logo.startsWith('/') 
+          ? companyData.logo.substring(1) 
+          : companyData.logo;
+        
+        // Encode the filename part to handle spaces
+        const pathParts = logoPath.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        const encodedFilename = encodeURIComponent(filename);
+        const directory = pathParts.slice(0, -1).join('/');
+        
+        const previewUrl = directory 
+          ? `${backendUrl}/${directory}/${encodedFilename}`
+          : `${backendUrl}/${encodedFilename}`;
+        
+        setLogoPreview(previewUrl);
+        console.log('Logo preview set to:', previewUrl);
+      } else {
+        setLogoPreview(null);
+      }
+      
       setDataLoaded(true);
       console.log('Form data initialized with:', newFormData);
     }
-  }, [companyData, dataLoaded, isMounted, companyToken]);
+  }, [companyData, dataLoaded, isMounted, companyToken, backendUrl]);
 
   // Fetch profile data on component mount if not available and company is authenticated
   useEffect(() => {
@@ -108,17 +141,49 @@ const EmployerProfile = () => {
     }
   }, [companyData, getEmployerProfile, isLoading, isMounted, companyToken]);
 
-  // Early return if employer is not authenticated (no company token)
-  // if (!companyToken) {
-  //   return (
-  //     <div className="flex items-center justify-center min-h-[400px]">
-  //       <div className="text-center">
-  //         <h2 className="text-2xl font-bold text-gray-800 mb-4">Please Login as Employer</h2>
-  //         <p className="text-gray-600">You need to be logged in as an employer to view this page.</p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  // Handle logo file selection
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      setLogoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Trigger file input click
+  const handleLogoClick = () => {
+    if (isEditing && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Remove logo
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setFormData(prev => ({ ...prev, logo: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleInputChange = (field, value) => {
     if (!isMounted || !companyToken) return;
@@ -141,23 +206,29 @@ const EmployerProfile = () => {
         return;
     }
 
-    const profileData = {
-        name: formData.name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        location: formData.location.trim(),
-        website: formData.website.trim(),
-        companySize: formData.companySize.trim(),
-        description: formData.description.trim()
-    };
+    // Prepare profile data
+    const profileData = new FormData();
+    profileData.append('name', formData.name.trim());
+    profileData.append('email', formData.email.trim());
+    profileData.append('phone', formData.phone.trim());
+    profileData.append('location', formData.location.trim());
+    profileData.append('website', formData.website.trim());
+    profileData.append('companySize', formData.companySize.trim());
+    profileData.append('description', formData.description.trim());
+    
+    // Add logo if a new file was selected
+    if (logoFile) {
+      profileData.append('logo', logoFile);
+    }
 
-    console.log('Saving profile data:', profileData);
+    console.log('Saving profile data with logo');
     
     try {
       const result = await updateEmployerProfile(profileData);
       
       if (result && result.success && isMounted) {
           setIsEditing(false);
+          setLogoFile(null); // Clear the file after successful save
           console.log('Profile updated successfully');
       }
     } catch (error) {
@@ -180,9 +251,12 @@ const EmployerProfile = () => {
         location: companyData.location || '',
         website: companyData.website || '',
         companySize: companyData.companySize || '',
-        description: companyData.description || ''
+        description: companyData.description || '',
+        logo: companyData.logo || ''
       };
       setFormData(resetData);
+      setLogoPreview(companyData.logo || null);
+      setLogoFile(null);
     }
     setIsEditing(false);
   };
@@ -215,6 +289,57 @@ const EmployerProfile = () => {
     return placeholders[field] || `Enter ${field}`;
   };
 
+  // Get logo URL for display
+  const getLogoUrl = () => {
+    console.log('=== GET LOGO URL DEBUG ===');
+    console.log('logoPreview:', logoPreview);
+    console.log('companyData?.logo:', companyData?.logo);
+    console.log('companyData?.image:', companyData?.image);
+    console.log('backendUrl:', backendUrl);
+    
+    // If there's a preview (during edit), use it
+    if (logoPreview) {
+      console.log('Using logoPreview:', logoPreview);
+      return logoPreview;
+    }
+    
+    // Check if there's a logo in companyData
+    if (companyData?.logo) {
+      // If logo is a full URL (starts with http), use it directly
+      if (companyData.logo.startsWith('http')) {
+        console.log('Logo is full URL:', companyData.logo);
+        return companyData.logo;
+      }
+      // Otherwise, construct the URL with backend
+      // Remove leading slash if present to avoid double slashes
+      const logoPath = companyData.logo.startsWith('/') 
+        ? companyData.logo.substring(1) 
+        : companyData.logo;
+      
+      // Split path and filename, encode the filename part to handle spaces
+      const pathParts = logoPath.split('/');
+      const filename = pathParts[pathParts.length - 1];
+      const encodedFilename = encodeURIComponent(filename);
+      const directory = pathParts.slice(0, -1).join('/');
+      
+      const fullUrl = directory 
+        ? `${backendUrl}/${directory}/${encodedFilename}`
+        : `${backendUrl}/${encodedFilename}`;
+      
+      console.log('Constructed logo URL:', fullUrl);
+      return fullUrl;
+    }
+    
+    // Fallback to company image if no logo
+    if (companyData?.image) {
+      console.log('Using fallback company image:', companyData.image);
+      return companyData.image;
+    }
+    
+    console.log('No logo found, returning null');
+    return null;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -226,12 +351,56 @@ const EmployerProfile = () => {
       {/* Header Section */}
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-6">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg"
-            style={{ backgroundColor: '#ff6666' }}
-          >
-            {getDisplayValue('name')?.[0] || "C"}
+          {/* Logo/Avatar Section */}
+          <div className="relative">
+            {(() => {
+              const logoUrl = getLogoUrl();
+              console.log('Rendering with logoUrl:', logoUrl);
+              return logoUrl ? (
+                <div className="w-20 h-20 rounded-full overflow-hidden shadow-lg border-4 border-white">
+                  <img 
+                    src={logoUrl} 
+                    alt="Company Logo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('Image failed to load:', logoUrl);
+                      console.error('Error event:', e);
+                    }}
+                    onLoad={() => console.log('Image loaded successfully:', logoUrl)}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg"
+                  style={{ backgroundColor: '#ff6666' }}
+                >
+                  {getDisplayValue('name')?.[0] || "C"}
+                </div>
+              );
+            })()}
+            
+            
+            {/* Edit Logo Button (only visible in edit mode) */}
+            {isEditing && (
+              <button
+                onClick={handleLogoClick}
+                className="absolute -bottom-1 -right-1 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                title="Upload logo"
+              >
+                <FiCamera className="text-sm" />
+              </button>
+            )}
+            
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="hidden"
+            />
           </div>
+          
           <div>
             <h1 className="text-3xl font-bold text-gray-800">
               {getDisplayValue('name') !== 'Not provided' ? getDisplayValue('name') : 'Company Name'}
@@ -276,6 +445,27 @@ const EmployerProfile = () => {
           )}
         </div>
       </div>
+
+      {/* Logo Upload Section (visible only in edit mode) */}
+      {isEditing && logoPreview && (
+        <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FiUpload className="text-red-500 text-lg" />
+              <span className="text-sm font-semibold text-gray-700">Company Logo</span>
+            </div>
+            <button
+              onClick={handleRemoveLogo}
+              className="text-red-500 hover:text-red-600 text-sm font-medium"
+            >
+              Remove Logo
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Recommended: Square image, max 5MB (PNG, JPG, JPEG)
+          </p>
+        </div>
+      )}
 
       {/* Loading State */}
       {isLoading && (

@@ -25,10 +25,10 @@ const MyProfile = () => {
   // Profile form states
   const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    // Personal Details
-    firstName: '',
-    middleName: '',
-    surname: '',
+    // Personal Details - UPDATED FIELDS
+    fullName: '',
+    gender: '',
+    dob: '',
     mobileNo: '',
     emailId: '',
     linkedinId: '',
@@ -102,11 +102,12 @@ const MyProfile = () => {
     );
   };
 
-  // Calculate completion percentages
+  // Calculate completion percentages - UPDATED
   const calculatePersonalCompletion = () => {
     const personalFields = [
-      profileData.firstName,
-      profileData.surname,
+      profileData.fullName,
+      profileData.gender,
+      profileData.dob,
       profileData.mobileNo,
       profileData.emailId,
       profileData.city,
@@ -209,6 +210,7 @@ const MyProfile = () => {
   ];
 
   const maritalStatusOptions = ['Single', 'Married'];
+  const genderOptions = ['Male', 'Female', 'Other']; // NEW
   const jobChangeStatusOptions = ['Actively Looking', 'Open to Offers', 'Not Looking'];
 
   useEffect(() => {
@@ -220,9 +222,9 @@ const MyProfile = () => {
       console.log('is truthy:', !!userData.resume);
       
       setProfileData({
-        firstName: userData.firstName || '',
-        middleName: userData.middleName || '',
-        surname: userData.surname || '',
+        fullName: userData.fullName || '',
+        gender: userData.gender || '',
+        dob: formatDateForInput(userData.dob), // Now formats: "2003-04-24"
         mobileNo: userData.mobileNo || '',
         emailId: userData.emailId || user?.primaryEmailAddress?.emailAddress || '',
         linkedinId: userData.linkedinId || '',
@@ -256,6 +258,20 @@ const MyProfile = () => {
     }));
   };
 
+  const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '';
+  }
+};
+
   const handleResumeSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -274,7 +290,8 @@ const MyProfile = () => {
     
     setResume(file);
   };
-const updateResume = async () => {
+
+  const updateResume = async () => {
     try {
       if (!user) {
         toast.error("Please login to upload resume.");
@@ -352,7 +369,7 @@ const updateResume = async () => {
     setIsDeleting(false);
   };
 
-  // Autofill from resume function
+  // Autofill from resume function - UPDATED
   const autofillFromResume = async () => {
     if (!userData?.resume) {
       toast.error("Please upload a resume first to autofill details.");
@@ -380,9 +397,10 @@ const updateResume = async () => {
       if (data.success && data.extractedData) {
         setProfileData(prev => ({
           ...prev,
-          ...(data.extractedData.firstName && { firstName: data.extractedData.firstName }),
-          ...(data.extractedData.middleName && { middleName: data.extractedData.middleName }),
-          ...(data.extractedData.surname && { surname: data.extractedData.surname }),
+          // UPDATED - Use fullName instead of firstName/middleName/surname
+          ...(data.extractedData.fullName && { fullName: data.extractedData.fullName }),
+          ...(data.extractedData.gender && { gender: data.extractedData.gender }),
+          ...(data.extractedData.dob && { dob: data.extractedData.dob }),
           ...(data.extractedData.emailId && { emailId: data.extractedData.emailId }),
           ...(data.extractedData.mobileNo && { mobileNo: data.extractedData.mobileNo }),
           ...(data.extractedData.currentDesignation && { currentDesignation: data.extractedData.currentDesignation }),
@@ -491,9 +509,10 @@ const updateResume = async () => {
     if (userData) {
       setProfileData(prev => ({
         ...prev,
-        firstName: userData.firstName || '',
-        middleName: userData.middleName || '',
-        surname: userData.surname || '',
+        // UPDATED - Reset fullName/gender/dob instead of firstName/middleName/surname
+        fullName: userData.fullName || '',
+        gender: userData.gender || '',
+       dob: formatDateForInput(userData.dob), // Now formats: "2003-04-24"
         mobileNo: userData.mobileNo || '',
         emailId: userData.emailId || user?.primaryEmailAddress?.emailAddress || '',
         linkedinId: userData.linkedinId || '',
@@ -761,7 +780,7 @@ const updateResume = async () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-8"
         >
-          {/* Personal Details Section */}
+          {/* Personal Details Section - UPDATED FIELDS */}
           <div className="group relative">
             <div 
               className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -827,36 +846,44 @@ const updateResume = async () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                {/* UPDATED - Full Name instead of First/Middle/Surname */}
+                <div className="md:col-span-2 lg:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                   <input
                     type="text"
-                    name="firstName"
-                    value={profileData.firstName}
+                    name="fullName"
+                    value={profileData.fullName}
                     onChange={handleInputChange}
                     disabled={!isEditingPersonal}
+                    placeholder="Enter your full name"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
+                {/* UPDATED - Gender instead of Middle Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
-                  <input
-                    type="text"
-                    name="middleName"
-                    value={profileData.middleName}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                  <select
+                    name="gender"
+                    value={profileData.gender}
                     onChange={handleInputChange}
                     disabled={!isEditingPersonal}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
+                  >
+                    <option value="">Select Gender</option>
+                    {genderOptions.map(gender => (
+                      <option key={gender} value={gender}>{gender}</option>
+                    ))}
+                  </select>
                 </div>
 
+                {/* UPDATED - Date of Birth instead of Surname */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Surname</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
                   <input
-                    type="text"
-                    name="surname"
-                    value={profileData.surname}
+                    type="date"
+                    name="dob"
+                    value={profileData.dob}
                     onChange={handleInputChange}
                     disabled={!isEditingPersonal}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -982,7 +1009,7 @@ const updateResume = async () => {
             </div>
           </div>
 
-          {/* Professional Details Section */}
+          {/* Professional Details Section - NO CHANGES HERE */}
           <div className="group relative">
             <div 
               className="absolute inset-0 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"

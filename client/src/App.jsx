@@ -21,6 +21,7 @@ import AppliedJobs from "./components/AppliedJobs";
 import BulkUpload from './pages/BulkUpload';
 import SearchResume from './pages/SearchResume';
 import JobAlerts from "./components/JobAlerts";
+import MainDashboard from "./pages/Maindashboard";
 import "quill/dist/quill.snow.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -132,6 +133,18 @@ const App = () => {
             element={
               <DemoFriendlyRecruiterRoute>
                 <ViewApplications />
+              </DemoFriendlyRecruiterRoute>
+            } 
+          />
+
+          {/* ✅ NEW: Main Dashboard - Analytics Dashboard */}
+          <Route 
+            path="main-dashboard" 
+            element={
+              <DemoFriendlyRecruiterRoute>
+                <ProtectFromSubUsers>
+                  <MainDashboard />
+                </ProtectFromSubUsers>
               </DemoFriendlyRecruiterRoute>
             } 
           />

@@ -247,23 +247,52 @@ useEffect(() => {
         return () => clearTimeout(timer);
     }, [user, userLoaded, authLoaded, fetchUserData, fetchUserApplications]);
   
+    // ✅ UPDATED: Support both FormData (with logo) and JSON (without logo)
     const updateEmployerProfile = async (profileData) => {
         try {
             setIsLoading(true);
             setError(null);
 
-            const response = await axios.put(`${backendUrl}/api/employer/profile`, profileData, {
-                headers: { token: companyToken }
-            });
+            // Check if profileData is FormData (has logo) or regular object
+            const isFormData = profileData instanceof FormData;
+            
+            console.log('=== UPDATE EMPLOYER PROFILE ===');
+            console.log('Is FormData:', isFormData);
+            
+            const headers = { 
+                token: companyToken
+            };
+            
+            // Don't set Content-Type for FormData - browser will set it automatically with boundary
+            if (!isFormData) {
+                headers['Content-Type'] = 'application/json';
+            }
+
+            const response = await axios.put(
+                `${backendUrl}/api/employer/profile`, 
+                profileData, 
+                { headers }
+            );
 
             const data = response.data;
+            console.log('=== PROFILE UPDATE RESPONSE ===');
+            console.log('Full response:', data);
+            console.log('Response data.data:', data.data);
+            console.log('Logo in response:', data.data?.logo);
+            
             if (data.success) {
                 // ✅ Preserve isSubUser when updating profile
                 const updatedData = {
                     ...data.data,
                     isSubUser: companyData?.isSubUser || false,
-                    roleType: companyData?.roleType || null
+                    roleType: companyData?.roleType || null,
+                    permissions: companyData?.permissions || null
                 };
+                
+                console.log('=== SETTING COMPANY DATA ===');
+                console.log('Updated data to set:', updatedData);
+                console.log('Logo in updatedData:', updatedData.logo);
+                
                 setCompanyData(updatedData);
                 localStorage.setItem('companyData', JSON.stringify(updatedData));
                 toast.success('Profile updated successfully');
@@ -308,7 +337,8 @@ useEffect(() => {
                 const profileData = {
                     ...data.data,
                     isSubUser: companyData?.isSubUser || false,
-                    roleType: companyData?.roleType || null
+                    roleType: companyData?.roleType || null,
+                    permissions: companyData?.permissions || null
                 };
                 setCompanyData(profileData);
                 localStorage.setItem('companyData', JSON.stringify(profileData));
