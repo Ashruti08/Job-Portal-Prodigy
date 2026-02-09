@@ -81,6 +81,106 @@ const BulkUpload = () => {
                .replace(/[^a-z]/g, "");
   };
 
+  // Download sample format function
+  const downloadSampleFormat = async () => {
+    try {
+      // Fetch the sample format file from uploads
+      const response = await axios.get(`${backendUrl}/api/bulk-upload/sample-format`, {
+        headers: { token: companyToken },
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'sample_format.xls');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Sample format downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading sample format:", error);
+      // If API endpoint doesn't exist, create a sample format locally
+      createLocalSampleFormat();
+    }
+  };
+
+  // Create sample format locally if API endpoint doesn't exist
+  const createLocalSampleFormat = () => {
+    try {
+      // Create sample data structure with the exact headings requested
+      const sampleData = [
+        [
+          'Full Name', 'Gender', 'DOB', 'Mobile No', 'Email ID', 'Linkedin ID', 'Facebook ID', 
+          'Instagram ID', 'Snapchat', 'City', 'State', 'Languages', 'Marital Status', 'Sector', 
+          'Category', 'Product', 'Channel', 'Current Designation', 'Current Department', 
+          'Current CTC', 'Expected CTC', 'Notice Period', 'Total Experience', 'Status for Job Change'
+        ],
+        [
+          'John Doe', 'Male', '15/01/1990', '9876543210', 'john.doe@example.com', 
+          'linkedin.com/in/johndoe', 'facebook.com/johndoe', 'instagram.com/johndoe', 
+          'johndoe_snap', 'Mumbai', 'Maharashtra', 'English, Hindi', 'Single', 
+          'IT Services', 'Software Development', 'Web Applications', 'Direct', 
+          'Senior Developer', 'Engineering', '12 LPA', '15 LPA', '2 Months', 
+          '5 Years', 'Actively Looking'
+        ],
+        [
+          'Jane Smith', 'Female', '22/05/1992', '9876543211', 'jane.smith@example.com', 
+          'linkedin.com/in/janesmith', '', '', '', 'Delhi', 'Delhi', 'English, Hindi, Punjabi', 
+          'Married', 'Banking', 'Finance', 'Retail Banking', 'Branch', 'Branch Manager', 
+          'Operations', '10 LPA', '13 LPA', '1 Month', '7 Years', 'Open to Opportunities'
+        ],
+        ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+      ];
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(sampleData);
+
+      // Set column widths for better readability
+      ws['!cols'] = [
+        { wch: 20 }, // Full Name
+        { wch: 10 }, // Gender
+        { wch: 12 }, // DOB
+        { wch: 15 }, // Mobile No
+        { wch: 30 }, // Email ID
+        { wch: 30 }, // Linkedin ID
+        { wch: 25 }, // Facebook ID
+        { wch: 25 }, // Instagram ID
+        { wch: 20 }, // Snapchat
+        { wch: 15 }, // City
+        { wch: 15 }, // State
+        { wch: 20 }, // Languages
+        { wch: 15 }, // Marital Status
+        { wch: 20 }, // Sector
+        { wch: 20 }, // Category
+        { wch: 20 }, // Product
+        { wch: 15 }, // Channel
+        { wch: 20 }, // Current Designation
+        { wch: 20 }, // Current Department
+        { wch: 12 }, // Current CTC
+        { wch: 12 }, // Expected CTC
+        { wch: 15 }, // Notice Period
+        { wch: 15 }, // Total Experience
+        { wch: 20 }, // Status for Job Change
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Candidate Data');
+
+      // Generate Excel file and trigger download
+      XLSX.writeFile(wb, 'sample_format.xlsx');
+      
+      toast.success("Sample format downloaded successfully!");
+    } catch (error) {
+      console.error("Error creating sample format:", error);
+      toast.error("Failed to download sample format. Please try again.");
+    }
+  };
+
   const fetchUploadedFiles = async () => {
     setIsLoadingFiles(true);
     try {
@@ -577,6 +677,21 @@ const BulkUpload = () => {
                 }
               </p>
 
+              {activeTab === "csv" && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md w-full">
+                  <p className="text-sm text-blue-800 mb-2">
+                    📥 Please download the sample format file, fill in the details, and then upload
+                  </p>
+                  <button
+                    onClick={downloadSampleFormat}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm w-full"
+                  >
+                    <FiDownload />
+                    <span>Download Sample Format</span>
+                  </button>
+                </div>
+              )}
+
               <input
                 ref={activeTab === "resumes" ? resumeInputRef : csvInputRef}
                 type="file"
@@ -612,69 +727,40 @@ const BulkUpload = () => {
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-        >
-          {activeTab === "resumes" ? (
-            <>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF0000' }}>
-                <p className="text-gray-500 text-sm mb-1">Total Resumes</p>
-                <p className="text-2xl font-bold" style={{ color: '#FF0000' }}>
-                  {stats.resumes.totalResumes}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#00C851' }}>
-                <p className="text-gray-500 text-sm mb-1">Processed</p>
-                <p className="text-2xl font-bold" style={{ color: '#00C851' }}>
-                  {stats.resumes.processedResumes}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF4444' }}>
-                <p className="text-gray-500 text-sm mb-1">Failed</p>
-                <p className="text-2xl font-bold" style={{ color: '#FF4444' }}>
-                  {stats.resumes.failedResumes}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#2196F3' }}>
-                <p className="text-gray-500 text-sm mb-1">Total Size</p>
-                <p className="text-2xl font-bold" style={{ color: '#2196F3' }}>
-                  {formatFileSize(stats.resumes.totalSize)}
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF0000' }}>
-                <p className="text-gray-500 text-sm mb-1">Total Files</p>
-                <p className="text-2xl font-bold" style={{ color: '#FF0000' }}>
-                  {stats.csv.totalCSVs}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#00C851' }}>
-                <p className="text-gray-500 text-sm mb-1">Processed</p>
-                <p className="text-2xl font-bold" style={{ color: '#00C851' }}>
-                  {stats.csv.processedCSVs}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF9800' }}>
-                <p className="text-gray-500 text-sm mb-1">Total Rows</p>
-                <p className="text-2xl font-bold" style={{ color: '#FF9800' }}>
-                  {stats.csv.totalRows.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#2196F3' }}>
-                <p className="text-gray-500 text-sm mb-1">Total Size</p>
-                <p className="text-2xl font-bold" style={{ color: '#2196F3' }}>
-                  {formatFileSize(stats.csv.totalSize)}
-                </p>
-              </div>
-            </>
-          )}
-        </motion.div>
+        {/* Stats Overview - Only show for CSV tab */}
+        {activeTab === "csv" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+          >
+            <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF0000' }}>
+              <p className="text-gray-500 text-sm mb-1">Total Files</p>
+              <p className="text-2xl font-bold" style={{ color: '#FF0000' }}>
+                {stats.csv.totalCSVs}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#00C851' }}>
+              <p className="text-gray-500 text-sm mb-1">Processed</p>
+              <p className="text-2xl font-bold" style={{ color: '#00C851' }}>
+                {stats.csv.processedCSVs}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#FF9800' }}>
+              <p className="text-gray-500 text-sm mb-1">Total Rows</p>
+              <p className="text-2xl font-bold" style={{ color: '#FF9800' }}>
+                {stats.csv.totalRows.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl shadow-md p-5 border-l-4" style={{ borderLeftColor: '#2196F3' }}>
+              <p className="text-gray-500 text-sm mb-1">Total Size</p>
+              <p className="text-2xl font-bold" style={{ color: '#2196F3' }}>
+                {formatFileSize(stats.csv.totalSize)}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Uploaded Files List */}
         {isLoadingFiles ? (

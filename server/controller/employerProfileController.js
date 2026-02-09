@@ -2,6 +2,12 @@ import EmployerProfile from '../models/EmployerProfile.js';
 import Company from '../models/Company.js';
 import Job from '../models/Job.js';
 import JobApplication from '../models/JobApplication.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const getEmployerProfile = async (req, res) => {
     try {
@@ -28,6 +34,7 @@ export const getEmployerProfile = async (req, res) => {
                 website: '',
                 companySize: '',
                 description: '',
+                logo: company.image || '', // Use company image as default logo
                 stats: realStats
             });
         } else {
@@ -43,7 +50,8 @@ export const getEmployerProfile = async (req, res) => {
                 name: company.name,
                 email: company.email,
                 phone: company.phone,
-                image: company.image
+                image: company.image,
+                logo: profile.logo || company.image || '' // Fallback to company image
             }
         });
 
@@ -70,6 +78,11 @@ export const updateEmployerProfile = async (req, res) => {
             description
         } = req.body;
 
+        console.log('=== UPDATE EMPLOYER PROFILE ===');
+        console.log('Company ID:', companyId);
+        console.log('Has file:', !!req.file);
+        console.log('Body data:', { name, email, phone, location, website, companySize });
+
         // Calculate real-time stats
         const [activeJobs, totalApplications, totalHired] = await Promise.all([
             Job.countDocuments({ companyId, visible: true }),
@@ -78,6 +91,61 @@ export const updateEmployerProfile = async (req, res) => {
         ]);
 
         const realStats = { activeJobs, totalApplications, totalHired };
+
+        let logoPath = null;
+
+        // Handle logo upload if file is present
+        if (req.file) {
+            try {
+                console.log('Processing uploaded logo...');
+                console.log('File details:', {
+                    filename: req.file.filename,
+                    path: req.file.path,
+                    destination: req.file.destination,
+                    mimetype: req.file.mimetype,
+                    size: req.file.size
+                });
+
+                // Get the existing profile to delete old logo if exists
+                const existingProfile = await EmployerProfile.findOne({ companyId });
+                
+                if (existingProfile && existingProfile.logo) {
+                    // Delete old logo file if it exists
+                    const oldLogoPath = path.join(__dirname, '..', existingProfile.logo);
+                    if (fs.existsSync(oldLogoPath)) {
+                        fs.unlinkSync(oldLogoPath);
+                        console.log('Old logo deleted:', oldLogoPath);
+                    }
+                }
+
+                // Multer already saved the file with sanitized filename in uploads/images/
+                // Just store the relative path
+                logoPath = `/uploads/images/${req.file.filename}`;
+                console.log('Logo path to save in DB:', logoPath);
+
+            } catch (uploadError) {
+                console.error('Logo upload error:', uploadError);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Error uploading logo',
+                    error: uploadError.message
+                });
+            }
+        }
+
+        // Prepare profile update data
+        const profileUpdateData = {
+            location,
+            website,
+            companySize,
+            description,
+            stats: realStats
+        };
+
+        // Add logo path if it was uploaded
+        if (logoPath) {
+            profileUpdateData.logo = logoPath;
+        }
               
         // Update both company and profile in parallel
         const [company, profile] = await Promise.all([
@@ -89,16 +157,13 @@ export const updateEmployerProfile = async (req, res) => {
             
             EmployerProfile.findOneAndUpdate(
                 { companyId },
-                {
-                    location,
-                    website,
-                    companySize,
-                    description,
-                    stats: realStats
-                },
+                profileUpdateData,
                 { new: true, upsert: true }
             )
         ]);
+
+        console.log('Profile updated successfully');
+        console.log('Logo in updated profile:', profile.logo);
 
         res.status(200).json({
             success: true,
@@ -108,7 +173,8 @@ export const updateEmployerProfile = async (req, res) => {
                 name: company.name,
                 email: company.email,
                 phone: company.phone,
-                image: company.image
+                image: company.image,
+                logo: profile.logo || company.image || ''
             }
         });
 

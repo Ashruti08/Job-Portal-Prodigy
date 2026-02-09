@@ -4,7 +4,7 @@ import { assets, Jobdesignation, JobLocations } from "../assets/assets";
 import JobCard from "../components/JobCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom"; 
-import {ChevronDown, ChevronUp} from "lucide-react";
+import {ChevronDown, ChevronUp, IndianRupee} from "lucide-react";
 
 // Job Channel Options (without "Other")
 const JobChannels = [
@@ -49,6 +49,18 @@ const JobDesignationsPredefined = [...Jobdesignation];
 // Job Locations with Remote
 const JobLocationsWithRemote = [...JobLocations, "Remote"];
 
+// Predefined Salary Ranges in INR
+const SalaryRanges = [
+  { label: "Under ₹3 LPA", min: 0, max: 300000 },
+  { label: "₹3 - ₹5 LPA", min: 300000, max: 500000 },
+  { label: "₹5 - ₹8 LPA", min: 500000, max: 800000 },
+  { label: "₹8 - ₹12 LPA", min: 800000, max: 1200000 },
+  { label: "₹12 - ₹15 LPA", min: 1200000, max: 1500000 },
+  { label: "₹15 - ₹20 LPA", min: 1500000, max: 2000000 },
+  { label: "₹20 - ₹30 LPA", min: 2000000, max: 3000000 },
+  { label: "Above ₹30 LPA", min: 3000000, max: Infinity }
+];
+
 const JobListing = () => {
   const { isSearched, searchFilter, setSearchFilter, jobs } = useContext(AppContext);
   const navigate = useNavigate();
@@ -68,14 +80,59 @@ const JobListing = () => {
   const [filterJobs, setFilterJobs] = useState(jobs);
   const [fade, setFade] = useState(true);
   const [sortBy, setSortBy] = useState('recent');
+  
+  // Salary range filter states
+  const [selectedSalaryRanges, setSelectedSalaryRanges] = useState([]);
+  const [customSalary, setCustomSalary] = useState({ min: '', max: '' });
+  const [useCustomSalary, setUseCustomSalary] = useState(false);
 
   // Filter collapse states
   const [filterStates, setFilterStates] = useState({
     jobCategory: false,
     designation: false,
     channel: false,
-    location: false
+    location: false,
+    salary: false
   });
+
+  // Helper function to parse salary from job
+  const parseSalaryValue = (salaryStr) => {
+    if (!salaryStr) return { min: 0, max: 0 };
+    
+    const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '').trim();
+    const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
+    
+    if (!numbers || numbers.length === 0) return { min: 0, max: 0 };
+    
+    const values = numbers.map(num => {
+      let value = parseFloat(num);
+      const numIndex = cleanStr.indexOf(num);
+      const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 5);
+      
+      // Check for LPA, Lacs, Lakhs
+      if (afterNum.toLowerCase().includes('lpa') || 
+          afterNum.toLowerCase().includes('lakh') || 
+          afterNum.toLowerCase().includes('lac') ||
+          afterNum.includes('L') || afterNum.includes('l')) {
+        value = value * 100000;
+      } 
+      // Check for Thousands
+      else if (afterNum.includes('K') || afterNum.includes('k')) {
+        value = value * 1000;
+      }
+      // Check for Crores
+      else if (afterNum.toLowerCase().includes('cr')) {
+        value = value * 10000000;
+      }
+      
+      return value;
+    });
+    
+    return {
+      min: Math.min(...values),
+      max: Math.max(...values)
+    };
+  };
 
   // Helper function to check if a value is "Other" (not in predefined list)
   const isOtherDesignation = (designation) => {
@@ -107,28 +164,8 @@ const JobListing = () => {
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
             const salaryStr = job.salary || job.salaryRange || job.package || '';
-            if (!salaryStr) return 0;
-            
-            const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
-            const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
-            if (!numbers || numbers.length === 0) return 0;
-            
-            let maxSalary = 0;
-            numbers.forEach(num => {
-              let value = parseFloat(num);
-              const numIndex = cleanStr.indexOf(num);
-              const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
-              
-              if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000;
-              } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000;
-              }
-              
-              maxSalary = Math.max(maxSalary, value);
-            });
-            
-            return maxSalary;
+            const parsed = parseSalaryValue(salaryStr);
+            return parsed.max || 0;
           };
           
           return getSalaryValue(b) - getSalaryValue(a);
@@ -138,28 +175,8 @@ const JobListing = () => {
         return jobsCopy.sort((a, b) => {
           const getSalaryValue = (job) => {
             const salaryStr = job.salary || job.salaryRange || job.package || '';
-            if (!salaryStr) return 0;
-            
-            const cleanStr = salaryStr.toString().replace(/[₹$,]/g, '');
-            const numbers = cleanStr.match(/\d+(?:\.\d+)?/g);
-            if (!numbers || numbers.length === 0) return 0;
-            
-            let minSalary = Infinity;
-            numbers.forEach(num => {
-              let value = parseFloat(num);
-              const numIndex = cleanStr.indexOf(num);
-              const afterNum = cleanStr.substring(numIndex + num.length, numIndex + num.length + 2);
-              
-              if (afterNum.includes('L') || afterNum.includes('l')) {
-                value = value * 100000;
-              } else if (afterNum.includes('K') || afterNum.includes('k')) {
-                value = value * 1000;
-              }
-              
-              minSalary = Math.min(minSalary, value);
-            });
-            
-            return minSalary === Infinity ? 0 : minSalary;
+            const parsed = parseSalaryValue(salaryStr);
+            return parsed.min || 0;
           };
           
           return getSalaryValue(a) - getSalaryValue(b);
@@ -218,6 +235,8 @@ const JobListing = () => {
   const prevSelectedLocation = useRef(selectedLocation);
   const prevSelectedChannel = useRef(selectedChannel);
   const prevSelectedJobCategory = useRef(selectedJobCategory);
+  const prevSelectedSalaryRanges = useRef(selectedSalaryRanges);
+  const prevCustomSalary = useRef(customSalary);
   const prevSearchFilter = useRef({ ...searchFilter });
 
   const triggerTransition = (callback, shouldScroll = true) => {
@@ -273,6 +292,33 @@ const JobListing = () => {
         return selectedJobCategory.includes(job.jobcategory);
       };
 
+      // NEW: Salary filter
+      const matchesSalary = (job) => {
+        const salaryStr = job.salary || job.salaryRange || job.package || '';
+        if (!salaryStr) return true; // If no salary info, show it
+        
+        const jobSalary = parseSalaryValue(salaryStr);
+        
+        // If using custom salary range
+        if (useCustomSalary && (customSalary.min || customSalary.max)) {
+          const minSalary = parseFloat(customSalary.min) * 100000 || 0; // Convert LPA to actual value
+          const maxSalary = parseFloat(customSalary.max) * 100000 || Infinity;
+          
+          // Job matches if its range overlaps with filter range
+          return jobSalary.max >= minSalary && jobSalary.min <= maxSalary;
+        }
+        
+        // If using predefined ranges
+        if (selectedSalaryRanges.length === 0) return true;
+        
+        // Check if job salary falls within any selected range
+        return selectedSalaryRanges.some(rangeIndex => {
+          const range = SalaryRanges[rangeIndex];
+          // Job matches if its range overlaps with filter range
+          return jobSalary.max >= range.min && jobSalary.min <= range.max;
+        });
+      };
+
       const matchesTitle = (job) =>
         searchFilter.title === "" ||
         job.title.toLowerCase().includes(searchFilter.title.toLowerCase());
@@ -289,6 +335,7 @@ const JobListing = () => {
             matchesLocation(job) &&
             matchesChannel(job) &&
             matchesJobCategory(job) &&
+            matchesSalary(job) &&
             matchesTitle(job) &&
             matchesSearchLocation(job)
         );
@@ -304,6 +351,8 @@ const JobListing = () => {
       prevSelectedLocation.current !== selectedLocation ||
       prevSelectedChannel.current !== selectedChannel ||
       prevSelectedJobCategory.current !== selectedJobCategory ||
+      prevSelectedSalaryRanges.current !== selectedSalaryRanges ||
+      JSON.stringify(prevCustomSalary.current) !== JSON.stringify(customSalary) ||
       JSON.stringify(prevSearchFilter.current) !== JSON.stringify(searchFilter);
 
     if (initialLoad.current) {
@@ -317,8 +366,10 @@ const JobListing = () => {
     prevSelectedLocation.current = selectedLocation;
     prevSelectedChannel.current = selectedChannel;
     prevSelectedJobCategory.current = selectedJobCategory;
+    prevSelectedSalaryRanges.current = selectedSalaryRanges;
+    prevCustomSalary.current = customSalary;
     prevSearchFilter.current = { ...searchFilter };
-  }, [jobs, selectedCategory, selectedLocation, selectedChannel, selectedJobCategory, searchFilter, sortBy]);
+  }, [jobs, selectedCategory, selectedLocation, selectedChannel, selectedJobCategory, selectedSalaryRanges, customSalary, useCustomSalary, searchFilter, sortBy]);
 
   const handlePageChange = (newPage) => {
     triggerTransition(() => setCurrentPage(newPage));
@@ -335,8 +386,30 @@ const JobListing = () => {
       setSelectedLocation([]);
       setSelectedChannel([]);
       setSelectedJobCategory([]);
+      setSelectedSalaryRanges([]);
+      setCustomSalary({ min: '', max: '' });
+      setUseCustomSalary(false);
       setSearchFilter({ title: "", location: "" });
     });
+  };
+
+  // Clear salary filter
+  const clearSalaryFilter = () => {
+    setSelectedSalaryRanges([]);
+    setCustomSalary({ min: '', max: '' });
+    setUseCustomSalary(false);
+  };
+
+  // Format salary display
+  const formatSalary = (amount) => {
+    if (amount >= 10000000) {
+      return `₹${(amount / 10000000).toFixed(1)} Cr`;
+    } else if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(1)} LPA`;
+    } else if (amount >= 1000) {
+      return `₹${(amount / 1000).toFixed(0)}K`;
+    }
+    return `₹${amount}`;
   };
 
   // Filter Section Component
@@ -420,6 +493,146 @@ const JobListing = () => {
                   {showAll ? 'Show less' : `Show all (${options.length})`}
                 </button>
               )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  // Salary Filter Component
+  const SalaryFilterSection = () => (
+    <div className="border-b border-gray-200 pb-4 mb-6 last:border-b-0">
+      <div 
+        className="flex justify-between items-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+        onClick={() => toggleFilter('salary')}
+      >
+        <h4 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+          Salary
+        </h4>
+        <div className="flex items-center gap-2">
+          {(selectedSalaryRanges.length > 0 || useCustomSalary) && (
+            <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
+              {useCustomSalary ? '1' : selectedSalaryRanges.length}
+            </span>
+          )}
+          {filterStates.salary ? (
+            <ChevronUp className="w-5 h-5 text-gray-600" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-gray-600" />
+          )}
+        </div>
+      </div>
+      
+      <AnimatePresence>
+        {filterStates.salary && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="mt-4"
+          >
+            {(selectedSalaryRanges.length > 0 || useCustomSalary) && (
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-gray-600">
+                  {useCustomSalary ? 'Custom range' : `${selectedSalaryRanges.length} selected`}
+                </span>
+                <button 
+                  onClick={clearSalaryFilter}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            
+            {/* Custom Salary Range */}
+            <div className="mb-4 ml-4">
+              <div className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  id="custom-salary"
+                  checked={useCustomSalary}
+                  onChange={(e) => {
+                    setUseCustomSalary(e.target.checked);
+                    if (e.target.checked) {
+                      setSelectedSalaryRanges([]);
+                    }
+                  }}
+                  className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
+                />
+                <label htmlFor="custom-salary" className="ml-3 text-sm font-medium text-gray-700">
+                  Custom Range (in LPA)
+                </label>
+              </div>
+              
+              {useCustomSalary && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min (LPA)"
+                      value={customSalary.min}
+                      onChange={(e) => setCustomSalary(prev => ({ ...prev, min: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      min="0"
+                      step="0.5"
+                    />
+                    <span className="text-gray-500">-</span>
+                    <input
+                      type="number"
+                      placeholder="Max (LPA)"
+                      value={customSalary.max}
+                      onChange={(e) => setCustomSalary(prev => ({ ...prev, max: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                      min="0"
+                      step="0.5"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Enter salary in Lakhs Per Annum (LPA)</p>
+                </div>
+              )}
+            </div>
+
+            {/* Predefined Ranges */}
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Or select from ranges:</p>
+              <ul className="space-y-2 max-h-48 overflow-y-auto">
+                {SalaryRanges.map((range, index) => (
+                  <motion.li 
+                    key={index} 
+                    className="flex items-center"
+                    whileHover={{ x: 3 }}
+                  >
+                    <input
+                      className="h-4 w-4 text-primary rounded focus:ring-primary border-gray-300"
+                      type="checkbox"
+                      onChange={() => {
+                        const newSelection = selectedSalaryRanges.includes(index)
+                          ? selectedSalaryRanges.filter(item => item !== index)
+                          : [...selectedSalaryRanges, index];
+                        setSelectedSalaryRanges(newSelection);
+                        if (newSelection.length > 0) {
+                          setUseCustomSalary(false);
+                          setCustomSalary({ min: '', max: '' });
+                        }
+                      }}
+                      checked={selectedSalaryRanges.includes(index)}
+                      disabled={useCustomSalary}
+                      id={`salary-${index}`}
+                    />
+                    <label 
+                      htmlFor={`salary-${index}`} 
+                      className={`ml-3 text-sm cursor-pointer transition-colors ${
+                        useCustomSalary ? 'text-gray-400' : 'text-gray-700 hover:text-primary'
+                      }`}
+                    >
+                      {range.label}
+                    </label>
+                  </motion.li>
+                ))}
+              </ul>
             </div>
           </motion.div>
         )}
@@ -575,6 +788,8 @@ const JobListing = () => {
               setShowAll={setShowAllChannels}
             />
 
+            <SalaryFilterSection />
+
             <FilterSection
               title="Locations"
               filterType="location"
@@ -617,13 +832,14 @@ const JobListing = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
           <p className="text-gray-600 mb-2 sm:mb-0">
             Showing <span className="font-semibold text-gray-900">{filterJobs.length}</span> jobs
-            {(selectedJobCategory.length > 0 || selectedCategory.length > 0 || selectedChannel.length > 0 || selectedLocation.length > 0) && (
+            {(selectedJobCategory.length > 0 || selectedCategory.length > 0 || selectedChannel.length > 0 || selectedLocation.length > 0 || selectedSalaryRanges.length > 0 || useCustomSalary) && (
               <span className="text-sm ml-2">
                 (filtered by {[
                   selectedJobCategory.length > 0 ? `${selectedJobCategory.length} categor${selectedJobCategory.length > 1 ? 'ies' : 'y'}` : '',
                   selectedCategory.length > 0 ? `${selectedCategory.length} designation${selectedCategory.length > 1 ? 's' : ''}` : '',
                   selectedChannel.length > 0 ? `${selectedChannel.length} channel${selectedChannel.length > 1 ? 's' : ''}` : '',
-                  selectedLocation.length > 0 ? `${selectedLocation.length} location${selectedLocation.length > 1 ? 's' : ''}` : ''
+                  selectedLocation.length > 0 ? `${selectedLocation.length} location${selectedLocation.length > 1 ? 's' : ''}` : '',
+                  (selectedSalaryRanges.length > 0 || useCustomSalary) ? 'salary range' : ''
                 ].filter(Boolean).join(', ')})
               </span>
             )}

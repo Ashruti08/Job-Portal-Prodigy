@@ -79,7 +79,7 @@ const Testimonial = () => {
               className="text-4xl font-bold sm:text-5xl mb-8 text-black"
             >
               What People Say <br />
-              About DE Employmint
+              About <span style={{ color: "#ff0000" }}>DE employmint</span>
             </motion.h2>
 
             <AnimatePresence mode="wait">

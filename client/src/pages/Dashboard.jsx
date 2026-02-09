@@ -38,6 +38,8 @@ const getNavItems = (isSubUser, subUserRole, permissions) => {
     { path: "search-resume", label: "Search Resume", icon: <FiSearch /> },
     { path: "manage-package", label: "Manage Package", icon: <FiPackage /> },
     { path: "my-team", label: "My Team", icon: <FiUsers /> },
+    { path: "main-dashboard", label: "Dashboard", icon: <FiUsers /> },
+
   ];
   
   return baseItems;

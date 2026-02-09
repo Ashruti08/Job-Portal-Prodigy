@@ -13,8 +13,6 @@ const __dirname = path.dirname(__filename);
 // ✅ Extract Clerk userId from req.auth (guaranteed by middleware)
 const getClerkUserId = (req) => req.auth.userId;
 
-// ✅ Get user from DB (or create if missing) - FIXED to match your User model
-
 // ------------------ CONTROLLERS ------------------
 
 export const applyForJob = async (req, res) => {
@@ -69,7 +67,7 @@ export const applyForJob = async (req, res) => {
       userId: userData._id,
       jobId,
       date: Date.now(),
-      status: "Pending" // Set default status
+      status: "Pending"
     };
     
     console.log("Creating application with data:", applicationData);
@@ -102,7 +100,7 @@ export const getUserJobApplications = async (req, res) => {
     const applications = await JobApplication.find({ userId: userData._id })
       .populate("companyId", "name email image")
       .populate("jobId", "title description location jobcategory jobchannel level noticeperiod salary")
-      .sort({ date: -1 }) // Sort by latest first
+      .sort({ date: -1 })
       .exec();
     
     console.log("Found applications:", applications?.length || 0);
@@ -114,7 +112,7 @@ export const getUserJobApplications = async (req, res) => {
   }
 };
 
-// Replace resume upload in updateUserResume
+// Resume upload
 export const updateUserResume = async (req, res) => {
   try {
     const clerkUserId = getClerkUserId(req);
@@ -158,6 +156,7 @@ export const updateUserResume = async (req, res) => {
   }
 };
 
+// UPDATED: Profile update with new fields
 export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.auth?.userId;
@@ -174,15 +173,13 @@ export const updateUserProfile = async (req, res) => {
       });
     }
     
-    // Find user first
     let user = await User.findById(userId);
     
     if (!user) {
-      // If user doesn't exist, create one
       console.log("Creating new user");
       user = new User({
         _id: userId,
-        name: profileData.firstName || profileData.name || 'Unknown',
+        name: profileData.fullName || profileData.name || 'Unknown',
         email: profileData.emailId || profileData.email || '',
         ...profileData
       });
@@ -190,13 +187,12 @@ export const updateUserProfile = async (req, res) => {
       await user.save();
       console.log("New user created");
     } else {
-      // Update existing user - explicitly update all fields
       console.log("Updating existing user");
       
-      // Personal Details
-      if (profileData.firstName !== undefined) user.firstName = profileData.firstName;
-      if (profileData.middleName !== undefined) user.middleName = profileData.middleName;
-      if (profileData.surname !== undefined) user.surname = profileData.surname;
+      // UPDATED: Personal Details - New Fields
+      if (profileData.fullName !== undefined) user.fullName = profileData.fullName;
+      if (profileData.gender !== undefined) user.gender = profileData.gender;
+      if (profileData.dob !== undefined) user.dob = profileData.dob;
       if (profileData.mobileNo !== undefined) user.mobileNo = profileData.mobileNo;
       if (profileData.emailId !== undefined) user.emailId = profileData.emailId;
       if (profileData.linkedinId !== undefined) user.linkedinId = profileData.linkedinId;
@@ -207,7 +203,7 @@ export const updateUserProfile = async (req, res) => {
       if (profileData.languages !== undefined) user.languages = profileData.languages;
       if (profileData.maritalStatus !== undefined) user.maritalStatus = profileData.maritalStatus;
       
-      // Professional Details
+      // Professional Details (no changes)
       if (profileData.currentDesignation !== undefined) user.currentDesignation = profileData.currentDesignation;
       if (profileData.currentDepartment !== undefined) user.currentDepartment = profileData.currentDepartment;
       if (profileData.currentCTC !== undefined) user.currentCTC = profileData.currentCTC;
@@ -221,17 +217,18 @@ export const updateUserProfile = async (req, res) => {
       if (profileData.otherSector !== undefined) user.otherSector = profileData.otherSector;
       if (profileData.otherCategory !== undefined) user.otherCategory = profileData.otherCategory;
       
-      // Update name if firstName or surname changed
-      if (profileData.firstName || profileData.surname) {
-        user.name = `${profileData.firstName || user.firstName || ''} ${profileData.surname || user.surname || ''}`.trim() || user.name;
+      // Update name if fullName changed
+      if (profileData.fullName) {
+        user.name = profileData.fullName;
       }
+      
+      // BACKWARD COMPATIBILITY: Handle old firstName/middleName/surname fields
+      if (profileData.firstName !== undefined) user.firstName = profileData.firstName;
+      if (profileData.middleName !== undefined) user.middleName = profileData.middleName;
+      if (profileData.surname !== undefined) user.surname = profileData.surname;
       
       await user.save();
       console.log("User updated successfully");
-      console.log("Updated user data:", {
-        instagramId: user.instagramId,
-        facebookId: user.facebookId
-      });
     }
     
     res.json({
@@ -248,7 +245,7 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// Simplified and more reliable parsing function
+// UPDATED: Resume parsing with new fields
 const parseResumeInfo = (text) => {
   const originalText = text.replace(/\s+/g, ' ').trim();
   console.log("=== PDF TEXT ANALYSIS ===");
@@ -256,7 +253,6 @@ const parseResumeInfo = (text) => {
   console.log("COMPLETE EXTRACTED TEXT:", originalText);
   console.log("========================");
   
-  // Split into lines and clean them
   const lines = originalText.split(/[\n\r]+/)
     .map(line => line.trim())
     .filter(line => line.length > 0);
@@ -267,11 +263,11 @@ const parseResumeInfo = (text) => {
     console.log(`Line ${i + 1}: "${line}"`);
   });
   
-  // Initialize result object
+  // UPDATED: Initialize result with new fields
   const result = {
-    firstName: '',
-    middleName: '',
-    surname: '',
+    fullName: '',
+    gender: '',
+    dob: '',
     emailId: '',
     mobileNo: '',
     currentDesignation: '',
@@ -283,7 +279,7 @@ const parseResumeInfo = (text) => {
     languages: ''
   };
   
-  // Extract email - simple and reliable
+  // Extract email
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const emailMatches = originalText.match(emailRegex);
   if (emailMatches && emailMatches.length > 0) {
@@ -291,7 +287,7 @@ const parseResumeInfo = (text) => {
     console.log("Email found:", result.emailId);
   }
   
-  // Extract phone - focus on 10-digit numbers
+  // Extract phone
   const phoneRegex = /(?:\+91[\s-]?)?[6-9]\d{9}/g;
   const phoneMatches = originalText.match(phoneRegex);
   if (phoneMatches && phoneMatches.length > 0) {
@@ -299,7 +295,7 @@ const parseResumeInfo = (text) => {
     console.log("Phone found:", result.mobileNo);
   }
   
-  // Extract name from first few lines - VERY conservative approach
+  // UPDATED: Extract full name instead of firstName/middleName/surname
   let nameFound = false;
   for (let i = 0; i < Math.min(3, lines.length) && !nameFound; i++) {
     const line = lines[i].trim();
@@ -309,7 +305,7 @@ const parseResumeInfo = (text) => {
     // Skip lines that clearly aren't names
     if (line.includes('@') || 
         /\d/.test(line) || 
-        line.length > 30 ||
+        line.length > 50 ||
         line.length < 4 ||
         /resume|cv|profile|contact|address|phone|email|mobile|objective|summary|experience|education|skills|projects|work|employment/i.test(line)) {
       console.log(`Skipping line ${i + 1}: contains excluded content`);
@@ -319,92 +315,54 @@ const parseResumeInfo = (text) => {
     const words = line.split(/\s+/).filter(word => word.length > 0);
     console.log(`Line ${i + 1} words:`, words);
     
-    // Very strict name detection: exactly 2 or 3 words, each properly capitalized
-    if (words.length === 2 || words.length === 3) {
+    // Extract full name (2-4 words, properly capitalized)
+    if (words.length >= 2 && words.length <= 4) {
       const isValidName = words.every(word => {
         const isProperlyCapitalized = /^[A-Z][a-z]+$/.test(word);
         const isReasonableLength = word.length >= 2 && word.length <= 15;
         const isOnlyLetters = /^[A-Za-z]+$/.test(word);
         const isNotCommonWord = !['The', 'And', 'For', 'With', 'From', 'To', 'In', 'On', 'At', 'By'].includes(word);
         
-        console.log(`Word "${word}": capitalized=${isProperlyCapitalized}, length=${isReasonableLength}, letters=${isOnlyLetters}, notCommon=${isNotCommonWord}`);
-        
         return isProperlyCapitalized && isReasonableLength && isOnlyLetters && isNotCommonWord;
       });
       
       if (isValidName) {
-        result.firstName = words[0];
-        if (words.length === 3) {
-          result.middleName = words[1];
-          result.surname = words[2];
-        } else {
-          result.surname = words[1];
-        }
+        result.fullName = words.join(' ');
         nameFound = true;
-        console.log(`Name successfully extracted: ${result.firstName} ${result.middleName} ${result.surname}`);
+        console.log(`Full name successfully extracted: ${result.fullName}`);
         break;
-      } else {
-        console.log(`Line ${i + 1} failed name validation`);
       }
-    } else {
-      console.log(`Line ${i + 1} has wrong word count: ${words.length}`);
     }
   }
   
-  // Extract experience - look for "X years" patterns
+  // Try to extract gender if mentioned
+  const genderRegex = /\b(male|female|m\/f|gender[:\s]*(male|female))\b/i;
+  const genderMatch = originalText.match(genderRegex);
+  if (genderMatch) {
+    const genderText = genderMatch[0].toLowerCase();
+    if (genderText.includes('female')) {
+      result.gender = 'Female';
+    } else if (genderText.includes('male')) {
+      result.gender = 'Male';
+    }
+    console.log("Gender found:", result.gender);
+  }
+  
+  // Try to extract date of birth
+  const dobRegex = /(?:dob|date of birth|born)[:\s]*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i;
+  const dobMatch = originalText.match(dobRegex);
+  if (dobMatch) {
+    result.dob = dobMatch[1];
+    console.log("DOB found:", result.dob);
+  }
+  
+  // Extract experience
   const expRegex = /(\d+(?:\.\d+)?)\s*(?:\+)?\s*(?:years?|yrs?)/i;
   const expMatch = originalText.match(expRegex);
   if (expMatch) {
     result.totalExperience = `${expMatch[1]} years`;
     console.log("Experience found:", result.totalExperience);
   }
-  
-  // Temporarily disable problematic extractions that are picking up garbage
-  // TODO: Re-enable these after fixing the parsing logic
-  
-  /*
-  // Extract designation - look for common job titles
-  const jobTitles = [
-    'software engineer', 'software developer', 'full stack developer', 'frontend developer', 
-    'backend developer', 'web developer', 'mobile developer', 'senior software engineer',
-    'project manager', 'product manager', 'business analyst', 'data analyst', 
-    'ui designer', 'ux designer', 'graphic designer', 'system administrator',
-    'network engineer', 'database administrator', 'qa engineer', 'devops engineer',
-    'consultant', 'specialist', 'coordinator', 'executive', 'manager', 'director'
-  ];
-  
-  const textLower = originalText.toLowerCase();
-  for (const title of jobTitles) {
-    if (textLower.includes(title)) {
-      result.currentDesignation = title.split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
-      console.log("Designation found:", result.currentDesignation);
-      break;
-    }
-  }
-  */
-  
-  /*
-  // Simple city extraction - look for common Indian cities
-  const indianCities = [
-    'mumbai', 'delhi', 'bangalore', 'bengaluru', 'hyderabad', 'ahmedabad', 'chennai', 
-    'kolkata', 'pune', 'jaipur', 'lucknow', 'kanpur', 'nagpur', 'indore', 'thane', 
-    'bhopal', 'visakhapatnam', 'pimpri', 'patna', 'vadodara', 'ghaziabad', 'ludhiana',
-    'agra', 'nashik', 'faridabad', 'meerut', 'rajkot', 'kalyan', 'vasai', 'varanasi',
-    'srinagar', 'aurangabad', 'dhanbad', 'amritsar', 'navi mumbai', 'allahabad',
-    'ranchi', 'howrah', 'coimbatore', 'jabalpur', 'gwalior', 'vijayawada', 'jodhpur'
-  ];
-  
-  const textLowerForCity = originalText.toLowerCase();
-  for (const city of indianCities) {
-    if (textLowerForCity.includes(city)) {
-      result.city = city.charAt(0).toUpperCase() + city.slice(1);
-      console.log("City found:", result.city);
-      break;
-    }
-  }
-  */
   
   console.log("=== FINAL EXTRACTION RESULT ===");
   console.log("Result:", result);
@@ -418,7 +376,7 @@ const parseResumeInfo = (text) => {
   return result;
 };
 
-// Enhanced extract resume data function
+// Enhanced extract resume data function - UPDATED
 export const extractResumeData = async (req, res) => {
   let tempFilePath = null;
   
@@ -446,7 +404,6 @@ export const extractResumeData = async (req, res) => {
 
     console.log("Downloading PDF from:", resumeUrl);
 
- 
     const response = await fetch(resumeUrl);
     
     console.log("Download response status:", response.status);
@@ -459,7 +416,6 @@ export const extractResumeData = async (req, res) => {
       });
     }
 
-    // Fixed buffer handling for node-fetch v3+ compatibility
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     console.log("PDF buffer size:", buffer.length, "bytes");
@@ -468,18 +424,15 @@ export const extractResumeData = async (req, res) => {
       throw new Error('Downloaded PDF is empty');
     }
 
-    // Create temp directory if it doesn't exist
     const tempDir = path.join(__dirname, '../temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    // Save PDF to temporary file
     tempFilePath = path.join(tempDir, `resume_${userId}_${Date.now()}.pdf`);
     fs.writeFileSync(tempFilePath, buffer);
     console.log("Saved PDF to:", tempFilePath);
 
-    // Parse PDF using pdf2json
     const pdfParser = new PDFParser();
     
     const parsePDFPromise = new Promise((resolve, reject) => {
@@ -497,7 +450,6 @@ export const extractResumeData = async (req, res) => {
           console.log("PDF parsed successfully");
           console.log("Number of pages:", pdfData.Pages?.length || 0);
           
-          // Extract text from all pages
           let fullText = '';
           if (pdfData.Pages && pdfData.Pages.length > 0) {
             pdfData.Pages.forEach((page, pageIndex) => {
@@ -529,7 +481,6 @@ export const extractResumeData = async (req, res) => {
         }
       });
 
-      // Set timeout for PDF parsing (30 seconds)
       timeoutId = setTimeout(() => {
         console.error("PDF parsing timeout");
         reject(new Error('PDF parsing timeout'));
@@ -549,14 +500,12 @@ export const extractResumeData = async (req, res) => {
 
     const extractedData = parseResumeInfo(extractedText);
     
-    // Count non-empty fields
     const filledFields = Object.entries(extractedData).filter(([key, value]) => 
       value && value.toString().trim() !== ''
     ).length;
     
     console.log("Extraction complete. Filled fields:", filledFields);
 
-    // Clean up temp file
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
       console.log("Cleaned up temp file");
@@ -571,7 +520,6 @@ export const extractResumeData = async (req, res) => {
   } catch (error) {
     console.error("PDF extraction error:", error);
     
-    // Clean up temp file on error
     if (tempFilePath && fs.existsSync(tempFilePath)) {
       try {
         fs.unlinkSync(tempFilePath);
@@ -581,11 +529,11 @@ export const extractResumeData = async (req, res) => {
       }
     }
     
-    // Return empty fields for manual entry if parsing fails
+    // UPDATED: Return empty fields with new structure
     const extractedData = {
-      firstName: '',
-      middleName: '',
-      surname: '',
+      fullName: '',
+      gender: '',
+      dob: '',
       emailId: '',
       mobileNo: '',
       currentDesignation: '',
@@ -604,9 +552,8 @@ export const extractResumeData = async (req, res) => {
     });
   }
 };
-// Add this function to the end of your userController.js file
 
-// Sync Clerk user with backend - works with your existing User model
+// Clerk sync - UPDATED with new fields
 export const clerkSync = async (req, res) => {
   try {
     const { clerkUserId, email, name, firstName, lastName, profileImageUrl } = req.body;
@@ -617,19 +564,14 @@ export const clerkSync = async (req, res) => {
       return res.json({ success: false, message: "Missing required fields: clerkUserId and email" });
     }
 
-    // First try to find user by Clerk ID
     let user = await User.findById(clerkUserId);
     
     if (!user) {
-      // If not found by Clerk ID, try to find by email
       user = await User.findOne({ email: email });
       
       if (user) {
-        // User exists with this email but different _id
-        // This handles the duplicate key error by removing the old user
         console.log("Found existing user by email, migrating to Clerk ID:", user.email);
         
-        // Save the existing user data
         const existingData = {
           resume: user.resume,
           mobileNo: user.mobileNo,
@@ -637,38 +579,37 @@ export const clerkSync = async (req, res) => {
           totalExperience: user.totalExperience,
           city: user.city,
           state: user.state,
-          firstName: user.firstName,
-          surname: user.surname
+          // UPDATED: Handle both old and new field structures
+          fullName: user.fullName || `${user.firstName || ''} ${user.surname || ''}`.trim(),
+          gender: user.gender,
+          dob: user.dob
         };
         
-        // Remove the old user
         await User.findByIdAndDelete(user._id);
         
-        // Create new user with Clerk ID as _id, preserving existing data
+        // UPDATED: Create with fullName
         user = new User({
           _id: clerkUserId,
           name: name || user.name || 'User',
           email: email,
           emailId: email,
-          firstName: firstName || existingData.firstName || '',
-          surname: lastName || existingData.surname || '',
+          fullName: name || existingData.fullName || '',
           image: profileImageUrl || user.image || '/default-avatar.png',
-          ...existingData // Spread existing data
+          ...existingData
         });
         
         await user.save();
         console.log("Successfully migrated user to Clerk ID");
       } else {
-        // No existing user found, create new one
         console.log("Creating new user");
         
+        // UPDATED: Create with fullName
         user = new User({
           _id: clerkUserId,
           name: name || `${firstName || ''} ${lastName || ''}`.trim() || 'User',
           email: email,
           emailId: email,
-          firstName: firstName || '',
-          surname: lastName || '',
+          fullName: name || `${firstName || ''} ${lastName || ''}`.trim() || '',
           image: profileImageUrl || '/default-avatar.png',
           resume: ''
         });
@@ -677,12 +618,10 @@ export const clerkSync = async (req, res) => {
         console.log("New user created successfully:", user._id);
       }
     } else {
-      // User found by Clerk ID, just update the data
       console.log("User found by Clerk ID, updating data:", user._id);
       
       user.name = name || user.name || 'User';
-      user.firstName = firstName || user.firstName || '';
-      user.surname = lastName || user.surname || '';
+      user.fullName = name || user.fullName || '';
       user.email = email;
       user.emailId = email;
       user.image = profileImageUrl || user.image || '/default-avatar.png';
@@ -691,7 +630,6 @@ export const clerkSync = async (req, res) => {
       console.log("User updated successfully");
     }
 
-    // Generate a simple token (you can use JWT if needed)
     const token = `user_${user._id}_${Date.now()}`;
 
     res.json({
@@ -700,8 +638,9 @@ export const clerkSync = async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        firstName: user.firstName,
-        surname: user.surname,
+        fullName: user.fullName,
+        gender: user.gender,
+        dob: user.dob,
         email: user.email,
         emailId: user.emailId,
         image: user.image,
@@ -717,7 +656,6 @@ export const clerkSync = async (req, res) => {
   } catch (error) {
     console.error('Clerk sync error:', error);
     
-    // Handle duplicate key error specifically
     if (error.code === 11000) {
       return res.json({ 
         success: false, 
@@ -732,7 +670,7 @@ export const clerkSync = async (req, res) => {
   }
 };
 
-// Add this function to your userController.js to fix existing users
+// Fix user data - UPDATED
 export const fixUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -740,10 +678,7 @@ export const fixUserData = async (req, res) => {
     
     console.log("=== FIXING USER DATA ===");
     console.log("User ID:", userId);
-    console.log("Full auth object:", JSON.stringify(req.auth, null, 2));
-    console.log("Session claims:", JSON.stringify(claims, null, 2));
     
-    // Find the existing user
     let user = await User.findById(userId);
     
     if (!user) {
@@ -753,54 +688,23 @@ export const fixUserData = async (req, res) => {
       });
     }
     
-    console.log("Current user data:", {
-      name: user.name,
-      email: user.email,
-      emailId: user.emailId
-    });
-    
-    // Check if user has default values that need updating
     const needsUpdate = user.name === "User" || user.email === "user@example.com";
     
     if (needsUpdate) {
-      // Extract proper data from Clerk
-      const email = claims.email || 
-                   claims.email_addresses?.[0]?.email_address ||
-                   claims.primaryEmailAddress ||
-                   req.auth.email ||
-                   user.emailId || // Keep existing emailId if no better option
-                   user.email;
+      const email = claims.email || user.emailId || user.email;
+      const firstName = claims.first_name || claims.firstName || "";
+      const lastName = claims.last_name || claims.lastName || "";
+      const fullName = claims.name || `${firstName} ${lastName}`.trim();
       
-      const firstName = claims.first_name || claims.firstName || claims.given_name || "";
-      const lastName = claims.last_name || claims.lastName || claims.family_name || "";
-      const fullName = claims.name || claims.full_name || claims.fullName || "";
-      
-      // Construct proper name
-      let name = fullName;
-      if (!name && (firstName || lastName)) {
-        name = `${firstName} ${lastName}`.trim();
-      }
-      if (!name && email && email !== "user@example.com") {
-        name = email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
-      }
-      
-      const image = claims.image_url || 
-                    claims.imageUrl || 
-                    claims.profile_image_url || 
-                    claims.picture ||
-                    req.auth.imageUrl ||
-                    user.image;
-      
-      // Update the user
       const updateData = {};
-      if (name && name !== "User") updateData.name = name;
+      if (fullName && fullName !== "User") {
+        updateData.name = fullName;
+        updateData.fullName = fullName;
+      }
       if (email && email !== "user@example.com") {
         updateData.email = email;
         updateData.emailId = email;
       }
-      if (firstName) updateData.firstName = firstName;
-      if (lastName) updateData.surname = lastName;
-      if (image && image !== "/default-avatar.png") updateData.image = image;
       
       console.log("Updating user with:", updateData);
       
@@ -809,12 +713,6 @@ export const fixUserData = async (req, res) => {
         updateData,
         { new: true, runValidators: true }
       );
-      
-      console.log("Updated user:", {
-        name: user.name,
-        email: user.email,
-        emailId: user.emailId
-      });
       
       res.json({
         success: true,
@@ -838,57 +736,47 @@ export const fixUserData = async (req, res) => {
   }
 };
 
-// Updated getOrCreateUser helper with better Clerk data extraction
+// UPDATED getOrCreateUser helper
 const getOrCreateUser = async (clerkUserId, claims) => {
   let user = await User.findById(clerkUserId);
   
   if (!user) {
     console.log("Creating new user for Clerk ID:", clerkUserId);
-    console.log("Available claims:", JSON.stringify(claims, null, 2));
 
-    // Better email extraction from Clerk
     const email = claims?.email || 
                  claims?.email_addresses?.[0]?.email_address || 
-                 claims?.primaryEmailAddress ||
-                 claims?.email_address ||
-                 claims?.emailAddresses?.[0]?.emailAddress ||
-                 "temp@example.com"; // Temporary fallback
+                 "temp@example.com";
     
-    // Better name extraction - prioritize username from Clerk login
-    const username = claims?.username || claims?.preferred_username || "";
-    const fullName = claims?.name || claims?.full_name || claims?.fullName || "";
-    const firstName = claims?.first_name || claims?.firstName || claims?.given_name || "";
-    const lastName = claims?.last_name || claims?.lastName || claims?.family_name || "";
+    const username = claims?.username || "";
+    const fullName = claims?.name || claims?.full_name || "";
+    const firstName = claims?.first_name || "";
+    const lastName = claims?.last_name || "";
     
     let name = "";
     if (username) {
-      name = username; // This should capture the username entered during Clerk registration
+      name = username;
     } else if (fullName) {
       name = fullName;
     } else if (firstName || lastName) {
       name = `${firstName} ${lastName}`.trim();
     } else if (email && email !== "temp@example.com") {
-      // Extract name from email as last resort
       name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     } else {
-      name = "User"; // Final fallback
+      name = "User";
     }
     
     const image = claims?.image_url || 
                   claims?.imageUrl || 
-                  claims?.profile_image_url || 
-                  claims?.picture ||
-                  claims?.profileImageUrl ||
                   "/default-avatar.png";
 
     try {
+      // UPDATED: Create with fullName
       user = new User({
         _id: clerkUserId,
         name: name,
         email: email,
         emailId: email,
-        firstName: firstName,
-        surname: lastName,
+        fullName: name,
         image: image,
         resume: "",
       });
@@ -903,84 +791,36 @@ const getOrCreateUser = async (clerkUserId, claims) => {
   return user;
 };
 
-// Updated getUserData function with enhanced Clerk data extraction
+// UPDATED getUserData
 export const getUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
     
     console.log("=== getUserData Debug ===");
     console.log("User ID:", userId);
-    console.log("Full req.auth:", JSON.stringify(req.auth, null, 2));
-    
-    // Try to fetch fresh user data from Clerk if needed
-    let clerkUser = null;
-    try {
-      const { clerkClient } = await import('@clerk/clerk-sdk-node');
-      clerkUser = await clerkClient.users.getUser(userId);
-      console.log("Fresh Clerk user data:", JSON.stringify(clerkUser, null, 2));
-    } catch (clerkError) {
-      console.log("Couldn't fetch fresh Clerk data:", clerkError.message);
-    }
     
     let user = await User.findById(userId);
     
     if (!user) {
-      console.log("User not found, creating new user for Clerk ID:", userId);
-      
       const claims = req.auth.sessionClaims || {};
-      console.log("Session claims:", JSON.stringify(claims, null, 2));
       
-      // Use fresh Clerk data if available, otherwise use session claims
-      const userData = clerkUser || claims;
+      const email = claims.email || "temp@example.com";
+      const username = claims.username || "";
+      const fullName = claims.name || claims.full_name || "";
+      const firstName = claims.first_name || "";
+      const lastName = claims.last_name || "";
       
-      // Extract email with better fallback handling
-      const email = userData.emailAddresses?.[0]?.emailAddress ||
-                   userData.primaryEmailAddress?.emailAddress ||
-                   claims.email || 
-                   claims.email_addresses?.[0]?.email_address ||
-                   claims.primaryEmailAddress ||
-                   claims.email_address ||
-                   "temp@example.com";
+      let name = username || fullName || `${firstName} ${lastName}`.trim() || "User";
       
-      // Extract username (this should be what user entered during registration)
-      const username = userData.username || claims.username || claims.preferred_username || "";
-      const firstName = userData.firstName || claims.first_name || claims.firstName || claims.given_name || "";
-      const lastName = userData.lastName || claims.last_name || claims.lastName || claims.family_name || "";
-      const fullName = (firstName && lastName) ? `${firstName} ${lastName}` : 
-                      (userData.fullName || claims.name || claims.full_name || claims.fullName || "");
+      const image = claims.image_url || claims.imageUrl || "/default-avatar.png";
       
-      let name = "";
-      if (username) {
-        name = username;
-        console.log("Using username:", username);
-      } else if (fullName && fullName.trim() !== "") {
-        name = fullName.trim();
-        console.log("Using full name:", fullName);
-      } else if (firstName || lastName) {
-        name = `${firstName || ''} ${lastName || ''}`.trim();
-        console.log("Using first+last name:", name);
-      } else if (email && email !== "temp@example.com") {
-        name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        console.log("Derived name from email:", name);
-      } else {
-        name = "User";
-        console.log("Using fallback name: User");
-      }
-      
-      const image = userData.imageUrl || 
-                    claims.image_url || 
-                    claims.imageUrl || 
-                    claims.profile_image_url || 
-                    claims.picture ||
-                    "/default-avatar.png";
-      
+      // UPDATED: Create with fullName
       user = new User({
         _id: userId,
         name: name,
         email: email,
         emailId: email,
-        firstName: firstName,
-        surname: lastName,
+        fullName: name,
         image: image,
         resume: ""
       });
@@ -988,56 +828,6 @@ export const getUserData = async (req, res) => {
       await user.save();
       console.log("New user created with name:", name, "email:", email);
     } 
-    // Check if existing user needs updating
-    else if (user.name === "User" || user.email === "user@example.com" || user.email === "temp@example.com") {
-      console.log("Updating existing user with default values");
-      
-      const claims = req.auth.sessionClaims || {};
-      const userData = clerkUser || claims;
-      
-      const email = userData.emailAddresses?.[0]?.emailAddress ||
-                   userData.primaryEmailAddress?.emailAddress ||
-                   claims.email || 
-                   claims.email_addresses?.[0]?.email_address ||
-                   user.emailId ||
-                   user.email;
-      
-      const username = userData.username || claims.username || claims.preferred_username || "";
-      const firstName = userData.firstName || claims.first_name || claims.firstName || claims.given_name || "";
-      const lastName = userData.lastName || claims.last_name || claims.lastName || claims.family_name || "";
-      const fullName = (firstName && lastName) ? `${firstName} ${lastName}` : 
-                      (userData.fullName || claims.name || claims.full_name || "");
-      
-      let name = "";
-      if (username) {
-        name = username;
-      } else if (fullName && fullName.trim() !== "") {
-        name = fullName.trim();
-      } else if (firstName || lastName) {
-        name = `${firstName || ''} ${lastName || ''}`.trim();
-      } else if (email && !email.includes("example.com")) {
-        name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      }
-      
-      const updateData = {};
-      if (name && name !== "User" && name !== user.name) updateData.name = name;
-      if (email && !email.includes("example.com")) {
-        updateData.email = email;
-        updateData.emailId = email;
-      }
-      if (firstName) updateData.firstName = firstName;
-      if (lastName) updateData.surname = lastName;
-      
-      if (Object.keys(updateData).length > 0) {
-        console.log("Updating user with:", updateData);
-        user = await User.findByIdAndUpdate(
-          userId,
-          updateData,
-          { new: true, runValidators: true }
-        );
-        console.log("Updated user with name:", user.name);
-      }
-    }
     
     res.json({
       success: true,
@@ -1052,7 +842,7 @@ export const getUserData = async (req, res) => {
   }
 };
 
-// Add a debug endpoint to check what Clerk is sending
+// Debug endpoint
 export const debugClerkData = async (req, res) => {
   try {
     const userId = req.auth.userId;
@@ -1060,8 +850,6 @@ export const debugClerkData = async (req, res) => {
     
     console.log("=== CLERK DEBUG DATA ===");
     console.log("User ID:", userId);
-    console.log("Full req.auth object:", JSON.stringify(req.auth, null, 2));
-    console.log("Session claims:", JSON.stringify(claims, null, 2));
     
     res.json({
       success: true,
@@ -1070,10 +858,8 @@ export const debugClerkData = async (req, res) => {
         fullAuth: req.auth,
         sessionClaims: claims,
         extractedData: {
-          email: claims.email || claims.email_addresses?.[0]?.email_address || "not found",
-          username: claims.username || claims.preferred_username || "not found",
-          firstName: claims.first_name || claims.firstName || "not found",
-          lastName: claims.last_name || claims.lastName || "not found",
+          email: claims.email || "not found",
+          username: claims.username || "not found",
           fullName: claims.name || claims.full_name || "not found"
         }
       }
@@ -1087,17 +873,14 @@ export const debugClerkData = async (req, res) => {
   }
 };
 
-// Add this to your userController.js
+// Force refresh user data
 export const forceRefreshUserData = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const claims = req.auth.sessionClaims || {};
     
     console.log("=== FORCE REFRESH USER DATA ===");
-    console.log("User ID:", userId);
-    console.log("Session claims:", JSON.stringify(claims, null, 2));
     
-    // Find existing user
     let user = await User.findById(userId);
     if (!user) {
       return res.json({
@@ -1106,35 +889,17 @@ export const forceRefreshUserData = async (req, res) => {
       });
     }
     
-    // Force update with fresh Clerk data
-    const email = claims.email || 
-                 claims.email_addresses?.[0]?.email_address ||
-                 claims.primaryEmailAddress ||
-                 claims.email_address ||
-                 user.email;
+    const email = claims.email || user.email;
+    const username = claims.username || "";
+    const fullName = claims.name || claims.full_name || "";
     
-    const username = claims.username || claims.preferred_username || "";
-    const fullName = claims.name || claims.full_name || claims.fullName || "";
-    const firstName = claims.first_name || claims.firstName || claims.given_name || "";
-    const lastName = claims.last_name || claims.lastName || claims.family_name || "";
-    
-    let name = "";
-    if (username) {
-      name = username;
-    } else if (fullName) {
-      name = fullName;
-    } else if (firstName || lastName) {
-      name = `${firstName} ${lastName}`.trim();
-    } else if (email && !email.includes("example.com")) {
-      name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
+    let name = username || fullName || user.name;
     
     const updateData = {
       name: name || user.name,
       email: email || user.email,
       emailId: email || user.emailId,
-      firstName: firstName || user.firstName,
-      surname: lastName || user.surname
+      fullName: name || user.fullName
     };
     
     console.log("Force updating user with:", updateData);

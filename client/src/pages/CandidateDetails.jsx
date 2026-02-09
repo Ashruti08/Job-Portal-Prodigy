@@ -6,6 +6,10 @@ import {
   Building, DollarSign, Clock, Target, Heart, Zap, Shield, Users,
   Code, TrendingUp, Mail, Phone, Download
 } from "lucide-react";
+import { 
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
+  AlignmentType, BorderStyle, WidthType, ShadingType, HeadingLevel, VerticalAlign 
+} from "docx";
 
 // Initial form state
 const initialFormData = {
@@ -88,113 +92,214 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
     checkUserRole();
   }, [companyToken]);
 
-  // Excel conversion function
-  const convertToExcel = (data) => {
-    if (typeof window.XLSX === 'undefined') {
-      console.error('XLSX library not loaded');
-      return null;
+  // ✅ Word document generation function using docx library (ES6 import)
+  const generateWordDocument = async (data) => {
+    try {
+      // Border styling
+      const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+      const borders = { top: border, bottom: border, left: border, right: border };
+
+      // Helper function to create a section header cell
+      const createSectionHeaderCell = (text) => {
+        return new TableCell({
+          borders,
+          width: { size: 9360, type: WidthType.DXA },
+          shading: { fill: "FF0000", type: ShadingType.CLEAR },
+          margins: { top: 150, bottom: 150, left: 150, right: 150 },
+          verticalAlign: VerticalAlign.CENTER,
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: text,
+                  bold: true,
+                  size: 28,
+                  color: "FFFFFF",
+                })
+              ],
+              alignment: AlignmentType.LEFT,
+              spacing: { before: 200, after: 200 }
+            })
+          ],
+          columnSpan: 2
+        });
+      };
+
+      // Helper function to create a field row
+      const createFieldRow = (label, value, width1 = 3500, width2 = 5860) => {
+        return new TableRow({
+          children: [
+            new TableCell({
+              borders,
+              width: { size: width1, type: WidthType.DXA },
+              shading: { fill: "F2F2F2", type: ShadingType.CLEAR },
+              margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              verticalAlign: VerticalAlign.CENTER,
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: label,
+                      bold: true,
+                      size: 22,
+                    })
+                  ]
+                })
+              ]
+            }),
+            new TableCell({
+              borders,
+              width: { size: width2, type: WidthType.DXA },
+              shading: { fill: "FFFFFF", type: ShadingType.CLEAR },
+              margins: { top: 100, bottom: 100, left: 150, right: 150 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: value || '',
+                      size: 22,
+                    })
+                  ],
+                  spacing: { before: 80, after: 80 }
+                })
+              ]
+            })
+          ]
+        });
+      };
+
+      const doc = new Document({
+        styles: {
+          default: {
+            document: {
+              run: { font: "Arial", size: 24 }
+            }
+          },
+          paragraphStyles: [
+            {
+              id: "Heading1",
+              name: "Heading 1",
+              basedOn: "Normal",
+              next: "Normal",
+              quickFormat: true,
+              run: { size: 32, bold: true, font: "Arial", color: "000000" },
+              paragraph: { spacing: { before: 240, after: 240 }, outlineLevel: 0 }
+            }
+          ]
+        },
+        sections: [{
+          properties: {
+            page: {
+              size: {
+                width: 12240,
+                height: 15840
+              },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+            }
+          },
+          children: [
+            // Title
+            new Paragraph({
+              heading: HeadingLevel.HEADING_1,
+              children: [
+                new TextRun({
+                  text: "Candidate Interview Evaluation Form",
+                  bold: true,
+                  size: 36,
+                  color: "000000"
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { before: 0, after: 400 }
+            }),
+
+            // Main table
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              columnWidths: [3500, 5860],
+              rows: [
+                // Basic Information Section
+                new TableRow({
+                  children: [createSectionHeaderCell("Basic Information")]
+                }),
+                createFieldRow("Name of Candidate", data.candidateName),
+                createFieldRow("Mobile", data.candidatePhone),
+                createFieldRow("Email", data.candidateEmail),
+
+                // Consultancy Section
+                new TableRow({
+                  children: [createSectionHeaderCell("Consultancy")]
+                }),
+                createFieldRow("Consultancy", data.consultancy),
+                createFieldRow("Financial Status", data.financialStatus),
+                createFieldRow("Daily Commute", data.dailyCommute),
+                createFieldRow("Aspirations", data.aspirations),
+                createFieldRow("Money Attitude", data.moneyAttitude),
+                createFieldRow("Loyalty Behavior", data.loyaltyBehavior),
+                createFieldRow("Pressure Handling", data.pressureHandling),
+                createFieldRow("Work Style", data.workStyle),
+                createFieldRow("Role Clarity Need", data.roleClarityNeed),
+
+                // HR Section
+                new TableRow({
+                  children: [createSectionHeaderCell("HR")]
+                }),
+                createFieldRow("What concerns you most about this role?", data.fear1),
+                createFieldRow("Motivation 1 - What drives you professionally?", data.motivation1),
+                createFieldRow("Challenge 1 - Describe a significant challenge you overcame", data.challenge1),
+                createFieldRow("Power Language 1 - How do you communicate authority?", data.powerLanguage1),
+                createFieldRow("Company Priority 1 - What's most important in a company?", data.companyPriority1),
+
+                // Management Section
+                new TableRow({
+                  children: [createSectionHeaderCell("Management")]
+                }),
+                createFieldRow("Targets - What are your key performance goals?", data.targets),
+                createFieldRow("Software Skills", data.softwares),
+                createFieldRow("Source of Revenue - How will you contribute to revenue?", data.sourceOfRevenue),
+                createFieldRow("Product Knowledge", data.productKnowledge),
+                createFieldRow("References", data.references),
+              ]
+            }),
+
+            // Footer spacing
+            new Paragraph({
+              children: [new TextRun("")],
+              spacing: { before: 400 }
+            })
+          ]
+        }]
+      });
+
+      // Generate and download the document
+      const blob = await Packer.toBlob(doc);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${data.candidateName || 'candidate'}_evaluation_form.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('Word document downloaded successfully');
+    } catch (error) {
+      console.error('Error generating Word document:', error);
+      alert('Error generating Word document: ' + error.message);
     }
-
-    const workbook = window.XLSX.utils.book_new();
-
-    const summaryData = [
-      ['CANDIDATE ASSESSMENT REPORT', '', '', ''],
-      ['', '', '', ''],
-      ['Basic Information', '', '', ''],
-      ['Full Name:', data.candidateName || '', '', ''],
-      ['Email:', data.candidateEmail || '', '', ''],
-      ['Phone:', data.candidatePhone || '', '', ''],
-      ['Last Contacted:', formatDate(data.lastUpdated || data.submittedAt), '', ''],
-      ['Assessment Status:', data.assessmentStatus || '', '', ''],
-      ['', '', '', ''],
-      ['ASSESSMENT DETAILS', '', '', ''],
-      ['', '', '', ''],
-      ['Consultancy Assessment', '', '', ''],
-      ['Consultancy:', data.consultancy || '', '', ''],
-      ['Financial Status:', data.financialStatus || '', '', ''],
-      ['Daily Commute:', data.dailyCommute || '', '', ''],
-      ['Aspirations:', data.aspirations || '', '', ''],
-      ['Money Attitude:', data.moneyAttitude || '', '', ''],
-      ['Loyalty Behavior:', data.loyaltyBehavior || '', '', ''],
-      ['Work Style:', data.workStyle || '', '', ''],
-      ['Pressure Handling:', data.pressureHandling || '', '', ''],
-      ['Role Clarity Need:', data.roleClarityNeed || '', '', ''],
-      ['', '', '', ''],
-      ['HR Evaluation', '', '', ''],
-      ['Fear 1:', data.fear1 || '', '', ''],
-      ['Motivation 1:', data.motivation1 || '', '', ''],
-      ['Challenge 1:', data.challenge1 || '', '', ''],
-      ['Power Language 1:', data.powerLanguage1 || '', '', ''],
-      ['Company Priority 1:', data.companyPriority1 || '', '', ''],
-      ['', '', '', ''],
-      ['Manager Assessment', '', '', ''],
-      ['Targets:', data.targets || '', '', ''],
-      ['References:', data.references || '', '', ''],
-      ['Software Skills:', data.softwares || '', '', ''],
-      ['Product Knowledge:', data.productKnowledge || '', '', ''],
-      ['Source of Revenue:', data.sourceOfRevenue || '', '', '']
-    ];
-
-    const summarySheet = window.XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet['!cols'] = [{ width: 25 }, { width: 50 }, { width: 15 }, { width: 15 }];
-    window.XLSX.utils.book_append_sheet(workbook, summarySheet, 'Assessment Report');
-
-    const rawData = [
-      ['Field', 'Value'],
-      ['Candidate Name', data.candidateName || ''],
-      ['Email', data.candidateEmail || ''],
-      ['Phone', data.candidatePhone || ''],
-      ['Last Contacted', formatDate(data.lastUpdated || data.submittedAt)],
-      ['Consultancy', data.consultancy || ''],
-      ['Financial Status', data.financialStatus || ''],
-      ['Daily Commute', data.dailyCommute || ''],
-      ['Aspirations', data.aspirations || ''],
-      ['Money Attitude', data.moneyAttitude || ''],
-      ['Loyalty Behavior', data.loyaltyBehavior || ''],
-      ['Work Style', data.workStyle || ''],
-      ['Pressure Handling', data.pressureHandling || ''],
-      ['Role Clarity Need', data.roleClarityNeed || ''],
-      ['Fear 1', data.fear1 || ''],
-      ['Motivation 1', data.motivation1 || ''],
-      ['Challenge 1', data.challenge1 || ''],
-      ['Power Language 1', data.powerLanguage1 || ''],
-      ['Company Priority 1', data.companyPriority1 || ''],
-      ['Targets', data.targets || ''],
-      ['References', data.references || ''],
-      ['Software Skills', data.softwares || ''],
-      ['Product Knowledge', data.productKnowledge || ''],
-      ['Source of Revenue', data.sourceOfRevenue || ''],
-      ['Assessment Status', data.assessmentStatus || '']
-    ];
-
-    const rawSheet = window.XLSX.utils.aoa_to_sheet(rawData);
-    rawSheet['!cols'] = [{ width: 25 }, { width: 60 }];
-    window.XLSX.utils.book_append_sheet(workbook, rawSheet, 'Raw Data');
-
-    return workbook;
   };
 
-  const downloadExcel = () => {
-    if (!assessmentData) {
+  // ✅ Download handler for Word document
+  const downloadDocument = () => {
+    if (!assessmentData && !formData.candidateName) {
       alert('No assessment data available to download');
       return;
     }
-    if (typeof window.XLSX === 'undefined') {
-      alert('Excel export library not loaded. Please add the XLSX CDN script to your HTML.');
-      return;
-    }
-    try {
-      const workbook = convertToExcel(assessmentData);
-      if (!workbook) {
-        alert('Error creating Excel file');
-        return;
-      }
-      const filename = `${assessmentData.candidateName || 'candidate'}_assessment.xlsx`;
-      window.XLSX.writeFile(workbook, filename);
-    } catch (error) {
-      console.error('Error generating Excel file:', error);
-      alert('Error generating Excel file. Please try again.');
-    }
+
+    // Use assessmentData if available, otherwise use current formData
+    const dataToDownload = assessmentData || formData;
+    
+    generateWordDocument(dataToDownload);
   };
   
   const fetchExistingAssessment = async (candidateEmail) => {
@@ -583,11 +688,13 @@ const CandidateDetails = ({ isOpen, onClose, profile }) => {
             <div className="text-sm text-gray-500 text-center order-1 sm:order-2">Step {currentStep} of {steps.length}</div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-3">
-              {currentStep === steps.length && (assessmentData || isExistingAssessment) && (
-                <button onClick={downloadExcel}
+              {/* ✅ Download button */}
+              {currentStep === steps.length && (assessmentData || formData.candidateName) && (
+                <button 
+                  onClick={downloadDocument}
                   className="flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-3 sm:py-2 rounded-lg font-medium hover:bg-blue-600 transition-colors min-h-[44px]"
-                  title="Download assessment as Excel file">
-                  <Download size={16} /> <span className="sm:inline">Download Excel</span>
+                  title="Download evaluation form as Word document">
+                  <Download size={16} /> <span>Download</span>
                 </button>
               )}
               

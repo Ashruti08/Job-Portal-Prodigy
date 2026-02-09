@@ -165,7 +165,7 @@ const JobCard = ({ job }) => {
             }}
             className="w-full px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded shadow-sm hover:bg-gray-200 transition"
           >
-            Copy Link
+            Copy Link to Social Media
           </button>
         </div>
       </motion.div>

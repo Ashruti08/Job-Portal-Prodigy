@@ -30,6 +30,11 @@ const employerProfileSchema = new mongoose.Schema({
         trim: true,
         maxlength: [2000, 'Description cannot exceed 2000 characters']
     },
+    logo: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     stats: {
         activeJobs: { 
             type: Number, 
